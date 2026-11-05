@@ -305,6 +305,25 @@ fun WordPopApp(
 
 // ---------- home ----------
 
+/** Asks Android to stop limiting the app in the background. Returns true if a request dialog was opened. */
+fun requestBatteryExemption(ctx: android.content.Context): Boolean {
+    return try {
+        val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        if (pm.isIgnoringBatteryOptimizations(ctx.packageName)) {
+            false
+        } else {
+            ctx.startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(android.net.Uri.parse("package:" + ctx.packageName))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
+        }
+    } catch (e: Exception) {
+        false
+    }
+}
+
 @Composable
 fun HomeScreen(
     store: SettingsStore,
@@ -321,6 +340,8 @@ fun HomeScreen(
     var content by remember { mutableIntStateOf(store.content) }
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
+    var sound by remember { mutableStateOf(store.sound) }
+    var level by remember { mutableIntStateOf(store.level) }
     var wordsVersion by remember { mutableIntStateOf(0) }
     var importMsg by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
@@ -360,6 +381,7 @@ fun HomeScreen(
                 return
             }
             onRequestNotif()
+            requestBatteryExemption(ctx)
             store.enabled = true
             enabled = true
             sendToService(ctx, OverlayService.ACTION_START)
@@ -448,7 +470,7 @@ fun HomeScreen(
 
         Section("كل قد إيه تظهرلك كلمة؟") {
             ChipRow {
-                listOf(15, 30, 60, 120, 180, 360).forEach { m ->
+                listOf(5, 15, 30, 60, 120, 180, 360).forEach { m ->
                     Chip(intervalLabel(m), interval == m) {
                         interval = m
                         store.intervalMin = m
@@ -483,6 +505,18 @@ fun HomeScreen(
             }
         }
 
+        Section("المستوى") {
+            ChipRow {
+                listOf(0 to "الكل", 1 to "أساسي", 2 to "B1", 3 to "B2").forEach { (v, label) ->
+                    Chip(label, level == v) {
+                        level = v
+                        store.level = v
+                    }
+                }
+            }
+            Text("B1 وB2 كلمات أصعب للمستوى المتوسط وفوق المتوسط.", fontSize = 14.sp, color = Muted)
+        }
+
         Section("شكل الظهور") {
             Text("مدة ظهور الشريط", fontSize = 16.sp, color = Muted)
             ChipRow {
@@ -492,6 +526,22 @@ fun HomeScreen(
                         store.displaySec = s
                     }
                 }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "صوت تنبيه لما النافذة تظهر",
+                    fontSize = 17.sp,
+                    color = Night,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = sound,
+                    onCheckedChange = {
+                        sound = it
+                        store.sound = it
+                    },
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple)
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -508,6 +558,18 @@ fun HomeScreen(
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple)
                 )
+            }
+        }
+
+        Section("مكان النافذة") {
+            Text(
+                "اسحب النافذة بصباعك لأي مكان على الشاشة، وهتفتكر المكان.",
+                fontSize = 15.sp,
+                color = Muted
+            )
+            SecondaryButton("رجّع النافذة لمكانها الأصلي", Modifier.fillMaxWidth()) {
+                store.bannerX = 0
+                store.bannerY = -1
             }
         }
 
@@ -541,9 +603,11 @@ fun HomeScreen(
                 color = Muted
             )
             SecondaryButton("افتح إعدادات البطارية", Modifier.fillMaxWidth()) {
-                try {
-                    ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                } catch (e: Exception) {
+                if (!requestBatteryExemption(ctx)) {
+                    try {
+                        ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (e: Exception) {
+                    }
                 }
             }
         }

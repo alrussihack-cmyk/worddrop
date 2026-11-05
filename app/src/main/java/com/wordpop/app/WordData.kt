@@ -9,7 +9,9 @@ data class Word(
     val ar: String,
     val kind: String,
     val example: String,
-    val exampleAr: String
+    val exampleAr: String,
+    /** "A" = basic, "B1", "B2". */
+    val level: String = "A"
 ) {
     val isPhrase: Boolean get() = kind == "عبارة"
 }
@@ -21,7 +23,7 @@ private fun p(id: Int, en: String, ar: String, ex: String, exAr: String) =
     Word(id, en, "", ar, "عبارة", ex, exAr)
 
 object WordRepo {
-    private val builtIn: List<Word> = listOf(
+    private val basic: List<Word> = listOf(
         w(1, "resilient", "/rɪˈzɪliənt/", "مرن، بيستحمل الصعوبات ويرجع أقوى", "صفة", "She stayed resilient after losing her job.", "فضلت قوية بعد ما خسرت شغلها."),
         w(2, "achieve", "/əˈtʃiːv/", "يحقق، ينجز", "فعل", "He worked hard to achieve his goals.", "اشتغل بجد عشان يحقق أهدافه."),
         w(3, "improve", "/ɪmˈpruːv/", "يحسّن، يتحسّن", "فعل", "I want to improve my English.", "عايز أحسّن إنجليزيتي."),
@@ -110,6 +112,8 @@ object WordRepo {
         p(85, "That's a good point.", "نقطة كويسة.", "That's a good point. I didn't think of it.", "نقطة كويسة. مخدتش بالي منها.")
     )
 
+    private val builtIn: List<Word> = basic + advancedWords
+
     @Volatile
     private var custom: List<Word> = emptyList()
 
@@ -153,11 +157,17 @@ object WordRepo {
 
     /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */
     fun pick(s: SettingsStore): Word {
-        val base = when (s.content) {
-            1 -> all.filter { !it.isPhrase }
-            2 -> all.filter { it.isPhrase }
+        val byLevel = when (s.level) {
+            1 -> all.filter { it.level == "A" }
+            2 -> all.filter { it.level == "B1" }
+            3 -> all.filter { it.level == "B2" }
             else -> all
         }
+        val base = when (s.content) {
+            1 -> byLevel.filter { !it.isPhrase }
+            2 -> byLevel.filter { it.isPhrase }
+            else -> byLevel
+        }.ifEmpty { all }
         val learned = s.learned
         var pool = base.filter { it.id !in learned }
         if (pool.isEmpty()) pool = base

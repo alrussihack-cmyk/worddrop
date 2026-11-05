@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -73,9 +75,10 @@ class OverlayService : Service() {
             ACTION_SHOW_NOW -> showWord()
             ACTION_TICK -> {
                 if (settings.enabled) {
+                    // Schedule first so a failure while showing the banner never breaks the chain.
+                    Scheduler.scheduleNext(this)
                     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                     if (Scheduler.isActiveHour(settings, hour)) showWord()
-                    Scheduler.scheduleNext(this)
                 } else {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -149,9 +152,10 @@ class OverlayService : Service() {
         removeBanner()
 
         val view = buildBanner(w)
-        val margin = dp(12)
+        val screenW = resources.displayMetrics.widthPixels
+        val screenH = resources.displayMetrics.heightPixels
         val lp = WindowManager.LayoutParams(
-            resources.displayMetrics.widthPixels - 2 * margin,
+            minOf(screenW - 2 * dp(12), dp(340)),
             ViewGroup.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -160,7 +164,8 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        lp.y = statusBarHeight() + dp(8)
+        lp.x = s.bannerX
+        lp.y = if (s.bannerY >= 0) s.bannerY.coerceIn(0, screenH - dp(90)) else statusBarHeight() + dp(8)
 
         try {
             wm.addView(view, lp)
@@ -170,7 +175,21 @@ class OverlayService : Service() {
         banner = view
         bannerParams = lp
         handler.postDelayed(dismissRunnable, s.displaySec * 1000L)
-        if (s.autoSpeak) speak(w.en)
+        if (s.sound) playChime()
+        if (s.autoSpeak) handler.postDelayed({ speak(w.en) }, if (s.sound) 1000L else 0L)
+    }
+
+    private fun playChime() {
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val r = RingtoneManager.getRingtone(this, uri) ?: return
+            r.audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            r.play()
+        } catch (e: Exception) {
+        }
     }
 
     private fun buildBanner(w: Word): View {
@@ -233,33 +252,68 @@ class OverlayService : Service() {
             setOnClickListener { speak(w.en) }
         }
 
+        val close = ImageView(this).apply {
+            setImageResource(R.drawable.ic_close)
+            setColorFilter(0xFF4A4A72.toInt())
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            contentDescription = "إغلاق"
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(6) }
+            setOnClickListener { finishBanner() }
+        }
+
         root.addView(icon)
         root.addView(texts)
         root.addView(speaker)
+        root.addView(close)
 
-        // Tap = open the app on this word, swipe sideways = dismiss.
+        // Tap = open the app on this word, drag = move the banner anywhere (the spot is remembered).
         var downX = 0f
-        root.setOnTouchListener { _, e ->
-            when (e.actionMasked) {
+        var downY = 0f
+        var startX = 0
+        var startY = 0
+        var moved = false
+        root.setOnTouchListener { v, e ->
+            val lp = bannerParams
+            if (lp == null) {
+                false
+            } else when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX
+                    downY = e.rawY
+                    startX = lp.x
+                    startY = lp.y
+                    moved = false
+                    handler.removeCallbacks(dismissRunnable)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    moveBanner((e.rawX - downX).toInt())
+                    val dx = e.rawX - downX
+                    val dy = e.rawY - downY
+                    if (abs(dx) > dp(8) || abs(dy) > dp(8)) moved = true
+                    if (moved) {
+                        val sw = resources.displayMetrics.widthPixels
+                        val sh = resources.displayMetrics.heightPixels
+                        val maxX = ((sw - v.width) / 2).coerceAtLeast(0)
+                        moveBanner(
+                            (startX + dx).toInt().coerceIn(-maxX, maxX),
+                            (startY + dy).toInt().coerceIn(0, (sh - v.height).coerceAtLeast(0))
+                        )
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    val dx = e.rawX - downX
-                    when {
-                        abs(dx) > dp(100) -> finishBanner()
-                        abs(dx) < dp(8) -> openLearn(w)
-                        else -> moveBanner(0)
+                    if (moved) {
+                        val st = SettingsStore(this)
+                        st.bannerX = lp.x
+                        st.bannerY = lp.y
+                        handler.postDelayed(dismissRunnable, st.displaySec * 1000L)
+                    } else {
+                        openLearn(w)
                     }
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    moveBanner(0)
+                    handler.postDelayed(dismissRunnable, SettingsStore(this).displaySec * 1000L)
                     true
                 }
                 else -> false
@@ -268,10 +322,11 @@ class OverlayService : Service() {
         return root
     }
 
-    private fun moveBanner(x: Int) {
+    private fun moveBanner(x: Int, y: Int) {
         val v = banner ?: return
         val lp = bannerParams ?: return
         lp.x = x
+        lp.y = y
         try {
             wm.updateViewLayout(v, lp)
         } catch (e: Exception) {

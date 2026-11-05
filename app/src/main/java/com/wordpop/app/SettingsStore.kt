@@ -32,6 +32,25 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt("displaySec", 10)
         set(v) = prefs.edit().putInt("displaySec", v).apply()
 
+    /** 0 = all levels, 1 = basic, 2 = B1, 3 = B2. */
+    var level: Int
+        get() = prefs.getInt("level", 0)
+        set(v) = prefs.edit().putInt("level", v).apply()
+
+    /** Plays a short notification sound when the banner appears. */
+    var sound: Boolean
+        get() = prefs.getBoolean("sound", true)
+        set(v) = prefs.edit().putBoolean("sound", v).apply()
+
+    /** Banner position set by dragging. Y = -1 means the default spot under the status bar. */
+    var bannerX: Int
+        get() = prefs.getInt("bannerX", 0)
+        set(v) = prefs.edit().putInt("bannerX", v).apply()
+
+    var bannerY: Int
+        get() = prefs.getInt("bannerY", -1)
+        set(v) = prefs.edit().putInt("bannerY", v).apply()
+
     var autoSpeak: Boolean
         get() = prefs.getBoolean("autoSpeak", false)
         set(v) = prefs.edit().putBoolean("autoSpeak", v).apply()
@@ -50,6 +69,7 @@ class SettingsStore(context: Context) {
 }
 
 fun intervalLabel(min: Int): String = when (min) {
+    5 -> "كل 5 دقايق"
     15 -> "كل 15 دقيقة"
     30 -> "كل نص ساعة"
     60 -> "كل ساعة"
