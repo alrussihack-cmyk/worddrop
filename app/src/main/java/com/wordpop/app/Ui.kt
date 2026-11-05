@@ -33,6 +33,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -284,6 +292,10 @@ fun WordPopApp(
         }
     }
 
+    var page by remember { mutableStateOf(Page.Home) }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
     val id = learnId
     if (id != null) {
         BackHandler { learnId = null }
@@ -293,12 +305,91 @@ fun WordPopApp(
             onClose = { learnId = null }
         )
     } else {
-        HomeScreen(
-            store = store,
-            overlayGranted = overlayGranted,
-            onRequestOverlay = onRequestOverlay,
-            onRequestNotif = onRequestNotif,
-            onStartLearning = { learnId = WordRepo.pick(store).id }
+        BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
+        BackHandler(enabled = page != Page.Home && !drawerState.isOpen) { page = Page.Home }
+        val openMenu: () -> Unit = { scope.launch { drawerState.open() } }
+
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    Row(
+                        Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(44.dp))
+                        Text("ووردبوب", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    }
+                    Page.values().forEach { p ->
+                        NavigationDrawerItem(
+                            label = { Text("${p.emoji}  ${p.title}", fontSize = 17.sp) },
+                            selected = page == p,
+                            onClick = {
+                                page = p
+                                scope.launch { drawerState.close() }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                    }
+                }
+            }
+        ) {
+            if (page == Page.Favorites) {
+                FavoritesScreen(store = store, onMenu = openMenu, onOpenWord = { learnId = it })
+            } else {
+                HomeScreen(
+                    store = store,
+                    page = page,
+                    onMenu = openMenu,
+                    overlayGranted = overlayGranted,
+                    onRequestOverlay = onRequestOverlay,
+                    onRequestNotif = onRequestNotif,
+                    onStartLearning = { learnId = WordRepo.pick(store).id }
+                )
+            }
+        }
+    }
+}
+
+/** Pages reachable from the side menu. */
+enum class Page(val title: String, val emoji: String) {
+    Home("الرئيسية", "🏠"),
+    Favorites("المفضلة", "⭐"),
+    Schedule("المواعيد", "⏰"),
+    Content("المحتوى والمستوى", "📚"),
+    Look("الشكل والصوت", "🎨"),
+    MyWords("كلماتي", "📝"),
+    Help("لو الكلمات بتتأخر", "🔋")
+}
+
+@Composable
+fun MenuButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "القايمة", onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(painterResource(R.drawable.ic_menu), contentDescription = "القايمة", tint = Night)
+    }
+}
+
+@Composable
+fun StarButton(selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "المفضلة", onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painterResource(if (selected) R.drawable.ic_star else R.drawable.ic_star_outline),
+            contentDescription = if (selected) "شيل من المفضلة" else "ضيف للمفضلة",
+            tint = if (selected) Color(0xFFFFB400) else Muted,
+            modifier = Modifier.size(28.dp)
         )
     }
 }
@@ -327,6 +418,8 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 @Composable
 fun HomeScreen(
     store: SettingsStore,
+    page: Page,
+    onMenu: () -> Unit,
     overlayGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
@@ -403,14 +496,20 @@ fun HomeScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
-            Column {
-                Text("ووردبوب", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Night)
-                Text("كلمة كل شوية.. وإنجليزيتك بتكبر", fontSize = 15.sp, color = Muted)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MenuButton(onMenu)
+            if (page == Page.Home) {
+                Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
+                Column {
+                    Text("ووردبوب", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("كلمة كل شوية.. وإنجليزيتك بتكبر", fontSize = 15.sp, color = Muted)
+                }
+            } else {
+                Text(page.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Night)
             }
         }
 
+        if (page == Page.Home) {
         Surface(shape = RoundedCornerShape(24.dp), color = Night, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -467,7 +566,9 @@ fun HomeScreen(
                 trackColor = Line
             )
         }
+        }
 
+        if (page == Page.Schedule) {
         Section("كل قد إيه تظهرلك كلمة؟") {
             ChipRow {
                 listOf(5, 15, 30, 60, 120, 180, 360).forEach { m ->
@@ -479,7 +580,9 @@ fun HomeScreen(
                 }
             }
         }
+        }
 
+        if (page == Page.Schedule) {
         Section("ساعات الظهور") {
             HourStepper("من", startH) {
                 startH = it
@@ -493,7 +596,9 @@ fun HomeScreen(
             }
             Text("بره الساعات دي مش هتظهرلك كلمات.", fontSize = 14.sp, color = Muted)
         }
+        }
 
+        if (page == Page.Content) {
         Section("نوع الكلمات") {
             ChipRow {
                 listOf(0 to "كلمات وعبارات", 1 to "كلمات بس", 2 to "عبارات بس").forEach { (v, label) ->
@@ -504,7 +609,9 @@ fun HomeScreen(
                 }
             }
         }
+        }
 
+        if (page == Page.Content) {
         Section("المستوى") {
             ChipRow {
                 listOf(0 to "الكل", 1 to "أساسي", 2 to "B1", 3 to "B2").forEach { (v, label) ->
@@ -516,7 +623,9 @@ fun HomeScreen(
             }
             Text("B1 وB2 كلمات أصعب للمستوى المتوسط وفوق المتوسط.", fontSize = 14.sp, color = Muted)
         }
+        }
 
+        if (page == Page.Look) {
         Section("شكل الظهور") {
             Text("مدة ظهور الشريط", fontSize = 16.sp, color = Muted)
             ChipRow {
@@ -560,7 +669,9 @@ fun HomeScreen(
                 )
             }
         }
+        }
 
+        if (page == Page.Look) {
         Section("مكان النافذة") {
             Text(
                 "اسحب النافذة بصباعك لأي مكان على الشاشة، وهتفتكر المكان.",
@@ -572,7 +683,9 @@ fun HomeScreen(
                 store.bannerY = -1
             }
         }
+        }
 
+        if (page == Page.MyWords) {
         Section("كلماتك الخاصة") {
             Text(
                 "استورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية). مثال:",
@@ -595,7 +708,9 @@ fun HomeScreen(
                 }
             }
         }
+        }
 
+        if (page == Page.Help) {
         Section("لو الكلمات بتتأخر") {
             Text(
                 "بعض الموبايلات بتوقف التطبيقات في الخلفية. خلّي ووردبوب \"بدون قيود\" في إعدادات البطارية.",
@@ -610,6 +725,7 @@ fun HomeScreen(
                     }
                 }
             }
+        }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -634,6 +750,9 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             .map { it.ar }
         (others + word.ar).shuffled()
     }
+
+    var favW by remember(word) { mutableStateOf(word.id in store.favWords) }
+    var favS by remember(word) { mutableStateOf(word.id in store.favSentences) }
 
     fun next() {
         word = WordRepo.pick(store)
@@ -680,6 +799,9 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        StarButton(favW) { favW = store.toggleFavWord(word.id) }
+                    }
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -709,7 +831,10 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
 
             if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PurpleDark)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PurpleDark, modifier = Modifier.weight(1f))
+                        StarButton(favS) { favS = store.toggleFavSentence(word.id) }
+                    }
                     Ltr {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(word.example, fontSize = 20.sp, color = Night, modifier = Modifier.weight(1f))
@@ -813,5 +938,92 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
         }
 
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+// ---------- favorites ----------
+
+@Composable
+fun FavoritesScreen(store: SettingsStore, onMenu: () -> Unit, onOpenWord: (Int) -> Unit) {
+    val speak = rememberSpeaker()
+    var tab by remember { mutableIntStateOf(0) }
+    var version by remember { mutableIntStateOf(0) }
+    val words = version.let { store.favWords.mapNotNull { WordRepo.get(it) }.sortedBy { it.en.lowercase() } }
+    val sentences = version.let {
+        store.favSentences.mapNotNull { WordRepo.get(it) }.filter { it.example.isNotEmpty() }
+            .sortedBy { it.example.lowercase() }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Cloud)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MenuButton(onMenu)
+            Text("المفضلة", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Night)
+        }
+        ChipRow {
+            Chip("كلمات (${words.size})", tab == 0) { tab = 0 }
+            Chip("جمل (${sentences.size})", tab == 1) { tab = 1 }
+        }
+
+        if (tab == 0) {
+            if (words.isEmpty()) EmptyFav("لسه مضفتش كلمات. دوس على النجمة في شاشة التعلّم.")
+            words.forEach { w ->
+                FavCard(
+                    en = w.en, ar = w.ar,
+                    onSpeak = { speak(w.en) },
+                    onRemove = { store.toggleFavWord(w.id); version++ },
+                    onClick = { onOpenWord(w.id) }
+                )
+            }
+        } else {
+            if (sentences.isEmpty()) EmptyFav("لسه مضفتش جمل. دوس على النجمة جنب المثال في شاشة التعلّم.")
+            sentences.forEach { w ->
+                FavCard(
+                    en = w.example, ar = w.exampleAr,
+                    onSpeak = { speak(w.example) },
+                    onRemove = { store.toggleFavSentence(w.id); version++ },
+                    onClick = { onOpenWord(w.id) }
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun EmptyFav(text: String) {
+    Text(text, fontSize = 16.sp, color = Muted, modifier = Modifier.padding(vertical = 12.dp))
+}
+
+@Composable
+fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                En(en, 19.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
+                Text(ar, fontSize = 16.sp, color = Muted)
+            }
+            SpeakButton(40.dp, onSpeak)
+            StarButton(true, onRemove)
+        }
     }
 }

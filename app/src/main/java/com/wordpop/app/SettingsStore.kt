@@ -63,6 +63,27 @@ class SettingsStore(context: Context) {
         get() = (prefs.getStringSet("learned", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
         set(v) = prefs.edit().putStringSet("learned", v.map { it.toString() }.toSet()).apply()
 
+    /** Favorite words (by word id) and favorite example sentences (by the id of the word they belong to). */
+    var favWords: Set<Int>
+        get() = (prefs.getStringSet("favWords", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+        set(v) = prefs.edit().putStringSet("favWords", v.map { it.toString() }.toSet()).apply()
+
+    var favSentences: Set<Int>
+        get() = (prefs.getStringSet("favSentences", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+        set(v) = prefs.edit().putStringSet("favSentences", v.map { it.toString() }.toSet()).apply()
+
+    fun toggleFavWord(id: Int): Boolean {
+        val now = favWords
+        favWords = if (id in now) now - id else now + id
+        return id !in now
+    }
+
+    fun toggleFavSentence(id: Int): Boolean {
+        val now = favSentences
+        favSentences = if (id in now) now - id else now + id
+        return id !in now
+    }
+
     fun markLearned(id: Int) {
         learned = learned + id
     }
