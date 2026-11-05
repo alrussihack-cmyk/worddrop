@@ -172,7 +172,8 @@ object WordRepo {
         var pool = base.filter { it.id !in learned }
         if (pool.isEmpty()) pool = base
         if (pool.size > 1) pool = pool.filter { it.id != s.lastWordId }
-        val chosen = pool.random()
+        val hardPool = pool.filter { it.id in s.hard }
+        val chosen = if (hardPool.isNotEmpty() && kotlin.random.Random.nextFloat() < 0.35f) hardPool.random() else pool.random()
         s.lastWordId = chosen.id
         return chosen
     }

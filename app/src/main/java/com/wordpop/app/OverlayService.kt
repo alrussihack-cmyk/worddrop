@@ -8,11 +8,12 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Color
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -34,7 +35,7 @@ import kotlin.math.abs
 
 /**
  * Foreground service that shows a small notification-like banner over other apps
- * every N minutes. Tapping the banner opens the app on the same word.
+ * every N minutes. The banner can be dragged, resized, recolored and has control buttons.
  */
 class OverlayService : Service() {
 
@@ -53,6 +54,7 @@ class OverlayService : Service() {
     private var bannerParams: WindowManager.LayoutParams? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var scale = 1f
     private val dismissRunnable = Runnable { finishBanner() }
 
     override fun onCreate() {
@@ -77,8 +79,7 @@ class OverlayService : Service() {
                 if (settings.enabled) {
                     // Schedule first so a failure while showing the banner never breaks the chain.
                     Scheduler.scheduleNext(this)
-                    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-                    if (Scheduler.isActiveHour(settings, hour)) showWord()
+                    if (canShowNow(settings)) showWord()
                 } else {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -106,6 +107,26 @@ class OverlayService : Service() {
         tts?.shutdown()
         tts = null
         super.onDestroy()
+    }
+
+    // ---------- when to show ----------
+
+    /** Active hours, pause, calls, games and videos. A test from the app ignores all of these. */
+    private fun canShowNow(s: SettingsStore): Boolean {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        if (!Scheduler.isActiveHour(s, hour)) return false
+        if (System.currentTimeMillis() < s.pausedUntil) return false
+        if (s.skipCalls && inCall()) return false
+        if (s.skipGames && Focus.gameOrVideoInForeground(this)) return false
+        return true
+    }
+
+    private fun inCall(): Boolean {
+        val am = getSystemService(AUDIO_SERVICE) as AudioManager
+        val m = am.mode
+        return m == AudioManager.MODE_IN_CALL ||
+            m == AudioManager.MODE_IN_COMMUNICATION ||
+            m == AudioManager.MODE_RINGTONE
     }
 
     // ---------- foreground notification ----------
@@ -138,24 +159,32 @@ class OverlayService : Service() {
 
     // ---------- banner ----------
 
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    /** Size in pixels, scaled by the banner size the user picked. */
+    private fun dp(v: Int): Int = maxOf(1, (v * resources.displayMetrics.density * scale).toInt())
+
+    /** Size in pixels that does not depend on the banner size. */
+    private fun rawDp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     private fun statusBarHeight(): Int {
         val id = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) resources.getDimensionPixelSize(id) else dp(24)
+        return if (id > 0) resources.getDimensionPixelSize(id) else rawDp(24)
     }
 
-    private fun showWord() {
+    private fun showWord(silent: Boolean = false) {
         if (!Settings.canDrawOverlays(this)) return
         val s = SettingsStore(this)
         val w = WordRepo.pick(s)
         removeBanner()
 
-        val view = buildBanner(w)
+        scale = when (s.bannerSize) {
+            0 -> 0.85f
+            2 -> 1.2f
+            else -> 1f
+        }
+        val view = buildBanner(w, s, BannerThemes.get(s.bannerTheme))
         val screenW = resources.displayMetrics.widthPixels
-        val screenH = resources.displayMetrics.heightPixels
         val lp = WindowManager.LayoutParams(
-            minOf(screenW - 2 * dp(12), dp(340)),
+            minOf(screenW - 2 * rawDp(12), dp(340)),
             ViewGroup.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -164,9 +193,10 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        lp.x = s.bannerX
-        lp.y = if (s.bannerY >= 0) s.bannerY.coerceIn(0, screenH - dp(90)) else statusBarHeight() + dp(8)
+        lp.y = statusBarHeight() + rawDp(8)
 
+        // Hidden until it has been measured and moved to the chosen spot, so it never jumps.
+        view.alpha = 0f
         try {
             wm.addView(view, lp)
         } catch (e: Exception) {
@@ -174,9 +204,57 @@ class OverlayService : Service() {
         }
         banner = view
         bannerParams = lp
-        handler.postDelayed(dismissRunnable, s.displaySec * 1000L)
-        if (s.sound) playChime()
-        if (s.autoSpeak) handler.postDelayed({ speak(w.en) }, if (s.sound) 1000L else 0L)
+        view.post {
+            placeBanner(view, lp, s)
+            view.alpha = s.opacity / 100f
+        }
+
+        resetTimer()
+        if (s.sound && !silent) playChime()
+        if (s.autoSpeak) handler.postDelayed({ speak(w.en) }, if (s.sound && !silent) 1000L else 0L)
+    }
+
+    /** Puts the banner where the user dragged it, or at the top / middle / bottom preset. */
+    private fun placeBanner(view: View, lp: WindowManager.LayoutParams, s: SettingsStore) {
+        val sw = resources.displayMetrics.widthPixels
+        val sh = resources.displayMetrics.heightPixels
+        val maxX = ((sw - view.width) / 2).coerceAtLeast(0)
+        val maxY = (sh - view.height).coerceAtLeast(0)
+        lp.x = s.bannerX.coerceIn(-maxX, maxX)
+        lp.y = if (s.bannerY >= 0) {
+            s.bannerY.coerceIn(0, maxY)
+        } else {
+            when (s.bannerPos) {
+                1 -> maxY / 2
+                2 -> (maxY - rawDp(56)).coerceAtLeast(0)
+                else -> (statusBarHeight() + rawDp(8)).coerceAtMost(maxY)
+            }
+        }
+        try {
+            wm.updateViewLayout(view, lp)
+        } catch (e: Exception) {
+        }
+    }
+
+    /** Keeps the banner on screen after its height changed (example shown, pause options shown). */
+    private fun clampBanner() {
+        val v = banner ?: return
+        v.post {
+            val lp = bannerParams ?: return@post
+            val maxY = (resources.displayMetrics.heightPixels - v.height).coerceAtLeast(0)
+            if (lp.y > maxY) {
+                lp.y = maxY
+                try {
+                    wm.updateViewLayout(v, lp)
+                } catch (e: Exception) {
+                }
+            }
+        }
+    }
+
+    private fun resetTimer() {
+        handler.removeCallbacks(dismissRunnable)
+        handler.postDelayed(dismissRunnable, SettingsStore(this).displaySec * 1000L)
     }
 
     private fun playChime() {
@@ -192,25 +270,53 @@ class OverlayService : Service() {
         }
     }
 
-    private fun buildBanner(w: Word): View {
+    private fun pill(label: String, t: BannerTheme, onClick: (TextView) -> Unit): TextView =
+        TextView(this).apply {
+            text = label
+            textSize = 12.5f * scale
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(t.text)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(dp(4), dp(9), dp(4), dp(9))
+            background = GradientDrawable().apply {
+                setColor(t.chip)
+                cornerRadius = dp(12).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(dp(3), dp(3), dp(3), dp(3))
+            }
+            setOnClickListener { onClick(this) }
+        }
+
+    private fun buttonRow(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        layoutDirection = View.LAYOUT_DIRECTION_RTL
+    }
+
+    private fun buildBanner(w: Word, s: SettingsStore, t: BannerTheme): View {
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(t.bg)
                 cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), 0xFFECE9E4.toInt())
+                setStroke(dp(1), t.stroke)
             }
             elevation = dp(8).toFloat()
         }
 
+        // ----- header: logo, word, translation, speaker, close -----
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         val icon = ImageView(this).apply {
             setImageResource(R.drawable.ic_logo)
             layoutParams = LinearLayout.LayoutParams(dp(36), dp(36))
         }
-
         val texts = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
@@ -220,9 +326,9 @@ class OverlayService : Service() {
         }
         val en = TextView(this).apply {
             text = w.en
-            textSize = 20f
+            textSize = 20f * scale
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(0xFF1C1C1C.toInt())
+            setTextColor(t.text)
             textDirection = View.TEXT_DIRECTION_LTR
             gravity = Gravity.START
             maxLines = 1
@@ -230,10 +336,10 @@ class OverlayService : Service() {
         }
         val ar = TextView(this).apply {
             text = w.ar
-            textSize = 14f
-            setTextColor(0xFF6B6B6B.toInt())
+            textSize = 14f * scale
+            setTextColor(t.sub)
             gravity = Gravity.START
-            maxLines = 1
+            maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
         }
         texts.addView(en)
@@ -241,30 +347,142 @@ class OverlayService : Service() {
 
         val speaker = ImageView(this).apply {
             setImageResource(R.drawable.ic_volume)
-            setColorFilter(Color.WHITE)
+            setColorFilter(t.onAccent)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xFF549E86.toInt())
+                setColor(t.accent)
             }
             setPadding(dp(11), dp(11), dp(11), dp(11))
             contentDescription = "نطق الكلمة"
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
-            setOnClickListener { speak(w.en) }
+            setOnClickListener {
+                resetTimer()
+                speak(w.en)
+            }
         }
-
         val close = ImageView(this).apply {
             setImageResource(R.drawable.ic_close)
-            setColorFilter(0xFF6B6B6B.toInt())
+            setColorFilter(t.sub)
             setPadding(dp(6), dp(6), dp(6), dp(6))
             contentDescription = "إغلاق"
             layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(6) }
             setOnClickListener { finishBanner() }
         }
+        header.addView(icon)
+        header.addView(texts)
+        header.addView(speaker)
+        header.addView(close)
+        root.addView(header)
 
-        root.addView(icon)
-        root.addView(texts)
-        root.addView(speaker)
-        root.addView(close)
+        // ----- example (hidden until the user asks) -----
+        val exampleBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, dp(8), 0, 0)
+        }
+        if (w.example.isNotEmpty()) {
+            exampleBox.addView(TextView(this).apply {
+                text = w.example
+                textSize = 15f * scale
+                setTextColor(t.text)
+                textDirection = View.TEXT_DIRECTION_LTR
+                gravity = Gravity.START
+                setOnClickListener {
+                    resetTimer()
+                    speak(w.example)
+                }
+            })
+            if (w.exampleAr.isNotEmpty()) {
+                exampleBox.addView(TextView(this).apply {
+                    text = w.exampleAr
+                    textSize = 13f * scale
+                    setTextColor(t.sub)
+                    gravity = Gravity.START
+                })
+            }
+        }
+        root.addView(exampleBox)
+
+        fun showExample(show: Boolean) {
+            if (w.example.isEmpty()) return
+            exampleBox.visibility = if (show) View.VISIBLE else View.GONE
+            clampBanner()
+        }
+
+        // ----- control buttons -----
+        if (s.showActions) {
+            val actions = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(8), 0, 0)
+            }
+            val rowA = buttonRow()
+            val rowB = buttonRow()
+
+            val favBtn = pill("", t) { }
+            fun refreshFav() {
+                val on = w.id in s.favWords
+                favBtn.text = if (on) "★ في المفضلة" else "☆ مفضلة"
+                favBtn.setTextColor(if (on) t.accent else t.text)
+            }
+            refreshFav()
+            favBtn.setOnClickListener {
+                resetTimer()
+                s.toggleFavWord(w.id)
+                refreshFav()
+            }
+
+            val knowBtn = pill("✓ أعرفها", t) { b ->
+                s.markLearned(w.id)
+                s.hard = s.hard - w.id
+                b.text = "✓ تمام!"
+                handler.removeCallbacks(dismissRunnable)
+                handler.postDelayed(dismissRunnable, 700L)
+            }
+            val dontBtn = pill("✗ لسه", t) { b ->
+                s.learned = s.learned - w.id
+                s.hard = s.hard + w.id
+                b.text = "هتظهرلك تاني"
+                showExample(true)
+                resetTimer()
+            }
+            rowA.addView(favBtn)
+            rowA.addView(knowBtn)
+            rowA.addView(dontBtn)
+
+            val pauseRow = buttonRow().apply { visibility = View.GONE }
+            fun pauseFor(minutes: Int) {
+                s.pausedUntil = System.currentTimeMillis() + minutes * 60_000L
+                finishBanner()
+            }
+            pauseRow.addView(pill("30 د", t) { pauseFor(30) })
+            pauseRow.addView(pill("ساعة", t) { pauseFor(60) })
+            pauseRow.addView(pill("3 ساعات", t) { pauseFor(180) })
+            pauseRow.addView(pill("رجوع", t) {
+                pauseRow.visibility = View.GONE
+                rowA.visibility = View.VISIBLE
+                rowB.visibility = View.VISIBLE
+                resetTimer()
+            })
+
+            if (w.example.isNotEmpty()) {
+                rowB.addView(pill("💡 مثال", t) {
+                    resetTimer()
+                    showExample(exampleBox.visibility != View.VISIBLE)
+                })
+            }
+            rowB.addView(pill("⏭ تخطي", t) { showWord(silent = true) })
+            rowB.addView(pill("⏸ إيقاف", t) {
+                rowA.visibility = View.GONE
+                rowB.visibility = View.GONE
+                pauseRow.visibility = View.VISIBLE
+                resetTimer()
+            })
+
+            actions.addView(rowA)
+            actions.addView(rowB)
+            actions.addView(pauseRow)
+            root.addView(actions)
+        }
 
         // Tap = open the app on this word, drag = move the banner anywhere (the spot is remembered).
         var downX = 0f
@@ -289,7 +507,7 @@ class OverlayService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - downX
                     val dy = e.rawY - downY
-                    if (abs(dx) > dp(8) || abs(dy) > dp(8)) moved = true
+                    if (abs(dx) > rawDp(8) || abs(dy) > rawDp(8)) moved = true
                     if (moved) {
                         val sw = resources.displayMetrics.widthPixels
                         val sh = resources.displayMetrics.heightPixels
@@ -306,14 +524,14 @@ class OverlayService : Service() {
                         val st = SettingsStore(this)
                         st.bannerX = lp.x
                         st.bannerY = lp.y
-                        handler.postDelayed(dismissRunnable, st.displaySec * 1000L)
+                        resetTimer()
                     } else {
                         openLearn(w)
                     }
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    handler.postDelayed(dismissRunnable, SettingsStore(this).displaySec * 1000L)
+                    resetTimer()
                     true
                 }
                 else -> false

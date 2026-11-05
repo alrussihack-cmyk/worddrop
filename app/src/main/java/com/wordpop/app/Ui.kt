@@ -33,6 +33,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.mutableFloatStateOf
+import java.util.Calendar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -391,6 +395,18 @@ fun QuickAction(label: String, icon: Int, filled: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
+fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 17.sp, color = Night, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
+        )
+    }
+}
+
+@Composable
 fun StarButton(selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -449,6 +465,23 @@ fun HomeScreen(
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
     var level by remember { mutableIntStateOf(store.level) }
+    var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
+    var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
+    var opacity by remember { mutableFloatStateOf(store.opacity.toFloat()) }
+    var bannerTheme by remember { mutableIntStateOf(store.bannerTheme) }
+    var showActions by remember { mutableStateOf(store.showActions) }
+    var skipCalls by remember { mutableStateOf(store.skipCalls) }
+    var skipGames by remember { mutableStateOf(store.skipGames) }
+    var pausedUntil by remember { mutableStateOf(store.pausedUntil) }
+    var usageGranted by remember { mutableStateOf(Focus.hasUsageAccess(ctx)) }
+    DisposableEffect(Unit) {
+        val owner = ctx as? androidx.lifecycle.LifecycleOwner
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) usageGranted = Focus.hasUsageAccess(ctx)
+        }
+        owner?.lifecycle?.addObserver(obs)
+        onDispose { owner?.lifecycle?.removeObserver(obs) }
+    }
     var wordsVersion by remember { mutableIntStateOf(0) }
     var importMsg by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
@@ -566,6 +599,43 @@ fun HomeScreen(
             QuickAction("ابدأ أتعلّم", R.drawable.ic_play, true) { onStartLearning() }
             QuickAction("المفضلة", R.drawable.ic_star_outline, false) { onNavigate(Page.Favorites) }
             QuickAction("كلماتي", R.drawable.ic_list, false) { onNavigate(Page.MyWords) }
+        }
+
+        Section("إيقاف مؤقت") {
+            val paused = pausedUntil > System.currentTimeMillis()
+            val untilText = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                .format(java.util.Date(pausedUntil))
+            Text(
+                if (paused) "الكلمات متوقفة لحد $untilText" else "الكلمات شغالة",
+                fontSize = 16.sp,
+                color = if (paused) Gold else Night
+            )
+            ChipRow {
+                listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
+                    Chip(label, false) {
+                        val t = System.currentTimeMillis() + m * 60_000L
+                        store.pausedUntil = t
+                        pausedUntil = t
+                    }
+                }
+                Chip("لحد الصبح", false) {
+                    val cal = Calendar.getInstance().apply {
+                        set(Calendar.HOUR_OF_DAY, startH)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
+                    store.pausedUntil = cal.timeInMillis
+                    pausedUntil = cal.timeInMillis
+                }
+            }
+            if (paused) {
+                SecondaryButton("استئناف", Modifier.fillMaxWidth()) {
+                    store.pausedUntil = 0L
+                    pausedUntil = 0L
+                }
+            }
         }
 
         Section("تقدّمك") {
@@ -692,11 +762,109 @@ fun HomeScreen(
                 fontSize = 15.sp,
                 color = Muted
             )
+            ChipRow {
+                listOf(0 to "أعلى الشاشة", 1 to "نص الشاشة", 2 to "أسفل الشاشة").forEach { (v, label) ->
+                    Chip(label, bannerPos == v) {
+                        bannerPos = v
+                        store.bannerPos = v
+                        store.bannerX = 0
+                        store.bannerY = -1
+                    }
+                }
+            }
             SecondaryButton("رجّع النافذة لمكانها الأصلي", Modifier.fillMaxWidth()) {
+                bannerPos = 0
+                store.bannerPos = 0
                 store.bannerX = 0
                 store.bannerY = -1
             }
         }
+        }
+
+        if (page == Page.Settings) {
+            Section("شكل النافذة العائمة") {
+                Text("الحجم", fontSize = 16.sp, color = Muted)
+                ChipRow {
+                    listOf(0 to "صغير", 1 to "وسط", 2 to "كبير").forEach { (v, label) ->
+                        Chip(label, bannerSize == v) {
+                            bannerSize = v
+                            store.bannerSize = v
+                        }
+                    }
+                }
+                Text("الشفافية: ${opacity.toInt()}%", fontSize = 16.sp, color = Muted)
+                Slider(
+                    value = opacity,
+                    onValueChange = { opacity = it },
+                    onValueChangeFinished = { store.opacity = opacity.toInt() },
+                    valueRange = 40f..100f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Teal,
+                        activeTrackColor = Teal,
+                        inactiveTrackColor = Line
+                    )
+                )
+                Text("اللون", fontSize = 16.sp, color = Muted)
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    BannerThemes.all.forEachIndexed { i, th ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.clickable {
+                                bannerTheme = i
+                                store.bannerTheme = i
+                            }
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(th.bg))
+                                    .border(
+                                        if (bannerTheme == i) 3.dp else 1.dp,
+                                        if (bannerTheme == i) Teal else Line,
+                                        CircleShape
+                                    )
+                            )
+                            Text(th.name, fontSize = 12.sp, color = Muted)
+                        }
+                    }
+                }
+                SwitchRow("أزرار التحكم داخل النافذة (مفضلة، أعرفها، مثال، تخطي، إيقاف)", showActions) {
+                    showActions = it
+                    store.showActions = it
+                }
+                Text("جرّب من الرئيسية بزرار \"جرّب كلمة\" عشان تشوف الشكل.", fontSize = 14.sp, color = Muted)
+            }
+        }
+
+        if (page == Page.Settings) {
+            Section("عدم الإزعاج") {
+                SwitchRow("ماتظهرش أثناء المكالمات", skipCalls) {
+                    skipCalls = it
+                    store.skipCalls = it
+                }
+                SwitchRow("ماتظهرش في الألعاب والفيديوهات", skipGames) {
+                    skipGames = it
+                    store.skipGames = it
+                }
+                if (skipGames && !usageGranted) {
+                    Text(
+                        "عشان التطبيق يعرف إنك في لعبة أو فيديو، لازم تسمح له بـ \"الوصول لبيانات الاستخدام\".",
+                        fontSize = 15.sp,
+                        color = Muted
+                    )
+                    SecondaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth()) {
+                        try {
+                            ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                        } catch (e: Exception) {
+                        }
+                    }
+                }
+            }
         }
 
         if (page == Page.MyWords) {

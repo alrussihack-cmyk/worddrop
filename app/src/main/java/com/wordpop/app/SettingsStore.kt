@@ -51,6 +51,48 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt("bannerY", -1)
         set(v) = prefs.edit().putInt("bannerY", v).apply()
 
+    /** Where the banner appears when it has not been dragged: 0 = top, 1 = middle, 2 = bottom. */
+    var bannerPos: Int
+        get() = prefs.getInt("bannerPos", 0)
+        set(v) = prefs.edit().putInt("bannerPos", v).apply()
+
+    /** 0 = small, 1 = medium, 2 = large. */
+    var bannerSize: Int
+        get() = prefs.getInt("bannerSize", 1)
+        set(v) = prefs.edit().putInt("bannerSize", v).apply()
+
+    /** Banner opacity in percent (40..100). */
+    var opacity: Int
+        get() = prefs.getInt("opacity", 100)
+        set(v) = prefs.edit().putInt("opacity", v.coerceIn(40, 100)).apply()
+
+    var bannerTheme: Int
+        get() = prefs.getInt("bannerTheme", 0)
+        set(v) = prefs.edit().putInt("bannerTheme", v).apply()
+
+    /** Shows the control buttons (favorite, know, example, skip, pause) inside the banner. */
+    var showActions: Boolean
+        get() = prefs.getBoolean("showActions", true)
+        set(v) = prefs.edit().putBoolean("showActions", v).apply()
+
+    /** No words are shown before this time (epoch millis). */
+    var pausedUntil: Long
+        get() = prefs.getLong("pausedUntil", 0L)
+        set(v) = prefs.edit().putLong("pausedUntil", v).apply()
+
+    var skipCalls: Boolean
+        get() = prefs.getBoolean("skipCalls", true)
+        set(v) = prefs.edit().putBoolean("skipCalls", v).apply()
+
+    var skipGames: Boolean
+        get() = prefs.getBoolean("skipGames", false)
+        set(v) = prefs.edit().putBoolean("skipGames", v).apply()
+
+    /** Words the user marked as "still learning"; they come back more often. */
+    var hard: Set<Int>
+        get() = (prefs.getStringSet("hard", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+        set(v) = prefs.edit().putStringSet("hard", v.map { it.toString() }.toSet()).apply()
+
     var autoSpeak: Boolean
         get() = prefs.getBoolean("autoSpeak", false)
         set(v) = prefs.edit().putBoolean("autoSpeak", v).apply()
@@ -105,4 +147,29 @@ fun hourLabel(h: Int): String = when {
     h < 12 -> "$h ص"
     h == 12 -> "12 م"
     else -> "${h - 12} م"
+}
+
+/** Colors of the floating banner. */
+class BannerTheme(
+    val name: String,
+    val bg: Int,
+    val text: Int,
+    val sub: Int,
+    val accent: Int,
+    val onAccent: Int,
+    val stroke: Int,
+    val chip: Int
+)
+
+object BannerThemes {
+    val all = listOf(
+        BannerTheme("أبيض", 0xFFFFFFFF.toInt(), 0xFF1C1C1C.toInt(), 0xFF6B6B6B.toInt(), 0xFF549E86.toInt(), 0xFFFFFFFF.toInt(), 0xFFECE9E4.toInt(), 0xFFF1EDE4.toInt()),
+        BannerTheme("داكن", 0xFF1C1C1C.toInt(), 0xFFFFFFFF.toInt(), 0xFFC9C9C9.toInt(), 0xFF549E86.toInt(), 0xFFFFFFFF.toInt(), 0xFF333333.toInt(), 0xFF2E2E2E.toInt()),
+        BannerTheme("تركواز", 0xFF549E86.toInt(), 0xFFFFFFFF.toInt(), 0xFFE4F1EC.toInt(), 0xFFFFFFFF.toInt(), 0xFF549E86.toInt(), 0xFF4A8D77.toInt(), 0xFF4A8D77.toInt()),
+        BannerTheme("بيج", 0xFFF1EDE4.toInt(), 0xFF1C1C1C.toInt(), 0xFF6B6B6B.toInt(), 0xFFA67F3D.toInt(), 0xFFFFFFFF.toInt(), 0xFFE2DCCD.toInt(), 0xFFE6E0D2.toInt()),
+        BannerTheme("أزرق", 0xFF2F5D9E.toInt(), 0xFFFFFFFF.toInt(), 0xFFDCE8F8.toInt(), 0xFFFFFFFF.toInt(), 0xFF2F5D9E.toInt(), 0xFF284F87.toInt(), 0xFF284F87.toInt()),
+        BannerTheme("وردي", 0xFFD6577E.toInt(), 0xFFFFFFFF.toInt(), 0xFFFBE3EA.toInt(), 0xFFFFFFFF.toInt(), 0xFFD6577E.toInt(), 0xFFC24A70.toInt(), 0xFFC24A70.toInt())
+    )
+
+    fun get(i: Int): BannerTheme = all.getOrElse(i) { all[0] }
 }
