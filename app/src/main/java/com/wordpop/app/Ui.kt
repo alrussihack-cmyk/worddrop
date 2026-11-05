@@ -4,6 +4,8 @@ import android.content.Intent
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -319,8 +321,32 @@ fun HomeScreen(
     var content by remember { mutableIntStateOf(store.content) }
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
+    var wordsVersion by remember { mutableIntStateOf(0) }
+    var importMsg by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
-    val total = WordRepo.all.size
+    val total = wordsVersion.let { WordRepo.all.size }
+    val customCount = wordsVersion.let { WordRepo.customWords.size }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            importMsg = try {
+                val text = ctx.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    ?: throw IllegalStateException("empty")
+                val r = WordRepo.importText(ctx, text)
+                wordsVersion++
+                buildString {
+                    append("تمت إضافة ${r.added} كلمة")
+                    if (r.duplicates > 0) append("، وتخطّيت ${r.duplicates} متكررة")
+                    if (r.skipped > 0) append("، و${r.skipped} سطر ناقص")
+                    append(".")
+                    if (r.added == 0 && r.duplicates == 0) append(" اتأكد إن كل سطر فيه: الكلمة، ثم الترجمة.")
+                    if ('\uFFFD' in text) append(" الحروف العربي باينة بايظة؟ احفظ الملف بصيغة UTF-8.")
+                }
+            } catch (e: Exception) {
+                "ماقدرتش أقرا الملف. جرّب ملف نصي (txt أو csv)."
+            }
+        }
+    }
 
     // Re-sends START so the service picks up the new interval and refreshes its notification.
     fun refresh() {
@@ -485,6 +511,29 @@ fun HomeScreen(
             }
         }
 
+        Section("كلماتك الخاصة") {
+            Text(
+                "استورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية). مثال:",
+                fontSize = 15.sp,
+                color = Muted
+            )
+            Ltr {
+                Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
+            }
+            SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
+                importLauncher.launch(arrayOf("*/*"))
+            }
+            importMsg?.let { Text(it, fontSize = 15.sp, color = PurpleDark) }
+            if (customCount > 0) {
+                Text("عندك $customCount كلمة مستوردة.", fontSize = 15.sp, color = Muted)
+                SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) {
+                    WordRepo.clearCustom(ctx)
+                    wordsVersion++
+                    importMsg = "اتمسحت الكلمات المستوردة."
+                }
+            }
+        }
+
         Section("لو الكلمات بتتأخر") {
             Text(
                 "بعض الموبايلات بتوقف التطبيقات في الخلفية. خلّي ووردبوب \"بدون قيود\" في إعدادات البطارية.",
@@ -594,7 +643,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 }
             }
 
-            Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+            if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PurpleDark)
                     Ltr {
@@ -603,7 +652,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                             SpeakButton(44.dp) { speak(word.example) }
                         }
                     }
-                    Text(word.exampleAr, fontSize = 18.sp, color = Muted)
+                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 18.sp, color = Muted)
                 }
             }
 

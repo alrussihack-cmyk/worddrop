@@ -1,5 +1,7 @@
 package com.wordpop.app
 
+import android.content.Context
+
 data class Word(
     val id: Int,
     val en: String,
@@ -19,7 +21,7 @@ private fun p(id: Int, en: String, ar: String, ex: String, exAr: String) =
     Word(id, en, "", ar, "عبارة", ex, exAr)
 
 object WordRepo {
-    val all: List<Word> = listOf(
+    private val builtIn: List<Word> = listOf(
         w(1, "resilient", "/rɪˈzɪliənt/", "مرن، بيستحمل الصعوبات ويرجع أقوى", "صفة", "She stayed resilient after losing her job.", "فضلت قوية بعد ما خسرت شغلها."),
         w(2, "achieve", "/əˈtʃiːv/", "يحقق، ينجز", "فعل", "He worked hard to achieve his goals.", "اشتغل بجد عشان يحقق أهدافه."),
         w(3, "improve", "/ɪmˈpruːv/", "يحسّن، يتحسّن", "فعل", "I want to improve my English.", "عايز أحسّن إنجليزيتي."),
@@ -108,9 +110,46 @@ object WordRepo {
         p(85, "That's a good point.", "نقطة كويسة.", "That's a good point. I didn't think of it.", "نقطة كويسة. مخدتش بالي منها.")
     )
 
-    private val byId: Map<Int, Word> = all.associateBy { it.id }
+    @Volatile
+    private var custom: List<Word> = emptyList()
+
+    @Volatile
+    var all: List<Word> = builtIn
+        private set
+
+    @Volatile
+    private var byId: Map<Int, Word> = all.associateBy { it.id }
+
+    val customWords: List<Word> get() = custom
+
+    /** Loads the user's imported words. Called once at process start. */
+    fun init(ctx: Context) = setCustom(CustomWords.load(ctx))
+
+    private fun setCustom(list: List<Word>) {
+        custom = list
+        val merged = builtIn + list
+        all = merged
+        byId = merged.associateBy { it.id }
+    }
 
     fun get(id: Int): Word? = byId[id]
+
+    /** Reads an imported file's text, adds the new words and saves them. */
+    fun importText(ctx: Context, text: String): ImportResult {
+        val nextId = maxOf(CustomWords.FIRST_ID, (custom.maxOfOrNull { it.id } ?: 0) + 1)
+        val (words, result) = CustomWords.parse(text, all, nextId)
+        if (words.isNotEmpty()) {
+            val updated = custom + words
+            CustomWords.save(ctx, updated)
+            setCustom(updated)
+        }
+        return result
+    }
+
+    fun clearCustom(ctx: Context) {
+        CustomWords.save(ctx, emptyList())
+        setCustom(emptyList())
+    }
 
     /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */
     fun pick(s: SettingsStore): Word {
