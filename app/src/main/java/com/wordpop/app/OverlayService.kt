@@ -200,8 +200,8 @@ class OverlayService : Service() {
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), 0xFFE3E1FA.toInt())
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), 0xFFECE9E4.toInt())
             }
             elevation = dp(8).toFloat()
         }
@@ -222,7 +222,7 @@ class OverlayService : Service() {
             text = w.en
             textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(0xFF14143A.toInt())
+            setTextColor(0xFF1C1C1C.toInt())
             textDirection = View.TEXT_DIRECTION_LTR
             gravity = Gravity.START
             maxLines = 1
@@ -231,7 +231,7 @@ class OverlayService : Service() {
         val ar = TextView(this).apply {
             text = w.ar
             textSize = 14f
-            setTextColor(0xFF4A4A72.toInt())
+            setTextColor(0xFF6B6B6B.toInt())
             gravity = Gravity.START
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -244,7 +244,7 @@ class OverlayService : Service() {
             setColorFilter(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xFF5B4BFF.toInt())
+                setColor(0xFF549E86.toInt())
             }
             setPadding(dp(11), dp(11), dp(11), dp(11))
             contentDescription = "نطق الكلمة"
@@ -254,7 +254,7 @@ class OverlayService : Service() {
 
         val close = ImageView(this).apply {
             setImageResource(R.drawable.ic_close)
-            setColorFilter(0xFF4A4A72.toInt())
+            setColorFilter(0xFF6B6B6B.toInt())
             setPadding(dp(6), dp(6), dp(6), dp(6))
             contentDescription = "إغلاق"
             layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(6) }

@@ -81,20 +81,23 @@ import java.util.Locale
 
 // ---------- brand ----------
 
-val Purple = Color(0xFF5B4BFF)
-val PurpleDark = Color(0xFF3A2FD0)
-val Night = Color(0xFF14143A)
-val Mint = Color(0xFF2DD4A7)
-val Cloud = Color(0xFFF6F5FF)
-val Muted = Color(0xFF4A4A72)
-val Line = Color(0xFFE3E1FA)
+val Teal = Color(0xFF549E86)      // primary teal-green
+val TealDark = Color(0xFF2F6F5B)  // darker teal for text on light backgrounds
+val Night = Color(0xFF1C1C1C)       // main text
+val Mint = Color(0xFF549E86)
+val Cloud = Color(0xFFFFFFFF)
+val Muted = Color(0xFF6B6B6B)
+val Line = Color(0xFFECE9E4)
+val Beige = Color(0xFFF1EDE4)       // soft card
+val Gold = Color(0xFFA67F3D)        // accent button
+val Tint = Color(0xFFE4F1EC)        // light teal tint
 val Danger = Color(0xFFD64550)
 
 @Composable
 fun WordPopTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
-            primary = Purple,
+            primary = Teal,
             onPrimary = Color.White,
             background = Cloud,
             surface = Color.White,
@@ -128,12 +131,12 @@ fun En(
 // ---------- shared pieces ----------
 
 @Composable
-fun PrimaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = 52.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White)
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Color.White)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
@@ -144,9 +147,9 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
     OutlinedButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = 52.dp),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(2.dp, Purple),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = PurpleDark)
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(2.dp, Teal),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TealDark)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
@@ -159,8 +162,8 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .heightIn(min = 44.dp)
             .clip(shape)
-            .background(if (selected) Purple else Color.White)
-            .border(1.5.dp, if (selected) Purple else Line, shape)
+            .background(if (selected) Teal else Color.White)
+            .border(1.5.dp, if (selected) Teal else Line, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center
@@ -185,7 +188,7 @@ fun ChipRow(content: @Composable RowScope.() -> Unit) {
 
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
             content()
@@ -199,7 +202,7 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(Purple)
+            .background(Teal)
             .clickable(role = Role.Button, onClickLabel = "نطق الكلمة", onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -293,8 +296,6 @@ fun WordPopApp(
     }
 
     var page by remember { mutableStateOf(Page.Home) }
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
 
     val id = learnId
     if (id != null) {
@@ -305,74 +306,87 @@ fun WordPopApp(
             onClose = { learnId = null }
         )
     } else {
-        BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
-        BackHandler(enabled = page != Page.Home && !drawerState.isOpen) { page = Page.Home }
-        val openMenu: () -> Unit = { scope.launch { drawerState.open() } }
-
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            drawerContent = {
-                ModalDrawerSheet {
-                    Row(
-                        Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(44.dp))
-                        Text("ووردبوب", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
-                    }
-                    Page.values().forEach { p ->
-                        NavigationDrawerItem(
-                            label = { Text("${p.emoji}  ${p.title}", fontSize = 17.sp) },
-                            selected = page == p,
-                            onClick = {
-                                page = p
-                                scope.launch { drawerState.close() }
-                            },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-                    }
+        BackHandler(enabled = page != Page.Home) { page = Page.Home }
+        Column(Modifier.fillMaxSize().background(Cloud)) {
+            Box(Modifier.weight(1f)) {
+                if (page == Page.Favorites) {
+                    FavoritesScreen(store = store, onOpenWord = { learnId = it })
+                } else {
+                    HomeScreen(
+                        store = store,
+                        page = page,
+                        onNavigate = { page = it },
+                        overlayGranted = overlayGranted,
+                        onRequestOverlay = onRequestOverlay,
+                        onRequestNotif = onRequestNotif,
+                        onStartLearning = { learnId = WordRepo.pick(store).id }
+                    )
                 }
             }
-        ) {
-            if (page == Page.Favorites) {
-                FavoritesScreen(store = store, onMenu = openMenu, onOpenWord = { learnId = it })
-            } else {
-                HomeScreen(
-                    store = store,
-                    page = page,
-                    onMenu = openMenu,
-                    overlayGranted = overlayGranted,
-                    onRequestOverlay = onRequestOverlay,
-                    onRequestNotif = onRequestNotif,
-                    onStartLearning = { learnId = WordRepo.pick(store).id }
-                )
+            BottomBar(page) { page = it }
+        }
+    }
+}
+
+/** Tabs of the bottom bar. */
+enum class Page(val title: String, val icon: Int) {
+    Home("الرئيسية", R.drawable.ic_home),
+    Favorites("المفضلة", R.drawable.ic_star_outline),
+    MyWords("كلماتي", R.drawable.ic_list),
+    Settings("الإعدادات", R.drawable.ic_tune)
+}
+
+@Composable
+fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
+    Column(Modifier.fillMaxWidth().background(Color.White)) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
+            Page.values().forEach { p ->
+                val selected = p == page
+                val tint = if (selected) Teal else Night
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable(role = Role.Tab, onClick = { onSelect(p) })
+                        .padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        painterResource(if (selected && p == Page.Favorites) R.drawable.ic_star else p.icon),
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        p.title, fontSize = 12.sp, color = tint,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
             }
         }
     }
 }
 
-/** Pages reachable from the side menu. */
-enum class Page(val title: String, val emoji: String) {
-    Home("الرئيسية", "🏠"),
-    Favorites("المفضلة", "⭐"),
-    Schedule("المواعيد", "⏰"),
-    Content("المحتوى والمستوى", "📚"),
-    Look("الشكل والصوت", "🎨"),
-    MyWords("كلماتي", "📝"),
-    Help("لو الكلمات بتتأخر", "🔋")
-}
-
+/** Round action button with a label under it. */
 @Composable
-fun MenuButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClickLabel = "القايمة", onClick = onClick),
-        contentAlignment = Alignment.Center
+fun QuickAction(label: String, icon: Int, filled: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier.width(78.dp).clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(painterResource(R.drawable.ic_menu), contentDescription = "القايمة", tint = Night)
+        Box(
+            Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(if (filled) Teal else Color.White)
+                .border(1.dp, if (filled) Teal else Line, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(painterResource(icon), contentDescription = null, tint = if (filled) Color.White else Night, modifier = Modifier.size(26.dp))
+        }
+        Text(label, fontSize = 14.sp, color = Night, textAlign = TextAlign.Center)
     }
 }
 
@@ -419,7 +433,7 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 fun HomeScreen(
     store: SettingsStore,
     page: Page,
-    onMenu: () -> Unit,
+    onNavigate: (Page) -> Unit,
     overlayGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
@@ -491,13 +505,11 @@ fun HomeScreen(
             .fillMaxSize()
             .background(Cloud)
             .statusBarsPadding()
-            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuButton(onMenu)
             if (page == Page.Home) {
                 Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
                 Column {
@@ -510,48 +522,50 @@ fun HomeScreen(
         }
 
         if (page == Page.Home) {
-        Surface(shape = RoundedCornerShape(24.dp), color = Night, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("الكلمات العائمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("الكلمات العائمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
                     Text(
                         if (enabled) "شغّال: ${intervalLabel(interval)}، من ${hourLabel(startH)} لحد ${hourLabel(endH)}" else "متوقف",
                         fontSize = 15.sp,
-                        color = Color(0xFFC9C8F0)
+                        color = Muted
                     )
                 }
                 Switch(
                     checked = enabled,
                     onCheckedChange = { toggle(it) },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Night,
+                        checkedThumbColor = Color.White,
                         checkedTrackColor = Mint,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFF3A3A78),
-                        uncheckedBorderColor = Color(0xFF8D8CC8)
+                        uncheckedTrackColor = Color(0xFFD9D5CC),
+                        uncheckedBorderColor = Color(0xFFBDB7AA)
                     )
                 )
             }
         }
 
         if (!overlayGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFFFF1CC), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "لازم تسمح للتطبيق يظهر فوق التطبيقات التانية، من غير كده الكلمات مش هتظهر.",
                         fontSize = 16.sp,
                         color = Night
                     )
-                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth()) { onRequestOverlay() }
+                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Gold) { onRequestOverlay() }
                 }
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PrimaryButton("جرّب كلمة دلوقتي", Modifier.weight(1f)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            QuickAction("جرّب كلمة", R.drawable.ic_volume, true) {
                 if (overlayGranted) sendToService(ctx, OverlayService.ACTION_SHOW_NOW) else onRequestOverlay()
             }
-            SecondaryButton("ابدأ أتعلّم", Modifier.weight(1f)) { onStartLearning() }
+            QuickAction("ابدأ أتعلّم", R.drawable.ic_play, true) { onStartLearning() }
+            QuickAction("المفضلة", R.drawable.ic_star_outline, false) { onNavigate(Page.Favorites) }
+            QuickAction("كلماتي", R.drawable.ic_list, false) { onNavigate(Page.MyWords) }
         }
 
         Section("تقدّمك") {
@@ -568,7 +582,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Schedule) {
+        if (page == Page.Settings) {
         Section("كل قد إيه تظهرلك كلمة؟") {
             ChipRow {
                 listOf(5, 15, 30, 60, 120, 180, 360).forEach { m ->
@@ -582,7 +596,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Schedule) {
+        if (page == Page.Settings) {
         Section("ساعات الظهور") {
             HourStepper("من", startH) {
                 startH = it
@@ -598,7 +612,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Content) {
+        if (page == Page.Settings) {
         Section("نوع الكلمات") {
             ChipRow {
                 listOf(0 to "كلمات وعبارات", 1 to "كلمات بس", 2 to "عبارات بس").forEach { (v, label) ->
@@ -611,7 +625,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Content) {
+        if (page == Page.Settings) {
         Section("المستوى") {
             ChipRow {
                 listOf(0 to "الكل", 1 to "أساسي", 2 to "B1", 3 to "B2").forEach { (v, label) ->
@@ -625,7 +639,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Look) {
+        if (page == Page.Settings) {
         Section("شكل الظهور") {
             Text("مدة ظهور الشريط", fontSize = 16.sp, color = Muted)
             ChipRow {
@@ -649,7 +663,7 @@ fun HomeScreen(
                         sound = it
                         store.sound = it
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -665,13 +679,13 @@ fun HomeScreen(
                         autoSpeak = it
                         store.autoSpeak = it
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
                 )
             }
         }
         }
 
-        if (page == Page.Look) {
+        if (page == Page.Settings) {
         Section("مكان النافذة") {
             Text(
                 "اسحب النافذة بصباعك لأي مكان على الشاشة، وهتفتكر المكان.",
@@ -698,7 +712,7 @@ fun HomeScreen(
             SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
                 importLauncher.launch(arrayOf("*/*"))
             }
-            importMsg?.let { Text(it, fontSize = 15.sp, color = PurpleDark) }
+            importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
             if (customCount > 0) {
                 Text("عندك $customCount كلمة مستوردة.", fontSize = 15.sp, color = Muted)
                 SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) {
@@ -710,7 +724,7 @@ fun HomeScreen(
         }
         }
 
-        if (page == Page.Help) {
+        if (page == Page.Settings) {
         Section("لو الكلمات بتتأخر") {
             Text(
                 "بعض الموبايلات بتوقف التطبيقات في الخلفية. خلّي ووردبوب \"بدون قيود\" في إعدادات البطارية.",
@@ -791,7 +805,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
         }
 
         if (step == 0) {
-            Surface(shape = RoundedCornerShape(28.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -805,10 +819,10 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE9E6FF))
+                            .background(Color(0xFFE4F1EC))
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
-                        Text(word.kind, fontSize = 15.sp, color = PurpleDark, fontWeight = FontWeight.Bold)
+                        Text(word.kind, fontSize = 15.sp, color = TealDark, fontWeight = FontWeight.Bold)
                     }
                     En(
                         word.en, 44.sp, Night, FontWeight.ExtraBold, TextAlign.Center,
@@ -829,10 +843,10 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 }
             }
 
-            if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+            if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PurpleDark, modifier = Modifier.weight(1f))
+                        Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TealDark, modifier = Modifier.weight(1f))
                         StarButton(favS) { favS = store.toggleFavSentence(word.id) }
                     }
                     Ltr {
@@ -848,7 +862,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             PrimaryButton("جاهز؟ اختبرني", Modifier.fillMaxWidth()) { step = 1 }
             SecondaryButton("كلمة تانية", Modifier.fillMaxWidth()) { next() }
         } else {
-            Surface(shape = RoundedCornerShape(28.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -869,10 +883,10 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 val p = picked
                 val isCorrect = opt == word.ar
                 val isPicked = p == opt
-                val shape = RoundedCornerShape(18.dp)
+                val shape = RoundedCornerShape(14.dp)
                 val bg = when {
                     p == null -> Color.White
-                    isCorrect -> Color(0xFFD5F7EC)
+                    isCorrect -> Color(0xFFE4F1EC)
                     isPicked -> Color(0xFFFFE3E5)
                     else -> Color.White
                 }
@@ -944,7 +958,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
 // ---------- favorites ----------
 
 @Composable
-fun FavoritesScreen(store: SettingsStore, onMenu: () -> Unit, onOpenWord: (Int) -> Unit) {
+fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
     val speak = rememberSpeaker()
     var tab by remember { mutableIntStateOf(0) }
     var version by remember { mutableIntStateOf(0) }
@@ -959,13 +973,11 @@ fun FavoritesScreen(store: SettingsStore, onMenu: () -> Unit, onOpenWord: (Int) 
             .fillMaxSize()
             .background(Cloud)
             .statusBarsPadding()
-            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuButton(onMenu)
             Text("المفضلة", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Night)
         }
         ChipRow {
@@ -1006,11 +1018,12 @@ fun EmptyFav(text: String) {
 @Composable
 fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
+        border = BorderStroke(1.dp, Line),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
     ) {
         Row(
