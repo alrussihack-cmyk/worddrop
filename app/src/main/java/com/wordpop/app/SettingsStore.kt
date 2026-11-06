@@ -131,6 +131,24 @@ class SettingsStore(context: Context) {
         return id !in now
     }
 
+    // Generic helpers used by the writing practice (spelling and sentence building).
+    fun intSet(key: String): Set<Int> =
+        (prefs.getStringSet(key, null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+
+    fun addTo(key: String, id: Int) {
+        prefs.edit().putStringSet(key, (intSet(key) + id).map { it.toString() }.toSet()).apply()
+    }
+
+    fun removeFrom(key: String, id: Int) {
+        prefs.edit().putStringSet(key, (intSet(key) - id).map { it.toString() }.toSet()).apply()
+    }
+
+    fun stat(key: String): Int = prefs.getInt(key, 0)
+
+    fun setStat(key: String, v: Int) {
+        prefs.edit().putInt(key, v).apply()
+    }
+
     fun markLearned(id: Int) {
         learned = learned + id
     }

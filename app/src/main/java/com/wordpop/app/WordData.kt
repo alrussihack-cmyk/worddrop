@@ -155,19 +155,32 @@ object WordRepo {
         setCustom(emptyList())
     }
 
+    private fun levelPool(s: SettingsStore): List<Word> = when (s.level) {
+        1 -> all.filter { it.level == "A" }
+        2 -> all.filter { it.level == "B1" }
+        3 -> all.filter { it.level == "B2" }
+        else -> all
+    }
+
     /** Words that match the user's level and content filters. */
-    private fun basePool(s: SettingsStore): List<Word> {
-        val byLevel = when (s.level) {
-            1 -> all.filter { it.level == "A" }
-            2 -> all.filter { it.level == "B1" }
-            3 -> all.filter { it.level == "B2" }
-            else -> all
-        }
-        return when (s.content) {
-            1 -> byLevel.filter { !it.isPhrase }
-            2 -> byLevel.filter { it.isPhrase }
-            else -> byLevel
-        }.ifEmpty { all }
+    private fun basePool(s: SettingsStore): List<Word> = when (s.content) {
+        1 -> levelPool(s).filter { !it.isPhrase }
+        2 -> levelPool(s).filter { it.isPhrase }
+        else -> levelPool(s)
+    }.ifEmpty { all }
+
+    /**
+     * Words for a writing exercise. Words the user got wrong before come first, then words never
+     * practiced, then the ones already mastered. [key] is "spell" or "build".
+     */
+    fun writingWords(s: SettingsStore, key: String, n: Int, filter: (Word) -> Boolean): List<Word> {
+        val miss = s.intSet(key + "Miss")
+        val ok = s.intSet(key + "Ok")
+        val pool = levelPool(s).filter(filter).ifEmpty { all.filter(filter) }
+        return pool.shuffled()
+            .sortedBy { if (it.id in miss) 0 else if (it.id !in ok) 1 else 2 }
+            .take(n)
+            .shuffled()
     }
 
     /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */

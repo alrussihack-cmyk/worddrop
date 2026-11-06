@@ -33,6 +33,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -327,10 +331,14 @@ fun WordPopApp(
         )
     } else {
         BackHandler(enabled = page != Page.Home) { page = Page.Home }
-        Column(Modifier.fillMaxSize().background(Cloud)) {
+        // The bottom bar hides while the keyboard is open so typing exercises get the whole screen.
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        Column(Modifier.fillMaxSize().background(Cloud).imePadding()) {
             Box(Modifier.weight(1f)) {
                 if (page == Page.Favorites) {
                     FavoritesScreen(store = store, onOpenWord = { learnId = it })
+                } else if (page == Page.Write) {
+                    WriteScreen(store = store)
                 } else {
                     HomeScreen(
                         store = store,
@@ -343,7 +351,7 @@ fun WordPopApp(
                     )
                 }
             }
-            BottomBar(page) { page = it }
+            if (!imeVisible) BottomBar(page) { page = it }
         }
     }
 }
@@ -351,6 +359,7 @@ fun WordPopApp(
 /** Tabs of the bottom bar. */
 enum class Page(val title: String, val icon: Int) {
     Home("الرئيسية", R.drawable.ic_home),
+    Write("الكتابة", R.drawable.ic_edit),
     Favorites("المفضلة", R.drawable.ic_star_outline),
     MyWords("كلماتي", R.drawable.ic_list),
     Settings("الإعدادات", R.drawable.ic_tune)
@@ -1478,7 +1487,7 @@ private fun QuizResult(
 }
 
 @Composable
-private fun ResultStat(label: String, value: String) {
+fun ResultStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
         Text(label, fontSize = 13.sp, color = Muted)
