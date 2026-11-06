@@ -33,6 +33,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.mutableFloatStateOf
@@ -128,7 +136,15 @@ fun En(
     modifier: Modifier = Modifier
 ) {
     Ltr {
-        Text(text, modifier = modifier, color = color, fontSize = size, fontWeight = weight, textAlign = align)
+        Text(
+            text,
+            modifier = modifier,
+            color = color,
+            fontSize = size,
+            fontWeight = weight,
+            textAlign = align,
+            lineHeight = size * 1.25f
+        )
     }
 }
 
@@ -935,17 +951,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
     val speak = rememberSpeaker()
     var word by remember { mutableStateOf(startWord) }
     var step by remember { mutableIntStateOf(0) }
-    var picked by remember { mutableStateOf<String?>(null) }
     var learnedCount by remember { mutableIntStateOf(store.learned.size) }
-
-    val options = remember(word) {
-        val others = WordRepo.all
-            .filter { it.id != word.id && it.isPhrase == word.isPhrase && it.ar != word.ar }
-            .shuffled()
-            .take(2)
-            .map { it.ar }
-        (others + word.ar).shuffled()
-    }
 
     var favW by remember(word) { mutableStateOf(word.id in store.favWords) }
     var favS by remember(word) { mutableStateOf(word.id in store.favSentences) }
@@ -953,7 +959,6 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
     fun next() {
         word = WordRepo.pick(store)
         step = 0
-        picked = null
     }
 
     Column(
@@ -1007,7 +1012,13 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                         Text(word.kind, fontSize = 15.sp, color = TealDark, fontWeight = FontWeight.Bold)
                     }
                     En(
-                        word.en, 44.sp, Night, FontWeight.ExtraBold, TextAlign.Center,
+                        word.en,
+                        when {
+                            word.en.length > 22 -> 28.sp
+                            word.en.length > 14 -> 34.sp
+                            else -> 44.sp
+                        },
+                        Night, FontWeight.ExtraBold, TextAlign.Center,
                         Modifier.fillMaxWidth()
                     )
                     if (word.ipa.isNotEmpty()) {
@@ -1044,93 +1055,13 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             PrimaryButton("جاهز؟ اختبرني", Modifier.fillMaxWidth()) { step = 1 }
             SecondaryButton("كلمة تانية", Modifier.fillMaxWidth()) { next() }
         } else {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("إيه معنى الكلمة دي؟", fontSize = 17.sp, color = Muted)
-                    En(
-                        word.en, 38.sp, Night, FontWeight.ExtraBold, TextAlign.Center,
-                        Modifier.fillMaxWidth()
-                    )
-                    SpeakButton(48.dp) { speak(word.en) }
-                }
-            }
-
-            options.forEach { opt ->
-                val p = picked
-                val isCorrect = opt == word.ar
-                val isPicked = p == opt
-                val shape = RoundedCornerShape(14.dp)
-                val bg = when {
-                    p == null -> Color.White
-                    isCorrect -> Color(0xFFE4F1EC)
-                    isPicked -> Color(0xFFFFE3E5)
-                    else -> Color.White
-                }
-                val borderColor = when {
-                    p == null -> Line
-                    isCorrect -> Mint
-                    isPicked -> Danger
-                    else -> Line
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 60.dp)
-                        .clip(shape)
-                        .background(bg)
-                        .border(2.dp, borderColor, shape)
-                        .clickable(enabled = p == null, role = Role.Button) {
-                            picked = opt
-                            if (isCorrect) {
-                                store.markLearned(word.id)
-                                learnedCount = store.learned.size
-                            }
-                        }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(opt, fontSize = 19.sp, color = Night, modifier = Modifier.weight(1f))
-                    if (p != null && isCorrect) {
-                        Icon(
-                            painterResource(R.drawable.ic_check),
-                            contentDescription = "الإجابة الصح",
-                            tint = Night,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    } else if (p != null && isPicked) {
-                        Icon(
-                            painterResource(R.drawable.ic_close),
-                            contentDescription = "إجابة غلط",
-                            tint = Danger,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-
-            val p = picked
-            if (p != null) {
-                val ok = p == word.ar
-                Text(
-                    if (ok) "برافو! الكلمة اتحفظت." else "مش مشكلة، هنراجعها تاني.",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Night
-                )
-                PrimaryButton("كلمة تانية", Modifier.fillMaxWidth()) { next() }
-                if (!ok) {
-                    SecondaryButton("راجع الكلمة", Modifier.fillMaxWidth()) {
-                        step = 0
-                        picked = null
-                    }
-                }
-            }
+            QuizSession(
+                store = store,
+                first = word,
+                speak = speak,
+                onLearnedChanged = { learnedCount = store.learned.size },
+                onNewWord = { next() }
+            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -1220,5 +1151,336 @@ fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, o
             SpeakButton(40.dp, onSpeak)
             StarButton(true, onRemove)
         }
+    }
+}
+
+// ---------- quiz ----------
+
+private enum class QType { Meaning, Reverse, Listen }
+
+private class QuizQ(val word: Word, val type: QType, val options: List<String>, val correct: String) {
+    /** True when the options are Arabic meanings, false when they are English words. */
+    val toArabic: Boolean get() = type == QType.Meaning
+}
+
+private fun buildQuestion(word: Word, index: Int): QuizQ {
+    val type = if (index == 0) QType.Meaning else listOf(QType.Meaning, QType.Reverse, QType.Listen).random()
+    val toArabic = type == QType.Meaning
+    fun text(w: Word) = if (toArabic) w.ar else w.en
+    val pool = WordRepo.all.filter { it.id != word.id && it.isPhrase == word.isPhrase }
+    val correct = text(word)
+    val distractors = (pool.filter { it.kind == word.kind }.shuffled() + pool.shuffled())
+        .map { text(it) }
+        .filter { it != correct }
+        .distinct()
+        .take(3)
+    return QuizQ(word, type, (distractors + correct).shuffled(), correct)
+}
+
+/** A round of up to 10 questions with progress, feedback and a result screen. */
+@Composable
+private fun QuizSession(
+    store: SettingsStore,
+    first: Word,
+    speak: (String) -> Unit,
+    onLearnedChanged: () -> Unit,
+    onNewWord: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    var round by remember { mutableIntStateOf(0) }
+    val questions = remember(round) {
+        val start = if (round == 0) first else WordRepo.pick(store)
+        WordRepo.quizWords(store, start, 10).mapIndexed { i, w -> buildQuestion(w, i) }
+    }
+    var index by remember(round) { mutableIntStateOf(0) }
+    var picked by remember(round, index) { mutableStateOf<String?>(null) }
+    var score by remember(round) { mutableIntStateOf(0) }
+    var streak by remember(round) { mutableIntStateOf(0) }
+    var best by remember(round) { mutableIntStateOf(0) }
+    val wrong = remember(round) { mutableStateListOf<Word>() }
+    val total = questions.size
+
+    if (index >= total) {
+        QuizResult(
+            score = score,
+            total = total,
+            best = best,
+            wrong = wrong.toList(),
+            speak = speak,
+            onAgain = { round++ },
+            onNewWord = onNewWord
+        )
+        return
+    }
+
+    val q = questions[index]
+    val answered = picked != null
+    LaunchedEffect(round, index) {
+        if (q.type == QType.Listen) speak(q.word.en)
+    }
+
+    // progress
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("سؤال ${index + 1} من $total", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
+            if (streak >= 2) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Beige)
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold)
+                }
+            }
+        }
+        LinearProgressIndicator(
+            progress = { (index + if (answered) 1 else 0).toFloat() / total },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            color = Teal,
+            trackColor = Line
+        )
+    }
+
+    // question card
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            when (q.type) {
+                QType.Meaning -> {
+                    Text("إيه معنى الكلمة دي؟", fontSize = 16.sp, color = Muted)
+                    En(
+                        q.word.en,
+                        if (q.word.en.length > 14) 28.sp else 36.sp,
+                        Night, FontWeight.ExtraBold, TextAlign.Center, Modifier.fillMaxWidth()
+                    )
+                    SpeakButton(48.dp) { speak(q.word.en) }
+                }
+                QType.Reverse -> {
+                    Text("إيه الكلمة الإنجليزي اللي معناها؟", fontSize = 16.sp, color = Muted)
+                    Text(
+                        q.word.ar,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Night,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 36.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                QType.Listen -> {
+                    Text("اسمع واختار الكلمة الصح", fontSize = 16.sp, color = Muted)
+                    SpeakButton(72.dp) { speak(q.word.en) }
+                    Text("دوس لو عايز تسمعها تاني", fontSize = 13.sp, color = Muted)
+                }
+            }
+        }
+    }
+
+    // options
+    val letters = listOf("أ", "ب", "ج", "د")
+    q.options.forEachIndexed { i, opt ->
+        val isCorrect = opt == q.correct
+        val isPicked = picked == opt
+        val bg by animateColorAsState(
+            when {
+                !answered -> Color.White
+                isCorrect -> Tint
+                isPicked -> Color(0xFFFFE3E5)
+                else -> Color.White
+            },
+            tween(220), label = "optBg"
+        )
+        val borderColor by animateColorAsState(
+            when {
+                !answered -> Line
+                isCorrect -> Teal
+                isPicked -> Danger
+                else -> Line
+            },
+            tween(220), label = "optBorder"
+        )
+        val shape = RoundedCornerShape(14.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 60.dp)
+                .clip(shape)
+                .background(bg)
+                .border(if (answered && (isCorrect || isPicked)) 2.dp else 1.5.dp, borderColor, shape)
+                .clickable(enabled = !answered, role = Role.Button) {
+                    picked = opt
+                    if (isCorrect) {
+                        score++
+                        streak++
+                        if (streak > best) best = streak
+                        store.markLearned(q.word.id)
+                        store.hard = store.hard - q.word.id
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    } else {
+                        streak = 0
+                        wrong.add(q.word)
+                        store.learned = store.learned - q.word.id
+                        store.hard = store.hard + q.word.id
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                    onLearnedChanged()
+                }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            answered && isCorrect -> Teal
+                            answered && isPicked -> Danger
+                            else -> Beige
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (answered && isCorrect) {
+                    Icon(painterResource(R.drawable.ic_check), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                } else if (answered && isPicked) {
+                    Icon(painterResource(R.drawable.ic_close), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(letters.getOrElse(i) { "" }, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                }
+            }
+            if (q.toArabic) {
+                Text(opt, fontSize = 19.sp, color = Night, modifier = Modifier.weight(1f))
+            } else {
+                En(opt, 20.sp, Night, FontWeight.SemiBold, TextAlign.Start, Modifier.weight(1f))
+            }
+        }
+    }
+
+    // feedback
+    AnimatedVisibility(visible = answered, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
+        val ok = picked == q.correct
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = if (ok) Tint else Color(0xFFFFEEF0),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    if (ok) {
+                        if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
+                    } else "مش مشكلة، هنراجعها تاني",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (ok) TealDark else Danger
+                )
+                if (!ok) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("الإجابة الصح:", fontSize = 16.sp, color = Muted)
+                        if (q.toArabic) Text(q.correct, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                        else En(q.correct, 17.sp, Night, FontWeight.Bold)
+                    }
+                }
+                if (q.word.example.isNotEmpty()) {
+                    En(q.word.example, 15.sp, Muted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+    if (answered) {
+        PrimaryButton(if (index == total - 1) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) { index++ }
+    }
+}
+
+@Composable
+private fun QuizResult(
+    score: Int,
+    total: Int,
+    best: Int,
+    wrong: List<Word>,
+    speak: (String) -> Unit,
+    onAgain: () -> Unit,
+    onNewWord: () -> Unit
+) {
+    val pct = if (total == 0) 0 else score * 100 / total
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(110.dp)
+                    .clip(CircleShape)
+                    .background(if (pct >= 50) Tint else Beige)
+                    .border(3.dp, if (pct >= 50) Teal else Gold, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("$score/$total", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            }
+            Text(
+                when {
+                    pct >= 80 -> "ممتاز! 🏆"
+                    pct >= 50 -> "كويس، كمّل 👏"
+                    else -> "التكرار هو السر 💪"
+                },
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Night
+            )
+            LinearProgressIndicator(
+                progress = { pct / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (pct >= 50) Teal else Gold,
+                trackColor = Line
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                ResultStat("صح", "$score")
+                ResultStat("غلط", "${total - score}")
+                ResultStat("أطول سلسلة", "$best")
+            }
+        }
+    }
+
+    if (wrong.isNotEmpty()) {
+        Section("كلمات محتاجة مراجعة") {
+            wrong.forEach { w ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        En(w.en, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
+                        Text(w.ar, fontSize = 15.sp, color = Muted)
+                    }
+                    SpeakButton(40.dp) { speak(w.en) }
+                }
+            }
+            Text("الكلمات دي هتظهرلك أكتر عشان تثبّت.", fontSize = 14.sp, color = Muted)
+        }
+    }
+
+    PrimaryButton("جولة جديدة", Modifier.fillMaxWidth(), onClick = onAgain)
+    SecondaryButton("كلمة جديدة", Modifier.fillMaxWidth(), onClick = onNewWord)
+}
+
+@Composable
+private fun ResultStat(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+        Text(label, fontSize = 13.sp, color = Muted)
     }
 }

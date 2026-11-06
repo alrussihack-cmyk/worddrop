@@ -155,19 +155,24 @@ object WordRepo {
         setCustom(emptyList())
     }
 
-    /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */
-    fun pick(s: SettingsStore): Word {
+    /** Words that match the user's level and content filters. */
+    private fun basePool(s: SettingsStore): List<Word> {
         val byLevel = when (s.level) {
             1 -> all.filter { it.level == "A" }
             2 -> all.filter { it.level == "B1" }
             3 -> all.filter { it.level == "B2" }
             else -> all
         }
-        val base = when (s.content) {
+        return when (s.content) {
             1 -> byLevel.filter { !it.isPhrase }
             2 -> byLevel.filter { it.isPhrase }
             else -> byLevel
         }.ifEmpty { all }
+    }
+
+    /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */
+    fun pick(s: SettingsStore): Word {
+        val base = basePool(s)
         val learned = s.learned
         var pool = base.filter { it.id !in learned }
         if (pool.isEmpty()) pool = base
@@ -176,5 +181,17 @@ object WordRepo {
         val chosen = if (hardPool.isNotEmpty() && kotlin.random.Random.nextFloat() < 0.35f) hardPool.random() else pool.random()
         s.lastWordId = chosen.id
         return chosen
+    }
+
+    /** Words for one quiz round: [first] plus words the user still has to learn, hard ones first. */
+    fun quizWords(s: SettingsStore, first: Word, n: Int = 10): List<Word> {
+        val learned = s.learned
+        val hard = s.hard
+        val rest = basePool(s)
+            .filter { it.id != first.id }
+            .shuffled()
+            .sortedBy { if (it.id in hard) 0 else if (it.id !in learned) 1 else 2 }
+            .take(n - 1)
+        return listOf(first) + rest.shuffled()
     }
 }
