@@ -409,77 +409,93 @@ class OverlayService : Service() {
             clampBanner()
         }
 
-        // ----- control buttons -----
-        if (s.showActions) {
+        // ----- control buttons (only the ones the user picked; 3 per row) -----
+        val chosen = s.actions
+        if (chosen.isNotEmpty()) {
             val actions = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(8), 0, 0)
             }
-            val rowA = buttonRow()
-            val rowB = buttonRow()
-
-            val favBtn = pill("", t) { }
-            fun refreshFav() {
-                val on = w.id in s.favWords
-                favBtn.text = if (on) "★ في المفضلة" else "☆ مفضلة"
-                favBtn.setTextColor(if (on) t.accent else t.text)
-            }
-            refreshFav()
-            favBtn.setOnClickListener {
-                resetTimer()
-                s.toggleFavWord(w.id)
-                refreshFav()
-            }
-
-            val knowBtn = pill("✓ أعرفها", t) { b ->
-                s.markLearned(w.id)
-                s.hard = s.hard - w.id
-                b.text = "✓ تمام!"
-                handler.removeCallbacks(dismissRunnable)
-                handler.postDelayed(dismissRunnable, 700L)
-            }
-            val dontBtn = pill("✗ لسه", t) { b ->
-                s.learned = s.learned - w.id
-                s.hard = s.hard + w.id
-                b.text = "هتظهرلك تاني"
-                showExample(true)
-                resetTimer()
-            }
-            rowA.addView(favBtn)
-            rowA.addView(knowBtn)
-            rowA.addView(dontBtn)
-
+            val rows = mutableListOf<LinearLayout>()
+            val buttons = mutableListOf<TextView>()
             val pauseRow = buttonRow().apply { visibility = View.GONE }
+
             fun pauseFor(minutes: Int) {
                 s.pausedUntil = System.currentTimeMillis() + minutes * 60_000L
                 finishBanner()
             }
+
+            if ("fav" in chosen) {
+                val favBtn = pill("", t) { }
+                fun refreshFav() {
+                    val on = w.id in s.favWords
+                    favBtn.text = if (on) "★ في المفضلة" else "☆ مفضلة"
+                    favBtn.setTextColor(if (on) t.accent else t.text)
+                }
+                refreshFav()
+                favBtn.setOnClickListener {
+                    resetTimer()
+                    s.toggleFavWord(w.id)
+                    refreshFav()
+                }
+                buttons += favBtn
+            }
+            if ("know" in chosen) {
+                buttons += pill("✓ أعرفها", t) { b ->
+                    s.markLearned(w.id)
+                    s.hard = s.hard - w.id
+                    b.text = "✓ تمام!"
+                    handler.removeCallbacks(dismissRunnable)
+                    handler.postDelayed(dismissRunnable, 700L)
+                }
+            }
+            if ("dont" in chosen) {
+                buttons += pill("✗ لسه", t) { b ->
+                    s.learned = s.learned - w.id
+                    s.hard = s.hard + w.id
+                    b.text = "هتظهرلك تاني"
+                    showExample(true)
+                    resetTimer()
+                }
+            }
+            if ("example" in chosen && w.example.isNotEmpty()) {
+                buttons += pill("💡 مثال", t) {
+                    resetTimer()
+                    showExample(exampleBox.visibility != View.VISIBLE)
+                }
+            }
+            if ("skip" in chosen) {
+                buttons += pill("⏭ تخطي", t) { showWord(silent = true) }
+            }
+            if ("pause" in chosen) {
+                buttons += pill("⏸ إيقاف", t) {
+                    rows.forEach { it.visibility = View.GONE }
+                    pauseRow.visibility = View.VISIBLE
+                    resetTimer()
+                }
+            }
+
+            buttons.chunked(3).forEach { chunk ->
+                val row = buttonRow()
+                chunk.forEach { row.addView(it) }
+                // Empty slots keep every button the same width.
+                repeat(3 - chunk.size) {
+                    row.addView(View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(3), 0, dp(3), 0) }
+                    })
+                }
+                rows += row
+                actions.addView(row)
+            }
+
             pauseRow.addView(pill("30 د", t) { pauseFor(30) })
             pauseRow.addView(pill("ساعة", t) { pauseFor(60) })
             pauseRow.addView(pill("3 ساعات", t) { pauseFor(180) })
             pauseRow.addView(pill("رجوع", t) {
                 pauseRow.visibility = View.GONE
-                rowA.visibility = View.VISIBLE
-                rowB.visibility = View.VISIBLE
+                rows.forEach { it.visibility = View.VISIBLE }
                 resetTimer()
             })
-
-            if (w.example.isNotEmpty()) {
-                rowB.addView(pill("💡 مثال", t) {
-                    resetTimer()
-                    showExample(exampleBox.visibility != View.VISIBLE)
-                })
-            }
-            rowB.addView(pill("⏭ تخطي", t) { showWord(silent = true) })
-            rowB.addView(pill("⏸ إيقاف", t) {
-                rowA.visibility = View.GONE
-                rowB.visibility = View.GONE
-                pauseRow.visibility = View.VISIBLE
-                resetTimer()
-            })
-
-            actions.addView(rowA)
-            actions.addView(rowB)
             actions.addView(pauseRow)
             root.addView(actions)
         }

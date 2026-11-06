@@ -70,7 +70,12 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt("bannerTheme", 0)
         set(v) = prefs.edit().putInt("bannerTheme", v).apply()
 
-    /** Shows the control buttons (favorite, know, example, skip, pause) inside the banner. */
+    /** Buttons shown inside the banner: any of fav, know, dont, example, skip, pause. */
+    var actions: Set<String>
+        get() = prefs.getStringSet("actions", null) ?: setOf("fav", "know", "skip")
+        set(v) = prefs.edit().putStringSet("actions", v).apply()
+
+    /** Old master switch, no longer used. */
     var showActions: Boolean
         get() = prefs.getBoolean("showActions", true)
         set(v) = prefs.edit().putBoolean("showActions", v).apply()

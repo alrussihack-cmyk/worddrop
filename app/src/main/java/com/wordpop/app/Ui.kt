@@ -469,7 +469,7 @@ fun HomeScreen(
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
     var opacity by remember { mutableFloatStateOf(store.opacity.toFloat()) }
     var bannerTheme by remember { mutableIntStateOf(store.bannerTheme) }
-    var showActions by remember { mutableStateOf(store.showActions) }
+    var actionSet by remember { mutableStateOf(store.actions) }
     var skipCalls by remember { mutableStateOf(store.skipCalls) }
     var skipGames by remember { mutableStateOf(store.skipGames) }
     var pausedUntil by remember { mutableStateOf(store.pausedUntil) }
@@ -833,10 +833,24 @@ fun HomeScreen(
                         }
                     }
                 }
-                SwitchRow("أزرار التحكم داخل النافذة (مفضلة، أعرفها، مثال، تخطي، إيقاف)", showActions) {
-                    showActions = it
-                    store.showActions = it
+                Text("الأزرار اللي تظهر في النافذة", fontSize = 16.sp, color = Muted)
+                ChipRow {
+                    listOf("fav" to "مفضلة", "know" to "أعرفها", "skip" to "تخطي").forEach { (k, label) ->
+                        Chip(label, k in actionSet) {
+                            actionSet = if (k in actionSet) actionSet - k else actionSet + k
+                            store.actions = actionSet
+                        }
+                    }
                 }
+                ChipRow {
+                    listOf("dont" to "لسه", "example" to "مثال", "pause" to "إيقاف").forEach { (k, label) ->
+                        Chip(label, k in actionSet) {
+                            actionSet = if (k in actionSet) actionSet - k else actionSet + k
+                            store.actions = actionSet
+                        }
+                    }
+                }
+                Text("الأساسي: مفضلة وأعرفها وتخطي. فعّل الباقي لو عايزه.", fontSize = 14.sp, color = Muted)
                 Text("جرّب من الرئيسية بزرار \"جرّب كلمة\" عشان تشوف الشكل.", fontSize = 14.sp, color = Muted)
             }
         }
