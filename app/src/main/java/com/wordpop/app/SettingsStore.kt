@@ -143,6 +143,18 @@ class SettingsStore(context: Context) {
         prefs.edit().putStringSet(key, (intSet(key) - id).map { it.toString() }.toSet()).apply()
     }
 
+    var orKey: String
+        get() = prefs.getString("orKey", "") ?: ""
+        set(v) = prefs.edit().putString("orKey", v.trim()).apply()
+
+    var orModel: String
+        get() = prefs.getString("orModel", null) ?: "openai/gpt-4o-mini"
+        set(v) = prefs.edit().putString("orModel", v.trim()).apply()
+
+    var storiesJson: String
+        get() = prefs.getString("stories", "[]") ?: "[]"
+        set(v) = prefs.edit().putString("stories", v).apply()
+
     fun stat(key: String): Int = prefs.getInt(key, 0)
 
     fun setStat(key: String, v: Int) {

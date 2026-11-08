@@ -1106,9 +1106,12 @@ fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
         ChipRow {
             Chip("كلمات (${words.size})", tab == 0) { tab = 0 }
             Chip("جمل (${sentences.size})", tab == 1) { tab = 1 }
+            Chip("قصة", tab == 2) { tab = 2 }
         }
 
-        if (tab == 0) {
+        if (tab == 2) {
+            StoryTab(store = store, words = words, speak = speak)
+        } else if (tab == 0) {
             if (words.isEmpty()) EmptyFav("لسه مضفتش كلمات. دوس على النجمة في شاشة التعلّم.")
             words.forEach { w ->
                 FavCard(
