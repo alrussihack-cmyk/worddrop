@@ -97,17 +97,18 @@ import java.util.Locale
 
 // ---------- brand ----------
 
-val Teal = Color(0xFF549E86)      // primary teal-green
-val TealDark = Color(0xFF2F6F5B)  // darker teal for text on light backgrounds
-val Night = Color(0xFF1C1C1C)       // main text
-val Mint = Color(0xFF549E86)
+val Teal = Color(0xFF0B7F6C)      // Lagoon: primary
+val TealDark = Color(0xFF0A5E51)  // Lagoon Deep: text on tint
+val Night = Color(0xFF12211F)       // Ink: main text
+val Mint = Color(0xFF0B7F6C)
 val Cloud = Color(0xFFFFFFFF)
-val Muted = Color(0xFF6B6B6B)
-val Line = Color(0xFFECE9E4)
-val Beige = Color(0xFFF1EDE4)       // soft card
-val Gold = Color(0xFFA67F3D)        // accent button
-val Tint = Color(0xFFE4F1EC)        // light teal tint
-val Danger = Color(0xFFD64550)
+val Muted = Color(0xFF5B6F6B)
+val Line = Color(0xFFD9E6E3)
+val Beige = Color(0xFFF4F9F8)       // Foam: soft card
+val Gold = Color(0xFF946200)        // deep amber: text/buttons with white
+val Spark = Color(0xFFF4B223)       // Spark: stars, pop dot
+val Tint = Color(0xFFDDF2EE)        // Lagoon tint
+val Danger = Color(0xFFBF2530)
 
 @Composable
 fun WordPopTheme(content: @Composable () -> Unit) {
@@ -443,7 +444,7 @@ fun StarButton(selected: Boolean, onClick: () -> Unit) {
         Icon(
             painterResource(if (selected) R.drawable.ic_star else R.drawable.ic_star_outline),
             contentDescription = if (selected) "شيل من المفضلة" else "ضيف للمفضلة",
-            tint = if (selected) Color(0xFFFFB400) else Muted,
+            tint = if (selected) Spark else Muted,
             modifier = Modifier.size(28.dp)
         )
     }
@@ -597,8 +598,8 @@ fun HomeScreen(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Mint,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFD9D5CC),
-                        uncheckedBorderColor = Color(0xFFBDB7AA)
+                        uncheckedTrackColor = Color(0xFFC3D3CF),
+                        uncheckedBorderColor = Color(0xFF9FB5B0)
                     )
                 )
             }
@@ -1015,7 +1016,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE4F1EC))
+                            .background(Tint)
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(word.kind, fontSize = 15.sp, color = TealDark, fontWeight = FontWeight.Bold)
@@ -1303,7 +1304,7 @@ private fun QuizSession(
             when {
                 !answered -> Color.White
                 isCorrect -> Tint
-                isPicked -> Color(0xFFFFE3E5)
+                isPicked -> Color(0xFFFDE7E8)
                 else -> Color.White
             },
             tween(220), label = "optBg"
@@ -1381,7 +1382,7 @@ private fun QuizSession(
         val ok = picked == q.correct
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (ok) Tint else Color(0xFFFFEEF0),
+            color = if (ok) Tint else Color(0xFFFDE7E8),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

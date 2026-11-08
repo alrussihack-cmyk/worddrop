@@ -66,7 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val WrongBg = Color(0xFFFFEEF0)
+private val WrongBg = Color(0xFFFDE7E8)
 
 // ---------- entry screen ----------
 
@@ -254,7 +254,7 @@ private fun LetterBoxes(typed: String, target: String, showTarget: Boolean) {
                         .weight(1f)
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (good) Color.White else Color(0xFFFFD9DE))
+                        .background(if (good) Color.White else Color(0xFFFBD0D3))
                         .border(1.5.dp, if (good) Teal else Danger, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -590,7 +590,7 @@ private fun WordChip(text: String, state: Int, onClick: () -> Unit) {
     Box(
         Modifier
             .clip(shape)
-            .background(if (state == 1) Color(0xFFFFE3E5) else Color.White)
+            .background(if (state == 1) Color(0xFFFDE7E8) else Color.White)
             .border(1.5.dp, if (state == 1) Danger else Teal, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -728,7 +728,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                 when {
                     !answered -> Color.White
                     isCorrect -> Tint
-                    isPicked -> Color(0xFFFFE3E5)
+                    isPicked -> Color(0xFFFDE7E8)
                     else -> Color.White
                 }, tween(220), label = "bg"
             )

@@ -2,6 +2,6 @@
 <resources>
     <style name="Theme.WordPop" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/cloud</item>
-        <item name="android:colorPrimary">#549E86</item>
+        <item name="android:colorPrimary">#0B7F6C</item>
     </style>
 </resources>
