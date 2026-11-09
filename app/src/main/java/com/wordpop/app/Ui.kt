@@ -649,7 +649,7 @@ fun HomeScreen(
                 Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
                 Column {
                     Text("ووردبوب", fontSize = 30.sp, fontFamily = Display, color = Night)
-                    Text("كلمة كل شوية.. وإنجليزيتك بتكبر", fontSize = 15.sp, color = Muted)
+                    Text("كلمة كل شوية، وبوبي معاك لحد ما تثبت.", fontSize = 13.sp, color = Muted, maxLines = 2)
                 }
             } else {
                 Text(page.title, fontSize = 24.sp, fontFamily = Display, color = Night)
