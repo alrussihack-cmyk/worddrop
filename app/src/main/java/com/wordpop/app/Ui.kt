@@ -1000,9 +1000,10 @@ fun HomeScreen(
                     )
                 )
                 Text("اللون", fontSize = 16.sp, color = Muted)
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BannerThemes.all.forEachIndexed { i, th ->
                         Column(
