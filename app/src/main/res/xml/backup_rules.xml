@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Preferences may contain legacy plaintext API keys or admin credentials. -->
+    <exclude domain="sharedpref" path="wordpop.xml" />
+    <exclude domain="sharedpref" path="wordpop_secrets.xml" />
+    <exclude domain="sharedpref" path="wordpop_admin.xml" />
+</full-backup-content>
