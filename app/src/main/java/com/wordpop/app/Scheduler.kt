@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import java.util.Calendar
@@ -18,16 +17,9 @@ object Scheduler {
         val at = nextTime(SettingsStore(ctx), from)
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pending(ctx)
-        try {
-            if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) {
-                // Exact alarms fire on time even in Doze, and let the app start its service from the background.
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
-            } else {
-                am.setAlarmClock(AlarmManager.AlarmClockInfo(at, pi), pi)
-            }
-        } catch (e: SecurityException) {
-            am.setAlarmClock(AlarmManager.AlarmClockInfo(at, pi), pi)
-        }
+        // Word reminders do not need alarm-clock precision. Inexact alarms avoid the
+        // restricted exact-alarm permissions and may be deferred by Android during Doze.
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
     }
 
     fun cancel(ctx: Context) {
