@@ -105,20 +105,20 @@ import java.util.Locale
 
 // ---------- brand ----------
 
-val Teal = Color(0xFF2FE0B5)      // Mint: primary fill (text on it is Night)
-val TealDark = Color(0xFF0A6F5C)  // Mint Deep: accent text on white / tint
-val Night = Color(0xFF12182B)       // Ink: text and borders
-val Mint = Color(0xFF2FE0B5)
-val Cloud = Color(0xFFF6F8FC)       // Paper: screen background
-val Muted = Color(0xFF5A6278)
-val Line = Color(0xFFDCE1EE)
-val SunTint = Color(0xFFFFF1C9)
-val Spark = Color(0xFFFFC93C)       // Sun
-val Sun = Color(0xFFFFC93C)
+val Teal = Color(0xFF49E5C4)       // WordPop mint
+val TealDark = Color(0xFF078B78)   // Deep mint for readable accents
+val Night = Color(0xFF14243D)      // Ink navy
+val Mint = Color(0xFF49E5C4)
+val Cloud = Color(0xFFF6F8FC)      // Paper background
+val Muted = Color(0xFF68778F)
+val Line = Color(0xFFE3EAF2)
+val SunTint = Color(0xFFFFF6D9)
+val Spark = Color(0xFFFFE066)      // Sunny yellow
+val Sun = Color(0xFFFFE066)
 val Coral = Color(0xFFFF5C5C)
 val Sky = Color(0xFF59B8FF)
-val SkyTint = Color(0xFFDDEFFF)
-val Tint = Color(0xFFD8F8EE)        // Mint tint
+val SkyTint = Color(0xFFDDF1FF)
+val Tint = Color(0xFFDDF9F1)       // Soft mint surface
 val Danger = Color(0xFFC62F3A)
 val MissTint = Color(0xFFFFE3E3)
 
@@ -536,6 +536,20 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 }
 
 @Composable
+fun HomeStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = tint, shadowElevation = 1.dp) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 13.dp, horizontal = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            Text(label, fontSize = 11.sp, color = Night, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
 fun HomeScreen(
     store: SettingsStore,
     page: Page,
@@ -644,152 +658,188 @@ fun HomeScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             if (page == Page.Home) {
-                Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
-                Column {
-                    Text("ووردبوب", fontSize = 30.sp, fontFamily = Display, color = Night)
-                    Text("كلمة كل شوية، وبوبي معاك لحد ما تثبت.", fontSize = 13.sp, color = Muted, maxLines = 2)
+                Image(painterResource(R.drawable.ic_logo), contentDescription = "WordPop", modifier = Modifier.size(48.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("صباح الخير 👋", fontSize = 23.sp, fontFamily = Display, color = Night)
+                    Text("جاهز تتعلم كلمات جديدة؟", fontSize = 13.sp, color = Muted)
                 }
+                Text("WordPop", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
             } else {
                 Text(page.title, fontSize = 24.sp, fontFamily = Display, color = Night)
             }
         }
 
         if (page == Page.Home) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("الكلمات العائمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
-                    Text(
-                        if (enabled) "شغّال: ${intervalLabel(interval)}، من ${hourLabel(startH)} لحد ${hourLabel(endH)}" else "متوقف",
-                        fontSize = 15.sp,
-                        color = Muted
-                    )
-                }
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = { toggle(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Mint,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFC3D3CF),
-                        uncheckedBorderColor = Color(0xFF9FB5B0)
-                    )
-                )
-            }
-        }
-
-        if (!overlayGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = SunTint, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "لازم تسمح للتطبيق يظهر فوق التطبيقات التانية، من غير كده الكلمات مش هتظهر.",
-                        fontSize = 16.sp,
-                        color = Night
-                    )
-                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Sun) { onRequestOverlay() }
+            // One clear action, with supporting progress and tools kept secondary.
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = Tint,
+                shadowElevation = 3.dp
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.8f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text("مهمة اليوم", color = TealDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(
+                                if (reviewNewCount > 0) "$reviewNewCount كلمات جديدة" else "ابدأ بكلمة جديدة",
+                                fontSize = 25.sp, fontFamily = Display, color = Night
+                            )
+                            Text("جلسة خفيفة · خطوة صغيرة كل يوم", fontSize = 13.sp, color = Muted)
+                        }
+                        Boby(Mood.Cheer, 94.dp)
+                    }
+                    PrimaryButton("ابدأ التعلّم", Modifier.fillMaxWidth()) { onStartLearning() }
                 }
             }
-        }
 
-        if (!exactAlarmGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = SunTint, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "عشان الكلمات تظهر تلقائيًا في الخلفية وفي مواعيدها، اسمح للتطبيق بالتنبيهات الدقيقة.",
-                        fontSize = 16.sp,
-                        color = Night
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("تقدمك في الكلمات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+                        Text("$learned / $total", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark)
+                    }
+                    LinearProgressIndicator(
+                        progress = { if (total == 0) 0f else (learned.toFloat() / total).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)),
+                        color = Teal, trackColor = Line
                     )
-                    PrimaryButton("السماح بالتنبيهات الدقيقة", Modifier.fillMaxWidth(), container = Sun) { onRequestExactAlarm() }
+                    Text("كل كلمة بتتعلمها بتقرّبك من هدفك.", fontSize = 12.sp, color = Muted)
                 }
             }
-        }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            QuickAction("جرّب كلمة", R.drawable.ic_volume, true) {
-                if (overlayGranted) sendToService(ctx, OverlayService.ACTION_SHOW_NOW) else onRequestOverlay()
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                HomeStat(learned.toString(), "اتعلمتها", SkyTint, Modifier.weight(1f))
+                HomeStat(reviewDueCount.toString(), "للمراجعة", SunTint, Modifier.weight(1f))
+                HomeStat(store.favWords.size.toString(), "المفضلة", Tint, Modifier.weight(1f))
             }
-            QuickAction("ابدأ أتعلّم", R.drawable.ic_play, true) { onStartLearning() }
-            QuickAction("المفضلة", R.drawable.ic_star_outline, false) { onNavigate(Page.Favorites) }
-            QuickAction("كلماتي", R.drawable.ic_list, false) { onNavigate(Page.MyWords) }
-        }
 
-        Section("مراجعة اليوم") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        if (reviewDueCount + reviewNewCount > 0) "عندك ${reviewDueCount + reviewNewCount} كلمة جاهزة"
-                        else "مراجعتك مكتملة حاليًا",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Night
-                    )
-                    Text(
-                        "$reviewDueCount مستحقة · $reviewNewCount جديدة",
-                        fontSize = 14.sp,
-                        color = Muted
-                    )
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Boby(Mood.Think, 54.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("المراجعة الذكية", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text(
+                            if (reviewDueCount + reviewNewCount > 0) "$reviewDueCount مستحقة · $reviewNewCount جديدة"
+                            else "ممتاز! مفيش كلمات مستحقة دلوقتي",
+                            fontSize = 12.sp, color = Muted
+                        )
+                    }
+                    SecondaryButton("ابدأ") { onNavigate(Page.Review) }
                 }
-                Boby(if (reviewDueCount > 0) Mood.Think else Mood.Happy, 54.dp)
             }
-            PrimaryButton("ابدأ المراجعة الذكية", Modifier.fillMaxWidth()) {
-                onNavigate(Page.Review)
-            }
-            Text("5 كلمات جديدة كحد أقصى يوميًا، والمواعيد بتتحدد حسب إجاباتك.", fontSize = 13.sp, color = Muted)
-        }
 
-        Section("إيقاف مؤقت") {
-            val paused = pausedUntil > System.currentTimeMillis()
-            val untilText = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
-                .format(java.util.Date(pausedUntil))
-            if (paused) Boby(Mood.Sleep, 64.dp)
-            Text(
-                if (paused) "الكلمات متوقفة لحد $untilText" else "الكلمات شغالة",
-                fontSize = 16.sp,
-                color = if (paused) Muted else Night
-            )
-            ChipRow {
-                listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
-                    Chip(label, false) {
-                        val t = System.currentTimeMillis() + m * 60_000L
-                        store.pausedUntil = t
-                        pausedUntil = t
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("الكلمات العائمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(
+                                if (enabled) "شغّالة · ${intervalLabel(interval)}" else "متوقفة مؤقتًا",
+                                fontSize = 12.sp, color = Muted
+                            )
+                        }
+                        Switch(
+                            checked = enabled, onCheckedChange = { toggle(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Night, checkedTrackColor = Teal,
+                                uncheckedThumbColor = Color.White, uncheckedTrackColor = Line
+                            )
+                        )
+                    }
+                    SecondaryButton("جرّب ظهور كلمة الآن", Modifier.fillMaxWidth()) {
+                        if (overlayGranted) sendToService(ctx, OverlayService.ACTION_SHOW_NOW) else onRequestOverlay()
                     }
                 }
-                Chip("لحد الصبح", false) {
-                    val cal = Calendar.getInstance().apply {
-                        set(Calendar.HOUR_OF_DAY, startH)
-                        set(Calendar.MINUTE, 0)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
-                    }
-                    if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
-                    store.pausedUntil = cal.timeInMillis
-                    pausedUntil = cal.timeInMillis
-                }
             }
-            if (paused) {
-                SecondaryButton("استئناف", Modifier.fillMaxWidth()) {
-                    store.pausedUntil = 0L
-                    pausedUntil = 0L
+
+            if (!overlayGranted || !exactAlarmGranted) {
+                val needsOverlay = !overlayGranted
+                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = SunTint) {
+                    Row(
+                        Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Boby(Mood.Think, 40.dp)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("خطوة أخيرة للتشغيل", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(
+                                if (needsOverlay) "اسمح بالظهور فوق التطبيقات."
+                                else "فعّل التنبيهات الدقيقة لمواعيد الكلمات.",
+                                fontSize = 12.sp, color = Muted
+                            )
+                        }
+                        PrimaryButton("تفعيل") {
+                            if (needsOverlay) onRequestOverlay() else onRequestExactAlarm()
+                        }
+                    }
                 }
             }
         }
 
-        Section("تقدّمك") {
-            Text("حفظت $learned من $total", fontSize = 17.sp, color = Night)
-            LinearProgressIndicator(
-                progress = { if (total == 0) 0f else learned.toFloat() / total },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-                color = Mint,
-                trackColor = Line
-            )
-        }
+        if (page == Page.Settings) {
+            Section("إيقاف مؤقت") {
+                val paused = pausedUntil > System.currentTimeMillis()
+                if (paused) {
+                    Text(
+                        "الكلمات متوقفة لحد " + java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(pausedUntil)),
+                        fontSize = 14.sp, color = Muted
+                    )
+                } else {
+                    Text("اختار مدة راحة، وتقدر تستأنف في أي وقت.", fontSize = 14.sp, color = Muted)
+                }
+                ChipRow {
+                    listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
+                        Chip(label, false) {
+                            val until = System.currentTimeMillis() + m * 60_000L
+                            store.pausedUntil = until
+                            pausedUntil = until
+                        }
+                    }
+                    Chip("لحد الصبح", false) {
+                        val cal = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, startH)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
+                        store.pausedUntil = cal.timeInMillis
+                        pausedUntil = cal.timeInMillis
+                    }
+                }
+                if (paused) {
+                    SecondaryButton("استئناف الكلمات", Modifier.fillMaxWidth()) {
+                        store.pausedUntil = 0L
+                        pausedUntil = 0L
+                    }
+                }
+            }
         }
 
         if (page == Page.Settings) {
