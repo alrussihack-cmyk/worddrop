@@ -58,7 +58,7 @@ object EasyVoiceClient {
                 }
                 connection.disconnect()
                 if (audioFile.length() == 0L) throw IllegalStateException("Empty TTS audio")
-                val fileToPlay = audioFile
+                val fileToPlay = audioFile ?: throw IllegalStateException("Missing TTS audio file")
                 main.post {
                     try {
                         activePlayer?.runCatching { stop(); release() }
@@ -77,8 +77,8 @@ object EasyVoiceClient {
                             onFailure()
                             true
                         }
-                        player.prepareAsync()
                         player.setOnPreparedListener { it.start() }
+                        player.prepareAsync()
                     } catch (_: Exception) {
                         fileToPlay.delete()
                         onFailure()
