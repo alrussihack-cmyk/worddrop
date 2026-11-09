@@ -383,7 +383,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         Chip(if (showAr) "اخفي الترجمة" else "الترجمة", showAr) { showAr = !showAr }
                     }
                     if (showAr && st.ar.isNotEmpty()) {
-                        Surface(shape = RoundedCornerShape(12.dp), color = Beige) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = Tint) {
                             Text(highlight(st.ar), fontSize = 16.sp, lineHeight = 26.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
                         }
                     }
@@ -469,7 +469,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
             Text("قصصك اللي فاتت", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
             saved.forEach { st ->
                 Surface(
-                    shape = RoundedCornerShape(14.dp), color = Beige,
+                    shape = RoundedCornerShape(14.dp), color = Tint,
                     modifier = Modifier.fillMaxWidth().clickable { current = st; showAr = false; quiz = false; fb = null }
                 ) {
                     Column(Modifier.padding(12.dp)) {
