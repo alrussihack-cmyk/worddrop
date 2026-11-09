@@ -169,6 +169,38 @@ object WordRepo {
         else -> levelPool(s)
     }.ifEmpty { all }
 
+    /** The same level and content filters used by the normal word picker. */
+    fun reviewPool(s: SettingsStore): List<Word> = basePool(s)
+
+    fun reviewDueCount(s: SettingsStore, now: Long = System.currentTimeMillis()): Int {
+        val states = s.reviewStates()
+        return basePool(s).count { word -> states[word.id]?.dueAt?.let { it <= now } == true }
+    }
+
+    fun reviewNewCount(s: SettingsStore, now: Long = System.currentTimeMillis()): Int {
+        val states = s.reviewStates()
+        val available = basePool(s).count { it.id !in states }
+        return minOf(available, s.newReviewCardsRemaining(now))
+    }
+
+    /**
+     * Due cards are shown oldest-first, followed by up to five new cards per local day.
+     * A session is capped so a large imported list never creates an overwhelming queue.
+     */
+    fun reviewQueue(s: SettingsStore, now: Long = System.currentTimeMillis()): List<Word> {
+        val pool = basePool(s)
+        val states = s.reviewStates()
+        val due = pool
+            .filter { word -> states[word.id]?.dueAt?.let { it <= now } == true }
+            .sortedBy { states[it.id]?.dueAt ?: Long.MAX_VALUE }
+            .take(ReviewScheduler.MAX_DUE_PER_SESSION)
+        val dueIds = due.mapTo(mutableSetOf()) { it.id }
+        val fresh = pool
+            .filter { it.id !in states && it.id !in dueIds }
+            .take(s.newReviewCardsRemaining(now))
+        return due + fresh
+    }
+
     /**
      * Words for a writing exercise. Words the user got wrong before come first, then words never
      * practiced, then the ones already mastered. [key] is "spell" or "build".
