@@ -143,6 +143,37 @@ class SettingsStore(context: Context) {
         get() = (prefs.getStringSet("learned", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
         set(v) = prefs.edit().putStringSet("learned", v.map { it.toString() }.toSet()).apply()
 
+    /** Persistent spaced-repetition schedule; included in normal app backups. */
+    var reviewCardsJson: String
+        get() = prefs.getString("reviewCards", "{}") ?: "{}"
+        set(v) = prefs.edit().putString("reviewCards", v).apply()
+
+    fun reviewStates(): Map<Int, ReviewState> = ReviewScheduler.decode(reviewCardsJson)
+
+    fun newReviewCardsRemaining(now: Long = System.currentTimeMillis()): Int {
+        val used = if (prefs.getString("reviewNewDate", "") == ReviewScheduler.dayKey(now)) {
+            prefs.getInt("reviewNewCount", 0)
+        } else 0
+        return (ReviewScheduler.NEW_CARDS_PER_DAY - used).coerceAtLeast(0)
+    }
+
+    /** Records one self-assessed review and consumes a daily-new slot only for a first review. */
+    fun recordReview(id: Int, rating: ReviewRating, now: Long = System.currentTimeMillis()) {
+        val cards = reviewStates()
+        val previous = cards[id]
+        val updated = cards + (id to ReviewScheduler.next(previous, rating, now))
+        val today = ReviewScheduler.dayKey(now)
+        val usedToday = if (prefs.getString("reviewNewDate", "") == today) {
+            prefs.getInt("reviewNewCount", 0)
+        } else 0
+        val newCount = if (previous == null) usedToday + 1 else usedToday
+        prefs.edit()
+            .putString("reviewCards", ReviewScheduler.encode(updated))
+            .putString("reviewNewDate", today)
+            .putInt("reviewNewCount", newCount)
+            .apply()
+    }
+
     /** Favorite words (by word id) and favorite example sentences (by the id of the word they belong to). */
     var favWords: Set<Int>
         get() = (prefs.getStringSet("favWords", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
