@@ -135,6 +135,17 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("autoSpeak", false)
         set(v) = prefs.edit().putBoolean("autoSpeak", v).apply()
 
+    /** English pronunciation accent: en-US, en-GB, or en-AU. */
+    var speechAccent: String
+        get() = prefs.getString("speechAccent", SpeechAccents.AMERICAN)
+            ?.takeIf { it in setOf(SpeechAccents.AMERICAN, SpeechAccents.BRITISH, SpeechAccents.AUSTRALIAN) }
+            ?: SpeechAccents.AMERICAN
+        set(v) = prefs.edit().putString(
+            "speechAccent",
+            v.takeIf { it in setOf(SpeechAccents.AMERICAN, SpeechAccents.BRITISH, SpeechAccents.AUSTRALIAN) }
+                ?: SpeechAccents.AMERICAN
+        ).apply()
+
     var lastWordId: Int
         get() = prefs.getInt("lastWordId", -1)
         set(v) = prefs.edit().putInt("lastWordId", v).apply()
