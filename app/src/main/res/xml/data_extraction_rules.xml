@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="wordpop.xml" />
+        <exclude domain="sharedpref" path="wordpop_secrets.xml" />
+        <exclude domain="sharedpref" path="wordpop_admin.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="wordpop.xml" />
+        <exclude domain="sharedpref" path="wordpop_secrets.xml" />
+        <exclude domain="sharedpref" path="wordpop_admin.xml" />
+    </device-transfer>
+</data-extraction-rules>
