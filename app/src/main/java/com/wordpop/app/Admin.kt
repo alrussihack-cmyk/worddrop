@@ -114,8 +114,10 @@ private fun Field(value: String, onChange: (String) -> Unit, label: String, secr
 fun AdminScreen(
     store: SettingsStore,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onClose: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -137,7 +139,7 @@ fun AdminScreen(
         if (!unlocked) {
             AdminLogin(onOk = { unlocked = true })
         } else {
-            AdminPanel(store, overlayGranted, onRequestOverlay, onRequestNotif, onLock = { unlocked = false })
+            AdminPanel(store, overlayGranted, exactAlarmGranted, onRequestOverlay, onRequestNotif, onRequestExactAlarm, onLock = { unlocked = false })
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -186,8 +188,10 @@ private fun AdminLogin(onOk: () -> Unit) {
 private fun AdminPanel(
     store: SettingsStore,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onLock: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -264,6 +268,7 @@ private fun AdminPanel(
         SwitchRow("ظهور الكلمات", enabled) { on ->
             if (on) {
                 if (!overlayGranted) { onRequestOverlay(); return@SwitchRow }
+                if (!exactAlarmGranted) { onRequestExactAlarm(); return@SwitchRow }
                 onRequestNotif()
                 store.enabled = true; enabled = true
                 sendToService(ctx, OverlayService.ACTION_START)
@@ -272,6 +277,10 @@ private fun AdminPanel(
                 Scheduler.cancel(ctx)
                 ctx.stopService(Intent(ctx, OverlayService::class.java))
             }
+        }
+        if (!exactAlarmGranted) {
+            Text("التنبيهات الدقيقة مطلوبة لتشغيل الكلمات تلقائيًا في الخلفية.", fontSize = 14.sp, color = Danger)
+            SecondaryButton("افتح إعدادات التنبيهات الدقيقة", Modifier.fillMaxWidth()) { onRequestExactAlarm() }
         }
         Text("كل قد إيه", fontSize = 15.sp, color = Muted)
         ChipRow { listOf(5, 15, 30, 60, 120, 180, 360).forEach { m -> Chip(intervalLabel(m), interval == m) { interval = m; store.intervalMin = m; refresh() } } }
