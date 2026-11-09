@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
 
     private var overlayGranted by mutableStateOf(false)
+    private var exactAlarmGranted by mutableStateOf(false)
+    private var lastReady: Boolean? = null
     private var wordFromIntent by mutableStateOf<Int?>(null)
 
     private val notifPermission =
@@ -38,6 +40,7 @@ class MainActivity : ComponentActivity() {
             WordPopTheme {
                 WordPopApp(
                     overlayGranted = overlayGranted,
+                    exactAlarmGranted = exactAlarmGranted,
                     openWordId = wordFromIntent,
                     onConsumeOpenWord = { wordFromIntent = null },
                     onRequestOverlay = {
@@ -51,6 +54,24 @@ class MainActivity : ComponentActivity() {
                     onRequestNotif = {
                         if (Build.VERSION.SDK_INT >= 33) {
                             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    },
+                    onRequestExactAlarm = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val request = Intent(
+                                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                Uri.parse("package:$packageName")
+                            )
+                            try {
+                                startActivity(request)
+                            } catch (e: Exception) {
+                                startActivity(
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:$packageName")
+                                    )
+                                )
+                            }
                         }
                     }
                 )
@@ -67,6 +88,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         overlayGranted = Settings.canDrawOverlays(this)
+        exactAlarmGranted = Scheduler.hasExactAlarmAccess(this)
+        val ready = overlayGranted && exactAlarmGranted
+        if (ready && lastReady != true && SettingsStore(this).enabled) {
+            sendToService(this, OverlayService.ACTION_START)
+        }
+        lastReady = ready
     }
 
     private fun handleIntent(i: Intent?) {
