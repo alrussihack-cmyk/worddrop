@@ -268,7 +268,7 @@ private fun AdminPanel(
         SwitchRow("ظهور الكلمات", enabled) { on ->
             if (on) {
                 if (!overlayGranted) { onRequestOverlay(); return@SwitchRow }
-                if (!exactAlarmGranted) { onRequestExactAlarm(); return@SwitchRow }
+                if (!exactAlarmGranted) { store.enabled = true; enabled = true; onRequestExactAlarm(); return@SwitchRow }
                 onRequestNotif()
                 store.enabled = true; enabled = true
                 sendToService(ctx, OverlayService.ACTION_START)
