@@ -621,11 +621,19 @@ class OverlayService : Service() {
     }
 
     private fun speak(text: String) {
-        if (ttsReady) {
-            tts?.let { engine ->
-                applyEnglishAccent(engine, SettingsStore(this).speechAccent)
-                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+        val settings = SettingsStore(this)
+        val fallback = {
+            if (ttsReady) {
+                tts?.let { engine ->
+                    applyEnglishAccent(engine, settings.speechAccent)
+                    engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+                }
             }
+        }
+        if (settings.ttsWorkerUrl.isNotBlank()) {
+            EasyVoiceClient.speak(this, settings.ttsWorkerUrl, text, settings.speechVoice, fallback)
+        } else {
+            fallback()
         }
     }
 
