@@ -422,6 +422,7 @@ class OverlayService : Service() {
                 text = w.example
                 textSize = 15f * scale
                 setTextColor(t.text)
+                typeface = font(R.font.readex_regular, Typeface.DEFAULT)
                 textDirection = View.TEXT_DIRECTION_LTR
                 gravity = Gravity.START
                 setOnClickListener {
@@ -434,6 +435,7 @@ class OverlayService : Service() {
                     text = w.exampleAr
                     textSize = 13f * scale
                     setTextColor(t.sub)
+                    typeface = font(R.font.readex_regular, Typeface.DEFAULT)
                     gravity = Gravity.START
                 })
             }
