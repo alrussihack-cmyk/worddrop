@@ -1702,7 +1702,7 @@ fun ReviewScreen(store: SettingsStore) {
                 val word = queue[index]
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("بطاقة \${index + 1} من \${queue.size}", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
+                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
                         Text("تمت مراجعة $completed", fontSize = 13.sp, color = TealDark)
                     }
                     LinearProgressIndicator(
