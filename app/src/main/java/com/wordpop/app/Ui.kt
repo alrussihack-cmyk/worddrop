@@ -362,7 +362,9 @@ fun WordPopApp(
         val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(Modifier.fillMaxSize().background(Cloud).imePadding()) {
             Box(Modifier.weight(1f)) {
-                if (page == Page.Favorites) {
+                if (page == Page.Review) {
+                    ReviewScreen(store = store)
+                } else if (page == Page.Favorites) {
                     FavoritesScreen(store = store, onOpenWord = { learnId = it })
                 } else if (page == Page.Write) {
                     WriteScreen(store = store)
@@ -389,6 +391,7 @@ fun WordPopApp(
 /** Tabs of the bottom bar. */
 enum class Page(val title: String, val icon: Int) {
     Home("الرئيسية", R.drawable.ic_home),
+    Review("المراجعة", R.drawable.ic_check),
     Write("الكتابة", R.drawable.ic_edit),
     Favorites("المفضلة", R.drawable.ic_star_outline),
     MyWords("كلماتي", R.drawable.ic_list),
@@ -554,6 +557,8 @@ fun HomeScreen(
     var importMsg by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
     val total = wordsVersion.let { WordRepo.all.size }
+    val reviewDueCount = WordRepo.reviewDueCount(store)
+    val reviewNewCount = WordRepo.reviewNewCount(store)
     val customCount = wordsVersion.let { WordRepo.customWords.size }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -687,6 +692,30 @@ fun HomeScreen(
             QuickAction("ابدأ أتعلّم", R.drawable.ic_play, true) { onStartLearning() }
             QuickAction("المفضلة", R.drawable.ic_star_outline, false) { onNavigate(Page.Favorites) }
             QuickAction("كلماتي", R.drawable.ic_list, false) { onNavigate(Page.MyWords) }
+        }
+
+        Section("مراجعة اليوم") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        if (reviewDueCount + reviewNewCount > 0) "عندك ${reviewDueCount + reviewNewCount} كلمة جاهزة"
+                        else "مراجعتك مكتملة حاليًا",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Night
+                    )
+                    Text(
+                        "$reviewDueCount مستحقة · $reviewNewCount جديدة",
+                        fontSize = 14.sp,
+                        color = Muted
+                    )
+                }
+                Boby(if (reviewDueCount > 0) Mood.Think else Mood.Happy, 54.dp)
+            }
+            PrimaryButton("ابدأ المراجعة الذكية", Modifier.fillMaxWidth()) {
+                onNavigate(Page.Review)
+            }
+            Text("5 كلمات جديدة كحد أقصى يوميًا، والمواعيد بتتحدد حسب إجاباتك.", fontSize = 13.sp, color = Muted)
         }
 
         Section("إيقاف مؤقت") {
@@ -1412,12 +1441,18 @@ private fun QuizSession(
                         if (streak > best) best = streak
                         store.markLearned(q.word.id)
                         store.hard = store.hard - q.word.id
+                        if (store.reviewStates().containsKey(q.word.id)) {
+                            store.recordReview(q.word.id, ReviewRating.Good)
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     } else {
                         streak = 0
                         wrong.add(q.word)
                         store.learned = store.learned - q.word.id
                         store.hard = store.hard + q.word.id
+                        if (store.reviewStates().containsKey(q.word.id)) {
+                            store.recordReview(q.word.id, ReviewRating.Again)
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     onLearnedChanged()
@@ -1572,5 +1607,200 @@ fun ResultStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
         Text(label, fontSize = 13.sp, color = Muted)
+    }
+}
+
+
+// ---------- smart spaced repetition ----------
+
+@Composable
+fun ReviewScreen(store: SettingsStore) {
+    val speak = rememberSpeaker()
+    var queue by remember { mutableStateOf(WordRepo.reviewQueue(store)) }
+    var index by remember { mutableIntStateOf(0) }
+    var revealed by remember { mutableStateOf(false) }
+    var completed by remember { mutableIntStateOf(0) }
+    var remembered by remember { mutableIntStateOf(0) }
+
+    fun reloadQueue() {
+        queue = WordRepo.reviewQueue(store)
+        index = 0
+        revealed = false
+        completed = 0
+        remembered = 0
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Cloud)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("المراجعة الذكية", fontSize = 25.sp, fontFamily = Display, color = Night)
+                Text("راجع في الوقت المناسب عشان متنساش الكلمات.", fontSize = 14.sp, color = Muted)
+            }
+            Boby(Mood.Cheer, 54.dp)
+        }
+
+        val dueNow = WordRepo.reviewDueCount(store)
+        val newToday = WordRepo.reviewNewCount(store)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                color = Beige
+            ) {
+                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$dueNow", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("مستحقة", fontSize = 13.sp, color = Muted)
+                }
+            }
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                color = Tint
+            ) {
+                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$newToday", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("جديدة اليوم", fontSize = 13.sp, color = Muted)
+                }
+            }
+        }
+
+        when {
+            queue.isEmpty() -> {
+                Section("أحسنت! 🎉") {
+                    Boby(Mood.Cheer, 82.dp)
+                    Text(
+                        "مفيش كلمات مستحقة دلوقتي. هتظهرلك كلمات جديدة كل يوم، والكلمات اللي راجعتها هترجع في موعدها.",
+                        fontSize = 16.sp,
+                        color = Night
+                    )
+                    PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                }
+            }
+            index >= queue.size -> {
+                Section("خلصت جلسة المراجعة!") {
+                    Boby(Mood.Cheer, 82.dp)
+                    Text("راجعت $completed كلمة، وتذكرت $remembered منها بشكل جيد أو سهل.", fontSize = 17.sp, color = Night)
+                    LinearProgressIndicator(
+                        progress = { if (completed == 0) 0f else remembered.toFloat() / completed },
+                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                        color = Teal,
+                        trackColor = Line
+                    )
+                    PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                }
+            }
+            else -> {
+                val word = queue[index]
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("بطاقة \${index + 1} من \${queue.size}", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
+                        Text("تمت مراجعة $completed", fontSize = 13.sp, color = TealDark)
+                    }
+                    LinearProgressIndicator(
+                        progress = { index.toFloat() / queue.size.coerceAtLeast(1) },
+                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                        color = Teal,
+                        trackColor = Line
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.White,
+                    border = BorderStroke(2.5.dp, Night),
+                    modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(22.dp), 5.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("افتكر معنى الكلمة قبل ما تكشف الإجابة", fontSize = 15.sp, color = Muted)
+                        En(
+                            word.en,
+                            if (word.en.length > 18) 30.sp else 38.sp,
+                            Night,
+                            FontWeight.ExtraBold,
+                            TextAlign.Center,
+                            Modifier.fillMaxWidth()
+                        )
+                        if (word.ipa.isNotEmpty()) {
+                            En(word.ipa, 18.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
+                        }
+                        SpeakButton(52.dp) { speak(word.en) }
+
+                        if (revealed) {
+                            Text(
+                                word.ar,
+                                fontSize = 25.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealDark,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (word.example.isNotEmpty()) {
+                                Ltr {
+                                    Text(word.example, fontSize = 17.sp, color = Night, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                                }
+                            }
+                            if (word.exampleAr.isNotEmpty()) {
+                                Text(word.exampleAr, fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                }
+
+                if (!revealed) {
+                    PrimaryButton("اكشف المعنى", Modifier.fillMaxWidth()) { revealed = true }
+                } else {
+                    Text("قيّم مدى سهولة تذكرك للكلمة:", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) {
+                            store.recordReview(word.id, ReviewRating.Again)
+                            completed++
+                            index++
+                            revealed = false
+                        }
+                        PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) {
+                            store.recordReview(word.id, ReviewRating.Hard)
+                            completed++
+                            index++
+                            revealed = false
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) {
+                            store.recordReview(word.id, ReviewRating.Good)
+                            completed++
+                            remembered++
+                            index++
+                            revealed = false
+                        }
+                        PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) {
+                            store.recordReview(word.id, ReviewRating.Easy)
+                            completed++
+                            remembered++
+                            index++
+                            revealed = false
+                        }
+                    }
+                    Text(
+                        "نسيتها: بعد 10 دقائق · صعبة: بعد يوم · كويسة: بعد 1–3 أيام · سهلة: بعد 4–7 أيام، وبعدها الفواصل بتزيد تدريجيًا.",
+                        fontSize = 13.sp,
+                        color = Muted
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }
