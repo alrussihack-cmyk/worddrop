@@ -61,7 +61,10 @@ object EasyVoiceClient {
                 val fileToPlay = audioFile ?: throw IllegalStateException("Missing TTS audio file")
                 main.post {
                     try {
-                        activePlayer?.runCatching { stop(); release() }
+                        activePlayer?.let { oldPlayer ->
+                            runCatching { oldPlayer.stop() }
+                            oldPlayer.release()
+                        }
                         val player = MediaPlayer()
                         activePlayer = player
                         player.setDataSource(fileToPlay.absolutePath)
