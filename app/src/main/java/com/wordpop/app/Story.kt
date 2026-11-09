@@ -327,9 +327,15 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                     label = { Text("الموديل") }
                 )
                 PrimaryButton("حفظ المفتاح", Modifier.fillMaxWidth()) {
-                    store.orKey = key; store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
-                    model = store.orModel
-                    editKey = key.isBlank()
+                    try {
+                        store.orKey = key
+                        store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
+                        model = store.orModel
+                        editKey = key.isBlank()
+                        error = ""
+                    } catch (e: Exception) {
+                        error = "تعذر حفظ المفتاح بأمان على هذا الجهاز. جرّب مرة أخرى."
+                    }
                 }
             } else {
                 Text(
