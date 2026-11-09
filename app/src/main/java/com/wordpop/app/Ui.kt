@@ -316,10 +316,12 @@ fun rememberSpeaker(): (String) -> Unit {
 @Composable
 fun WordPopApp(
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     openWordId: Int?,
     onConsumeOpenWord: () -> Unit,
     onRequestOverlay: () -> Unit,
-    onRequestNotif: () -> Unit
+    onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit
 ) {
     val ctx = LocalContext.current
     val store = remember { SettingsStore(ctx) }
@@ -341,8 +343,10 @@ fun WordPopApp(
         AdminScreen(
             store = store,
             overlayGranted = overlayGranted,
+            exactAlarmGranted = exactAlarmGranted,
             onRequestOverlay = onRequestOverlay,
             onRequestNotif = onRequestNotif,
+            onRequestExactAlarm = onRequestExactAlarm,
             onClose = { adminOpen = false }
         )
     } else if (id != null) {
@@ -368,8 +372,10 @@ fun WordPopApp(
                         page = page,
                         onNavigate = { page = it },
                         overlayGranted = overlayGranted,
+                        exactAlarmGranted = exactAlarmGranted,
                         onRequestOverlay = onRequestOverlay,
                         onRequestNotif = onRequestNotif,
+                        onRequestExactAlarm = onRequestExactAlarm,
                         onStartLearning = { learnId = WordRepo.pick(store).id },
                         onOpenAdmin = { adminOpen = true }
                     )
@@ -510,8 +516,10 @@ fun HomeScreen(
     page: Page,
     onNavigate: (Page) -> Unit,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onStartLearning: () -> Unit,
     onOpenAdmin: () -> Unit = {}
 ) {
@@ -578,6 +586,10 @@ fun HomeScreen(
         if (on) {
             if (!overlayGranted) {
                 onRequestOverlay()
+                return
+            }
+            if (!exactAlarmGranted) {
+                onRequestExactAlarm()
                 return
             }
             onRequestNotif()
@@ -648,6 +660,19 @@ fun HomeScreen(
                         color = Night
                     )
                     PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Sun) { onRequestOverlay() }
+                }
+            }
+        }
+
+        if (!exactAlarmGranted) {
+            Surface(shape = RoundedCornerShape(20.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "عشان الكلمات تظهر تلقائيًا في الخلفية وفي مواعيدها، اسمح للتطبيق بالتنبيهات الدقيقة.",
+                        fontSize = 16.sp,
+                        color = Night
+                    )
+                    PrimaryButton("السماح بالتنبيهات الدقيقة", Modifier.fillMaxWidth(), container = Sun) { onRequestExactAlarm() }
                 }
             }
         }
