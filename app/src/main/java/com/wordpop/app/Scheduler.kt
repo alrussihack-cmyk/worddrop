@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import java.util.Calendar
@@ -17,9 +18,22 @@ object Scheduler {
         val at = nextTime(SettingsStore(ctx), from)
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pending(ctx)
-        // Word reminders do not need alarm-clock precision. Inexact alarms avoid the
-        // restricted exact-alarm permissions and may be deferred by Android during Doze.
-        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        if (!hasExactAlarmAccess(ctx)) {
+            am.cancel(pi)
+            return
+        }
+        try {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        } catch (e: SecurityException) {
+            // Permission can be revoked between the check and scheduling.
+            am.cancel(pi)
+        }
+    }
+
+    fun hasExactAlarmAccess(ctx: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return am.canScheduleExactAlarms()
     }
 
     fun cancel(ctx: Context) {
@@ -89,7 +103,7 @@ class TickReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val s = SettingsStore(context)
-        if (s.enabled && Settings.canDrawOverlays(context)) {
+        if (s.enabled && Settings.canDrawOverlays(context) && Scheduler.hasExactAlarmAccess(context)) {
             sendToService(context, OverlayService.ACTION_START)
         }
     }
