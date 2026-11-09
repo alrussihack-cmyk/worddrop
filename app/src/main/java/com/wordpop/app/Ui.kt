@@ -1706,6 +1706,9 @@ fun ReviewScreen(store: SettingsStore) {
 
         val dueNow = WordRepo.reviewDueCount(store)
         val newToday = WordRepo.reviewNewCount(store)
+        val trackedStates = store.reviewStates().filterKeys { WordRepo.get(it) != null }
+        val masteredCount = trackedStates.values.count { it.repetitions >= 3 && it.intervalDays >= 21 }
+        val needsPracticeCount = trackedStates.values.count { it.lapses >= 2 }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
                 modifier = Modifier.weight(1f),
@@ -1727,6 +1730,32 @@ fun ReviewScreen(store: SettingsStore) {
                     Text("جديدة اليوم", fontSize = 13.sp, color = Muted)
                 }
             }
+        }
+
+        Section("تقدمك في تثبيت الكلمات") {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ResultStat("بطاقات متعلمة", trackedStates.size.toString())
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ResultStat("ثبتت", masteredCount.toString())
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ResultStat("محتاجة تركيز", needsPracticeCount.toString())
+                }
+            }
+            LinearProgressIndicator(
+                progress = { if (trackedStates.isEmpty()) 0f else masteredCount.toFloat() / trackedStates.size },
+                modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(5.dp)),
+                color = Teal,
+                trackColor = Line
+            )
+            Text(
+                if (trackedStates.isEmpty()) "ابدأ أول جلسة عشان تتابع تقدمك هنا."
+                else "وصلت لمرحلة الثبات في $masteredCount من ${trackedStates.size} بطاقة.",
+                fontSize = 13.sp,
+                color = Muted
+            )
         }
 
         when {
