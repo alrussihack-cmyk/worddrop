@@ -338,9 +338,17 @@ fun rememberSpeaker(): (String) -> Unit {
         }
     }
     return { text ->
-        if (ready) holder[0]?.let { engine ->
-            applyEnglishAccent(engine, store.speechAccent)
-            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui")
+        val fallback = {
+            if (ready) holder[0]?.let { engine ->
+                applyEnglishAccent(engine, store.speechAccent)
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui")
+            }
+        }
+        val worker = store.ttsWorkerUrl
+        if (worker.isNotBlank()) {
+            EasyVoiceClient.speak(ctx.applicationContext, worker, text, store.speechVoice, fallback)
+        } else {
+            fallback()
         }
     }
 }
@@ -584,6 +592,8 @@ fun HomeScreen(
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
     var speechAccent by remember { mutableStateOf(store.speechAccent) }
+    var speechVoice by remember { mutableStateOf(store.speechVoice) }
+    var ttsWorkerUrl by remember { mutableStateOf(store.ttsWorkerUrl) }
     var level by remember { mutableIntStateOf(store.level) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
@@ -998,6 +1008,53 @@ fun HomeScreen(
                     fontSize = 12.sp,
                     color = Muted
                 )
+            }
+            Section("EasyVoice AI — صوت طبيعي") {
+                Text(
+                    "اختار صوتًا من أصوات EasyVoice المجانية. الأصوات البريطانية المتاحة حاليًا تشمل Emma وDaniel، والأصوات الأمريكية تشمل Nova وHeart وBella وSky.",
+                    fontSize = 13.sp,
+                    color = Muted
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        "af_nova" to "Nova 🇺🇸",
+                        "af_heart" to "Heart 🇺🇸",
+                        "af_bella" to "Bella 🇺🇸",
+                        "bf_emma" to "Emma 🇬🇧",
+                        "bm_daniel" to "Daniel 🇬🇧"
+                    ).forEach { (voiceId, label) ->
+                        Chip(label, speechVoice == voiceId) {
+                            speechVoice = voiceId
+                            store.speechVoice = voiceId
+                            store.speechAccent = if (voiceId.startsWith("b")) SpeechAccents.BRITISH else SpeechAccents.AMERICAN
+                            speechAccent = store.speechAccent
+                        }
+                    }
+                }
+                androidx.compose.material3.OutlinedTextField(
+                    value = ttsWorkerUrl,
+                    onValueChange = {
+                        ttsWorkerUrl = it
+                        store.ttsWorkerUrl = it
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Cloudflare Worker URL") },
+                    placeholder = { Text("https://wordpop-tts.yourname.workers.dev") },
+                    singleLine = true
+                )
+                Text(
+                    if (ttsWorkerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
+                    else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائيًا إلى Android TTS.",
+                    fontSize = 12.sp,
+                    color = Muted
+                )
+                PrimaryButton("جرّب صوت EasyVoice", Modifier.fillMaxWidth()) {
+                    speakAccentSample("Hello! Welcome to WordPop. Let's learn a new word together.")
+                }
             }
         }
 
