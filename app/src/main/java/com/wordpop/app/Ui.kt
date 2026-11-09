@@ -83,6 +83,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -1552,6 +1555,33 @@ private fun QuizSession(
 }
 
 @Composable
+private fun CelebrationBurst() {
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = tween(500),
+        label = "wordPopCelebration"
+    )
+    val colors = listOf(Sun, Teal, Coral, Sky)
+    val points = listOf(
+        0.08f to 0.20f, 0.18f to 0.62f, 0.29f to 0.12f, 0.40f to 0.72f,
+        0.59f to 0.18f, 0.70f to 0.66f, 0.82f to 0.10f, 0.93f to 0.55f
+    )
+    Canvas(Modifier.fillMaxWidth().height(28.dp)) {
+        points.forEachIndexed { index, point ->
+            val x = size.width * point.first
+            val y = size.height * (point.second + progress * (0.25f + (index % 3) * 0.12f))
+            drawCircle(
+                color = colors[index % colors.size],
+                radius = 3.5.dp.toPx(),
+                center = Offset(x, y)
+            )
+        }
+    }
+}
+
+@Composable
 private fun QuizResult(
     score: Int,
     total: Int,
@@ -1570,6 +1600,7 @@ private fun QuizResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (pct >= 80) CelebrationBurst()
             Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
