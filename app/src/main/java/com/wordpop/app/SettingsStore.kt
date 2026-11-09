@@ -3,7 +3,13 @@ package com.wordpop.app
 import android.content.Context
 
 class SettingsStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+
+    init {
+        // Move any API key saved by older versions into Android Keystore-backed storage.
+        ApiKeyVault.migrateLegacy(appContext, prefs)
+    }
 
     var enabled: Boolean
         get() = prefs.getBoolean("enabled", false)
@@ -144,8 +150,8 @@ class SettingsStore(context: Context) {
     }
 
     var orKey: String
-        get() = prefs.getString("orKey", "") ?: ""
-        set(v) = prefs.edit().putString("orKey", v.trim()).apply()
+        get() = ApiKeyVault.get(appContext)
+        set(v) = ApiKeyVault.set(appContext, v)
 
     var orModel: String
         get() = prefs.getString("orModel", null) ?: "openai/gpt-4o-mini"
@@ -165,7 +171,8 @@ class SettingsStore(context: Context) {
     /** All settings and learning data as JSON text, for backup. */
     fun exportAll(): String {
         val o = org.json.JSONObject()
-        prefs.all.forEach { (k, v) ->
+        // Never export the legacy API-key field, even if an old install has not migrated yet.
+        prefs.all.filterKeys { it != "orKey" }.forEach { (k, v) ->
             val item = org.json.JSONObject()
             when (v) {
                 is Boolean -> item.put("t", "b").put("v", v)
@@ -186,6 +193,8 @@ class SettingsStore(context: Context) {
         val e = prefs.edit()
         e.clear()
         o.keys().forEach { k ->
+            // Ignore keys from older or hand-crafted backups; secrets are device-local.
+            if (k == "orKey") return@forEach
             val item = o.getJSONObject(k)
             when (item.getString("t")) {
                 "b" -> e.putBoolean(k, item.getBoolean("v"))
