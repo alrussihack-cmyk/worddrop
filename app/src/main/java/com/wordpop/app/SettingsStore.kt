@@ -146,6 +146,21 @@ class SettingsStore(context: Context) {
                 ?: SpeechAccents.AMERICAN
         ).apply()
 
+    /** Cloudflare Worker URL used as a secure proxy for EasyVoice. */
+    var ttsWorkerUrl: String
+        get() = prefs.getString("ttsWorkerUrl", "")?.trim() ?: ""
+        set(v) = prefs.edit().putString("ttsWorkerUrl", v.trim()).apply()
+
+    /** EasyVoice voice ID; free-tier English voices only by default. */
+    var speechVoice: String
+        get() = prefs.getString("speechVoice", "af_nova")
+            ?.takeIf { it in setOf("af_nova", "af_heart", "af_bella", "af_sky", "af_aoede", "am_adam", "am_eric", "am_michael", "bf_emma", "bm_daniel") }
+            ?: "af_nova"
+        set(v) = prefs.edit().putString(
+            "speechVoice",
+            v.takeIf { it in setOf("af_nova", "af_heart", "af_bella", "af_sky", "af_aoede", "am_adam", "am_eric", "am_michael", "bf_emma", "bm_daniel") } ?: "af_nova"
+        ).apply()
+
     var lastWordId: Int
         get() = prefs.getInt("lastWordId", -1)
         set(v) = prefs.edit().putInt("lastWordId", v).apply()
