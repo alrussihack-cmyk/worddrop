@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.wordpop.app
 
 import android.content.Intent
