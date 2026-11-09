@@ -132,7 +132,7 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
     )
     ModeCard("✍️", "تهجئة الكلمات", "اسمع الكلمة أو شوف معناها واكتبها صح. بتتصحح حرف حرف.", stats("spell")) { onPick(0) }
     ModeCard("🧩", "بناء الجمل", "رتّب الكلمات المتلخبطة، أو اختار الكلمة الناقصة في الجملة.", stats("build")) { onPick(1) }
-    Surface(shape = RoundedCornerShape(16.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("إزاي بنختار الأسئلة؟", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
             Text(
@@ -190,10 +190,10 @@ private fun WriteProgress(index: Int, total: Int, answered: Boolean, streak: Int
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Beige)
+                        .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold)
+                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
                 }
             }
         }
@@ -333,7 +333,7 @@ private fun WriteResult(
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .border(2.dp, Night, RoundedCornerShape(6.dp)),
-                color = if (pct >= 50) Teal else Gold,
+                color = if (pct >= 50) Teal else Sun,
                 trackColor = Line
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -771,7 +771,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                             when {
                                 answered && isCorrect -> Color.White
                                 answered && isPicked -> Danger
-                                else -> Beige
+                                else -> Color.White
                             }
                         ),
                     contentAlignment = Alignment.Center
