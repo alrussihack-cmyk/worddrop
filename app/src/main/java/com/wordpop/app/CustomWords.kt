@@ -84,7 +84,7 @@ object CustomWords {
         var skipped = 0
         var id = nextId
 
-        val lines = text.removePrefix("﻿").lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val lines = text.removePrefix("\uFEFF").lines().map { it.trim() }.filter { it.isNotEmpty() }
         for ((index, line) in lines.withIndex()) {
             val cols = splitLine(line).map { it.trim() }
             if (cols.size < 2 || cols[0].isEmpty() || cols[1].isEmpty()) {
