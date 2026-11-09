@@ -64,7 +64,7 @@ class OverlayService : Service() {
         startAsForeground()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
+                tts?.let { applyEnglishAccent(it, SettingsStore(this).speechAccent) }
                 ttsReady = true
             }
         }
@@ -621,7 +621,12 @@ class OverlayService : Service() {
     }
 
     private fun speak(text: String) {
-        if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+        if (ttsReady) {
+            tts?.let { engine ->
+                applyEnglishAccent(engine, SettingsStore(this).speechAccent)
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+            }
+        }
     }
 
     private fun removeBanner() {
