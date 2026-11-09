@@ -155,6 +155,55 @@ class SettingsStore(context: Context) {
         get() = prefs.getString("stories", "[]") ?: "[]"
         set(v) = prefs.edit().putString("stories", v).apply()
 
+    /** Removes the given keys (used by the admin panel to reset parts of the data). */
+    fun remove(vararg keys: String) {
+        val e = prefs.edit()
+        keys.forEach { e.remove(it) }
+        e.apply()
+    }
+
+    /** All settings and learning data as JSON text, for backup. */
+    fun exportAll(): String {
+        val o = org.json.JSONObject()
+        prefs.all.forEach { (k, v) ->
+            val item = org.json.JSONObject()
+            when (v) {
+                is Boolean -> item.put("t", "b").put("v", v)
+                is Int -> item.put("t", "i").put("v", v)
+                is Long -> item.put("t", "l").put("v", v)
+                is String -> item.put("t", "s").put("v", v)
+                is Set<*> -> item.put("t", "set").put("v", org.json.JSONArray(v.map { it.toString() }))
+                else -> return@forEach
+            }
+            o.put(k, item)
+        }
+        return o.toString()
+    }
+
+    /** Restores data written by [exportAll]. Returns false if the text is not a valid backup. */
+    fun importAll(json: String): Boolean = try {
+        val o = org.json.JSONObject(json)
+        val e = prefs.edit()
+        e.clear()
+        o.keys().forEach { k ->
+            val item = o.getJSONObject(k)
+            when (item.getString("t")) {
+                "b" -> e.putBoolean(k, item.getBoolean("v"))
+                "i" -> e.putInt(k, item.getInt("v"))
+                "l" -> e.putLong(k, item.getLong("v"))
+                "s" -> e.putString(k, item.getString("v"))
+                "set" -> {
+                    val a = item.getJSONArray("v")
+                    e.putStringSet(k, (0 until a.length()).map { a.getString(it) }.toSet())
+                }
+            }
+        }
+        e.apply()
+        true
+    } catch (ex: Exception) {
+        false
+    }
+
     fun stat(key: String): Int = prefs.getInt(key, 0)
 
     fun setStat(key: String, v: Int) {

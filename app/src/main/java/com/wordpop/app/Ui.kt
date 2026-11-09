@@ -321,9 +321,19 @@ fun WordPopApp(
     }
 
     var page by remember { mutableStateOf(Page.Home) }
+    var adminOpen by remember { mutableStateOf(false) }
 
     val id = learnId
-    if (id != null) {
+    if (adminOpen) {
+        BackHandler { adminOpen = false }
+        AdminScreen(
+            store = store,
+            overlayGranted = overlayGranted,
+            onRequestOverlay = onRequestOverlay,
+            onRequestNotif = onRequestNotif,
+            onClose = { adminOpen = false }
+        )
+    } else if (id != null) {
         BackHandler { learnId = null }
         LearnScreen(
             store = store,
@@ -348,7 +358,8 @@ fun WordPopApp(
                         overlayGranted = overlayGranted,
                         onRequestOverlay = onRequestOverlay,
                         onRequestNotif = onRequestNotif,
-                        onStartLearning = { learnId = WordRepo.pick(store).id }
+                        onStartLearning = { learnId = WordRepo.pick(store).id },
+                        onOpenAdmin = { adminOpen = true }
                     )
                 }
             }
@@ -479,7 +490,8 @@ fun HomeScreen(
     overlayGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
-    onStartLearning: () -> Unit
+    onStartLearning: () -> Unit,
+    onOpenAdmin: () -> Unit = {}
 ) {
     val ctx = LocalContext.current
     var enabled by remember { mutableStateOf(store.enabled) }
@@ -948,6 +960,13 @@ fun HomeScreen(
                 }
             }
         }
+        }
+
+        if (page == Page.Settings) {
+            Section("لوحة التحكم") {
+                Text("إدارة كل التطبيق باسم مستخدم ورقم سري.", fontSize = 15.sp, color = Muted)
+                SecondaryButton("افتح لوحة التحكم", Modifier.fillMaxWidth()) { onOpenAdmin() }
+            }
         }
 
         Spacer(Modifier.height(8.dp))

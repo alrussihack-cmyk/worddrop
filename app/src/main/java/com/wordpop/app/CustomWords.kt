@@ -45,6 +45,14 @@ object CustomWords {
         }
     }
 
+    fun exportRaw(ctx: Context): String =
+        ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "[]") ?: "[]"
+
+    fun importRaw(ctx: Context, raw: String) {
+        ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY, raw).apply()
+    }
+
     fun save(ctx: Context, words: List<Word>) {
         val arr = JSONArray()
         words.forEach {
