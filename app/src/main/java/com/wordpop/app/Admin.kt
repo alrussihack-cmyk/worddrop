@@ -337,7 +337,7 @@ private fun AdminPanel(
 
     // ---- backup ----
     Section("نسخة احتياطية") {
-        Text("احفظ كل إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. المفتاح السري للوحة مش بيتحفظ فيه.", fontSize = 14.sp, color = Muted)
+        Text("احفظ إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. مفتاح OpenRouter وبيانات دخول لوحة التحكم لا يتم تضمينهما؛ أدخل المفتاح وأنشئ حساب اللوحة مرة أخرى على الجهاز الجديد.", fontSize = 14.sp, color = Muted)
         PrimaryButton("احفظ نسخة", Modifier.fillMaxWidth()) { exportLauncher.launch("wordpop-backup.json") }
         SecondaryButton("استرجع من ملف", Modifier.fillMaxWidth()) {
             confirm = "الاسترجاع هيستبدل كل بياناتك الحالية. متأكد؟" to { importLauncher.launch(arrayOf("*/*")) }
