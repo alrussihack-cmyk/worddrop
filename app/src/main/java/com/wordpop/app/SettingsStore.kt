@@ -2,13 +2,40 @@ package com.wordpop.app
 
 import android.content.Context
 
+private const val LEGACY_MIGRATION_MARKER = "__legacy_settings_migrated"
+
 class SettingsStore(context: Context) {
     private val appContext = context.applicationContext
-    private val prefs = appContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+    private val prefs = appContext.getSharedPreferences("wordpop_settings", Context.MODE_PRIVATE)
+    private val legacyPrefs = appContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
 
     init {
+        migrateLegacySettings()
         // Move any API key saved by older versions into Android Keystore-backed storage.
-        ApiKeyVault.migrateLegacy(appContext, prefs)
+        ApiKeyVault.migrateLegacy(appContext, legacyPrefs)
+    }
+
+    /**
+     * Preserve existing preferences while moving them out of the legacy file that may
+     * contain a plaintext API key. The new preferences file contains no secrets and can
+     * safely participate in Android Auto Backup.
+     */
+    private fun migrateLegacySettings() {
+        if (prefs.getBoolean(LEGACY_MIGRATION_MARKER, false)) return
+
+        val editor = prefs.edit()
+        legacyPrefs.all.forEach { (key, value) ->
+            if (key == "orKey") return@forEach
+            when (value) {
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                is Long -> editor.putLong(key, value)
+                is Float -> editor.putFloat(key, value)
+                is String -> editor.putString(key, value)
+                is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
+            }
+        }
+        editor.putBoolean(LEGACY_MIGRATION_MARKER, true).commit()
     }
 
     var enabled: Boolean
@@ -172,7 +199,7 @@ class SettingsStore(context: Context) {
     fun exportAll(): String {
         val o = org.json.JSONObject()
         // Never export the legacy API-key field, even if an old install has not migrated yet.
-        prefs.all.filterKeys { it != "orKey" }.forEach { (k, v) ->
+        prefs.all.filterKeys { it != "orKey" && it != LEGACY_MIGRATION_MARKER }.forEach { (k, v) ->
             val item = org.json.JSONObject()
             when (v) {
                 is Boolean -> item.put("t", "b").put("v", v)
@@ -207,6 +234,7 @@ class SettingsStore(context: Context) {
                 }
             }
         }
+        e.putBoolean(LEGACY_MIGRATION_MARKER, true)
         e.apply()
         true
     } catch (ex: Exception) {
