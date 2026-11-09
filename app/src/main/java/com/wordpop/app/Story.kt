@@ -274,147 +274,175 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     var error by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(StoryApi.load(store)) }
     var current by remember { mutableStateOf<Story?>(saved.firstOrNull()) }
+    var builderExpanded by remember { mutableStateOf(saved.isEmpty()) }
+    var historyExpanded by remember { mutableStateOf(false) }
     var showAr by remember { mutableStateOf(false) }
     var quiz by remember { mutableStateOf(false) }
     var myText by remember { mutableStateOf("") }
     var fbLoading by remember { mutableStateOf(false) }
     var fb by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Tint) {
-            Text(
-                "اختار كلماتك المفضلة وأعمل منها قصة قصيرة. بعد القصة اتختبر في الكلمات واكتب بكلماتك وهنصحح لك.",
-                fontSize = 15.sp, color = TealDark, modifier = Modifier.padding(14.dp)
-            )
-        }
-
-        if (words.size < 2) {
-            EmptyFav("ضيف كلمتين مفضلين على الأقل (النجمة في شاشة التعلّم) وبعدها اعمل قصة.")
-        } else {
-            Text("الكلمات (${picked.size} من 8)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                words.forEach { w ->
-                    Chip(w.en, w.id in picked) {
-                        picked = if (w.id in picked) picked - w.id else if (picked.size < 8) picked + w.id else picked
-                    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(shape = RoundedCornerShape(20.dp), color = Tint) {
+            Row(Modifier.padding(15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("قصتك من كلماتك", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Text("اختار كلماتك، واعمل قصة، وبعدها اختبر نفسك واكتب ملخصك.", fontSize = 13.sp, color = TealDark)
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("الصعبة أولًا", false) {
-                    val hard = store.hard
-                    picked = (words.filter { it.id in hard } + words.shuffled()).distinctBy { it.id }.take(6).map { it.id }.toSet()
-                }
-                Chip("عشوائي", false) { picked = words.shuffled().take(6).map { it.id }.toSet() }
-            }
-
-            Text("نوع القصة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-            ChipRow { StoryApi.genres.forEachIndexed { i, g -> Chip(g.first, genre == i) { genre = i } } }
-            Text("المستوى", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-            ChipRow { StoryApi.levels.forEachIndexed { i, l -> Chip(l.first, level == i) { level = i } } }
-
-            if (editKey) {
-                Text("مفتاح OpenRouter", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-                OutlinedTextField(
-                    value = key, onValueChange = { key = it }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    placeholder = { Text("sk-or-...") }
-                )
-                OutlinedTextField(
-                    value = model, onValueChange = { model = it }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("الموديل") }
-                )
-                PrimaryButton("حفظ المفتاح", Modifier.fillMaxWidth()) {
-                    try {
-                        store.orKey = key
-                        store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
-                        model = store.orModel
-                        editKey = key.isBlank()
-                        error = ""
-                    } catch (e: Exception) {
-                        error = "تعذر حفظ المفتاح بأمان على هذا الجهاز. جرّب مرة أخرى."
-                    }
-                }
-            } else {
-                Text(
-                    "تعديل المفتاح والموديل", fontSize = 14.sp, color = TealDark,
-                    modifier = Modifier.clickable { editKey = true }.padding(vertical = 8.dp)
-                )
-            }
-
-            if (error.isNotEmpty()) Text(error, fontSize = 15.sp, color = Danger)
-
-            PrimaryButton(if (loading) "بنكتب القصة..." else "اعمل قصة", Modifier.fillMaxWidth()) {
-                if (loading) return@PrimaryButton
-                if (store.orKey.isBlank()) { editKey = true; error = "ضيف مفتاح OpenRouter الأول."; return@PrimaryButton }
-                if (picked.size < 2) { error = "اختار كلمتين على الأقل."; return@PrimaryButton }
-                error = ""; loading = true
-                val chosen = words.filter { it.id in picked }
-                val g = StoryApi.genres[genre].second
-                val l = StoryApi.levels[level].second
-                scope.launch {
-                    try {
-                        val story = withContext(Dispatchers.IO) { StoryApi.generate(store.orKey, store.orModel, chosen, g, l) }
-                        saved = listOf(story) + saved
-                        StoryApi.save(store, saved)
-                        current = story; showAr = false; quiz = false; fb = null; myText = ""
-                    } catch (e: Exception) {
-                        error = e.message ?: "حصل خطأ، جرب تاني."
-                    }
-                    loading = false
-                }
+                Boby(Mood.Happy, 48.dp)
             }
         }
 
-        current?.let { st ->
-            Surface(
-                shape = RoundedCornerShape(16.dp), color = Cloud,
-                border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(st.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(highlight(st.en), fontSize = 18.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
+        Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("إعداد القصة", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text(if (picked.isEmpty()) "اختار من كلماتك المفضلة" else "${picked.size} كلمات مختارة", fontSize = 12.sp, color = Muted)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Chip("اسمع القصة", false) { speak(plain(st.en)) }
-                        Chip(if (showAr) "اخفي الترجمة" else "الترجمة", showAr) { showAr = !showAr }
-                    }
-                    if (showAr && st.ar.isNotEmpty()) {
-                        Surface(shape = RoundedCornerShape(12.dp), color = Tint) {
-                            Text(highlight(st.ar), fontSize = 16.sp, lineHeight = 26.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                    SecondaryButton(if (builderExpanded) "إخفاء" else "تعديل") { builderExpanded = !builderExpanded }
+                }
+
+                if (builderExpanded) {
+                    if (words.size < 2) {
+                        EmptyFav("ضيف كلمتين مفضلين على الأقل من شاشة التعلّم، وبعدها تقدر تعمل قصة.")
+                    } else {
+                        Text("1 · اختار الكلمات", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            words.forEach { w ->
+                                Chip(w.en, w.id in picked) {
+                                    picked = if (w.id in picked) picked - w.id else if (picked.size < 8) picked + w.id else picked
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SecondaryButton("الصعبة أولًا", Modifier.weight(1f)) {
+                                val hard = store.hard
+                                picked = (words.filter { it.id in hard } + words.shuffled()).distinctBy { it.id }.take(6).map { it.id }.toSet()
+                            }
+                            SecondaryButton("اختيار عشوائي", Modifier.weight(1f)) { picked = words.shuffled().take(6).map { it.id }.toSet() }
+                        }
+
+                        Text("2 · اختار نوع القصة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            StoryApi.genres.forEachIndexed { i, g -> Chip(g.first, genre == i) { genre = i } }
+                        }
+
+                        Text("3 · اختار المستوى", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            StoryApi.levels.forEachIndexed { i, l -> Chip(l.first, level == i) { level = i } }
+                        }
+
+                        if (editKey) {
+                            Text("إعدادات الذكاء الاصطناعي", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                            OutlinedTextField(
+                                value = key, onValueChange = { key = it }, singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                placeholder = { Text("sk-or-...") },
+                                label = { Text("مفتاح OpenRouter") }
+                            )
+                            OutlinedTextField(value = model, onValueChange = { model = it }, singleLine = true, modifier = Modifier.fillMaxWidth(), label = { Text("الموديل") })
+                            SecondaryButton("حفظ الإعدادات", Modifier.fillMaxWidth()) {
+                                try {
+                                    store.orKey = key
+                                    store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
+                                    model = store.orModel
+                                    editKey = key.isBlank()
+                                    error = ""
+                                } catch (e: Exception) {
+                                    error = "تعذر حفظ المفتاح بأمان على هذا الجهاز. جرّب مرة أخرى."
+                                }
+                            }
+                        } else {
+                            Text(
+                                "إعدادات المفتاح والموديل",
+                                fontSize = 13.sp, color = TealDark,
+                                modifier = Modifier.clickable { editKey = true }.padding(vertical = 5.dp)
+                            )
+                        }
+
+                        if (error.isNotEmpty()) Text(error, fontSize = 13.sp, color = Danger)
+                        PrimaryButton(if (loading) "بنكتب القصة..." else "اعمل قصتي", Modifier.fillMaxWidth()) {
+                            if (loading) return@PrimaryButton
+                            if (store.orKey.isBlank()) { editKey = true; error = "ضيف مفتاح OpenRouter الأول."; return@PrimaryButton }
+                            if (picked.size < 2) { error = "اختار كلمتين على الأقل."; return@PrimaryButton }
+                            error = ""; loading = true
+                            val chosen = words.filter { it.id in picked }
+                            val g = StoryApi.genres[genre].second
+                            val l = StoryApi.levels[level].second
+                            scope.launch {
+                                try {
+                                    val generated = withContext(Dispatchers.IO) { StoryApi.generate(store.orKey, store.orModel, chosen, g, l) }
+                                    saved = listOf(generated) + saved
+                                    StoryApi.save(store, saved)
+                                    current = generated
+                                    showAr = false
+                                    quiz = false
+                                    fb = null
+                                    myText = ""
+                                    builderExpanded = false
+                                    historyExpanded = false
+                                } catch (e: Exception) {
+                                    error = e.message ?: "حصل خطأ، جرب تاني."
+                                }
+                                loading = false
+                            }
                         }
                     }
-                    Text("الكلمات (دوس تسمع)", fontSize = 14.sp, color = Muted)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        st.words.forEach { w ->
+                } else {
+                    Text("الكلمات والنوع والمستوى محفوظين لحد ما تحب تعدّلهم.", fontSize = 13.sp, color = Muted)
+                }
+            }
+        }
+
+        current?.let { story ->
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("اقرأ قصتك", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(story.title, fontSize = 14.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                        }
+                        Boby(Mood.Cheer, 42.dp)
+                    }
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Text(highlight(story.en), fontSize = 17.sp, lineHeight = 27.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SecondaryButton("اسمع القصة", Modifier.weight(1f)) { speak(plain(story.en)) }
+                        SecondaryButton(if (showAr) "إخفاء الترجمة" else "الترجمة", Modifier.weight(1f)) { showAr = !showAr }
+                    }
+                    if (showAr && story.ar.isNotEmpty()) {
+                        Surface(shape = RoundedCornerShape(14.dp), color = Tint) {
+                            Text(highlight(story.ar), fontSize = 15.sp, lineHeight = 25.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                        }
+                    }
+                    Text("الكلمات المستخدمة · اضغط لسماعها", fontSize = 13.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        story.words.forEach { w ->
                             val ar = words.firstOrNull { it.en == w }?.ar ?: ""
-                            Surface(
-                                shape = RoundedCornerShape(12.dp), color = Tint,
-                                modifier = Modifier.clickable { speak(w) }
-                            ) {
-                                Text(if (ar.isEmpty()) w else "$w: $ar", fontSize = 14.sp, color = TealDark, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                            Surface(shape = RoundedCornerShape(12.dp), color = Tint, modifier = Modifier.clickable { speak(w) }) {
+                                Text(if (ar.isEmpty()) w else "$w · $ar", fontSize = 12.sp, color = TealDark, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
                             }
                         }
                     }
                 }
             }
 
-            // Step 2: retrieval practice
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("اختبار القصة", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("اختبر فهمك", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
                     if (!quiz) {
-                        Text("الاسترجاع من الذاكرة بيثبّت الكلمة أكتر من القراءة. كمّل الجمل الناقصة.", fontSize = 14.sp, color = Muted)
+                        Text("كمّل الجمل الناقصة من ذاكرتك عشان تثبّت الكلمات.", fontSize = 13.sp, color = Muted)
                         PrimaryButton("ابدأ الاختبار", Modifier.fillMaxWidth()) { quiz = true }
                     } else {
-                        ClozeQuiz(st) { missedAnswers ->
-                            val ids = missedAnswers.flatMap { a ->
+                        ClozeQuiz(story) { missedAnswers ->
+                            val ids = missedAnswers.flatMap { answer ->
                                 words.filter { w ->
                                     val stem = w.en.lowercase().let { it.take(maxOf(3, it.length - 3)) }
-                                    a.contains(stem)
+                                    answer.contains(stem)
                                 }.map { it.id }
                             }
                             if (ids.isNotEmpty()) store.hard = store.hard + ids
@@ -424,64 +452,78 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                 }
             }
 
-            // Step 3: production + AI feedback
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("اكتب بكلماتك", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
-                    Text("لخّص القصة في جملتين أو تلاتة بالإنجليزي، وهنصحح لك.", fontSize = 14.sp, color = Muted)
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("استخدم الكلمات بنفسك", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Text("اكتب ملخص القصة في جملتين أو تلاتة بالإنجليزي.", fontSize = 13.sp, color = Muted)
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        OutlinedTextField(
-                            value = myText, onValueChange = { myText = it },
-                            modifier = Modifier.fillMaxWidth(), minLines = 3,
-                            placeholder = { Text("Write here...") }
-                        )
+                        OutlinedTextField(value = myText, onValueChange = { myText = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Write here...") })
                     }
-                    PrimaryButton(if (fbLoading) "بنراجع..." else "راجع كتابتي", Modifier.fillMaxWidth()) {
+                    PrimaryButton(if (fbLoading) "بنراجع كتابتك..." else "راجع كتابتي", Modifier.fillMaxWidth()) {
                         if (fbLoading) return@PrimaryButton
                         if (myText.trim().length < 10) { error = "اكتب جملة كاملة الأول."; return@PrimaryButton }
                         error = ""; fbLoading = true
                         scope.launch {
                             try {
-                                fb = withContext(Dispatchers.IO) { StoryApi.feedback(store.orKey, store.orModel, st, myText.trim()) }
+                                fb = withContext(Dispatchers.IO) { StoryApi.feedback(store.orKey, store.orModel, story, myText.trim()) }
                             } catch (e: Exception) {
                                 error = e.message ?: "حصل خطأ، جرب تاني."
                             }
                             fbLoading = false
                         }
                     }
+                    if (error.isNotEmpty()) Text(error, fontSize = 13.sp, color = Danger)
                     fb?.let { (fixed, tips) ->
-                        Text("النسخة الصح", fontSize = 14.sp, color = Muted)
+                        Text("النسخة المصححة", fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.Bold)
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Surface(shape = RoundedCornerShape(12.dp), color = Tint) {
-                                Text(fixed, fontSize = 17.sp, lineHeight = 26.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                            Surface(shape = RoundedCornerShape(14.dp), color = Tint) {
+                                Text(fixed, fontSize = 16.sp, lineHeight = 25.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
                             }
                         }
                         if (tips.isNotBlank()) {
-                            Text("ملاحظات", fontSize = 14.sp, color = Muted)
-                            Text(tips, fontSize = 15.sp, lineHeight = 24.sp, color = Night)
+                            Text("ملاحظات للتطوير", fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.Bold)
+                            Text(tips, fontSize = 14.sp, lineHeight = 22.sp, color = Night)
                         }
                     }
                 }
             }
         }
 
-        if (saved.size > 1) {
-            Text("قصصك اللي فاتت", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-            saved.forEach { st ->
-                Surface(
-                    shape = RoundedCornerShape(14.dp), color = Tint,
-                    modifier = Modifier.fillMaxWidth().clickable { current = st; showAr = false; quiz = false; fb = null }
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(st.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-                        Text(st.words.joinToString(", "), fontSize = 13.sp, color = Muted)
+        if (saved.isNotEmpty()) {
+            Surface(shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("قصصك السابقة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text("${saved.size} قصة محفوظة", fontSize = 12.sp, color = Muted)
+                        }
+                        SecondaryButton(if (historyExpanded) "إخفاء" else "عرض") { historyExpanded = !historyExpanded }
+                    }
+                    if (historyExpanded) {
+                        saved.forEach { oldStory ->
+                            Surface(shape = RoundedCornerShape(13.dp), color = Tint, modifier = Modifier.fillMaxWidth().clickable {
+                                current = oldStory
+                                showAr = false
+                                quiz = false
+                                fb = null
+                                builderExpanded = false
+                                historyExpanded = false
+                            }) {
+                                Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(oldStory.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                                    Text(oldStory.words.joinToString(", "), fontSize = 12.sp, color = Muted)
+                                }
+                            }
+                        }
+                        Text("مسح كل القصص", fontSize = 13.sp, color = Danger, modifier = Modifier.clickable {
+                            saved = emptyList()
+                            StoryApi.save(store, saved)
+                            current = null
+                            builderExpanded = true
+                        }.padding(vertical = 5.dp))
                     }
                 }
             }
-            Text(
-                "مسح كل القصص", fontSize = 14.sp, color = Danger,
-                modifier = Modifier.clickable { saved = emptyList(); StoryApi.save(store, saved); current = null }.padding(vertical = 8.dp)
-            )
         }
         Spacer(Modifier.height(8.dp))
     }
