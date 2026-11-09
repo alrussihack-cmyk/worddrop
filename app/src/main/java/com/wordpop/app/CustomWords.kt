@@ -10,6 +10,8 @@ class WordPopApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         WordRepo.init(this)
+        // Migrate legacy preferences and protect the OpenRouter API key before the UI starts.
+        SettingsStore(this)
     }
 }
 
