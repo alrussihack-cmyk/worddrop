@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
@@ -38,43 +39,50 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             WordPopTheme {
-                WordPopApp(
-                    overlayGranted = overlayGranted,
-                    exactAlarmGranted = exactAlarmGranted,
-                    openWordId = wordFromIntent,
-                    onConsumeOpenWord = { wordFromIntent = null },
-                    onRequestOverlay = {
-                        startActivity(
-                            Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:$packageName")
-                            )
-                        )
-                    },
-                    onRequestNotif = {
-                        if (Build.VERSION.SDK_INT >= 33) {
-                            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    },
-                    onRequestExactAlarm = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            val request = Intent(
-                                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                                Uri.parse("package:$packageName")
-                            )
-                            try {
-                                startActivity(request)
-                            } catch (e: Exception) {
-                                startActivity(
-                                    Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.parse("package:$packageName")
-                                    )
+                var showStartup by remember {
+                    mutableStateOf(savedInstanceState == null && wordFromIntent == null)
+                }
+                if (showStartup) {
+                    WordPopStartup(onFinished = { showStartup = false })
+                } else {
+                    WordPopApp(
+                        overlayGranted = overlayGranted,
+                        exactAlarmGranted = exactAlarmGranted,
+                        openWordId = wordFromIntent,
+                        onConsumeOpenWord = { wordFromIntent = null },
+                        onRequestOverlay = {
+                            startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:$packageName")
                                 )
+                            )
+                        },
+                        onRequestNotif = {
+                            if (Build.VERSION.SDK_INT >= 33) {
+                                notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
+                        onRequestExactAlarm = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val request = Intent(
+                                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                    Uri.parse("package:$packageName")
+                                )
+                                try {
+                                    startActivity(request)
+                                } catch (e: Exception) {
+                                    startActivity(
+                                        Intent(
+                                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            Uri.parse("package:$packageName")
+                                        )
+                                    )
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
