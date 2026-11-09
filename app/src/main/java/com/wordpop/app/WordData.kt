@@ -197,6 +197,13 @@ object WordRepo {
         val dueIds = due.mapTo(mutableSetOf()) { it.id }
         val fresh = pool
             .filter { it.id !in states && it.id !in dueIds }
+            .sortedBy { word ->
+                when {
+                    word.id in s.hard -> 0
+                    word.id !in s.learned -> 1
+                    else -> 2
+                }
+            }
             .take(s.newReviewCardsRemaining(now))
         return due + fresh
     }
