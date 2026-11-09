@@ -583,6 +583,7 @@ fun HomeScreen(
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
+    var speechAccent by remember { mutableStateOf(store.speechAccent) }
     var level by remember { mutableIntStateOf(store.level) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
@@ -975,7 +976,8 @@ fun HomeScreen(
                         SpeechAccents.BRITISH to "بريطاني 🇬🇧",
                         SpeechAccents.AUSTRALIAN to "أسترالي 🇦🇺"
                     ).forEach { (id, label) ->
-                        Chip(label, store.speechAccent == id) {
+                        Chip(label, speechAccent == id) {
+                            speechAccent = id
                             store.speechAccent = id
                         }
                     }
