@@ -220,7 +220,10 @@ class OverlayService : Service() {
                     .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
                     .start()
             } else {
-                // Respect the system's Reduce motion setting.
+                // Respect the system's Reduce motion setting: no scale or travel.
+                view.scaleX = 1f
+                view.scaleY = 1f
+                view.translationY = 0f
                 view.animate().alpha(targetAlpha).setDuration(120L).start()
             }
         }
