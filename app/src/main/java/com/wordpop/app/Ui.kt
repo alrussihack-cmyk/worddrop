@@ -1736,159 +1736,125 @@ fun ReviewScreen(store: SettingsStore) {
         remembered = 0
     }
 
+    val dueNow = WordRepo.reviewDueCount(store)
+    val newToday = WordRepo.reviewNewCount(store)
+    val trackedStates = store.reviewStates().filterKeys { WordRepo.get(it) != null }
+    val masteredCount = trackedStates.values.count { it.repetitions >= 3 && it.intervalDays >= 21 }
+    val needsPracticeCount = trackedStates.values.count { it.lapses >= 2 }
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cloud)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().background(Cloud).statusBarsPadding()
+            .navigationBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("المراجعة الذكية", fontSize = 25.sp, fontFamily = Display, color = Night)
-                Text("راجع في الوقت المناسب عشان متنساش الكلمات.", fontSize = 14.sp, color = Muted)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("المراجعة الذكية", fontSize = 24.sp, fontFamily = Display, color = Night)
+                Text("خطوة صغيرة النهارده تثبّت الكلمات لبكرة.", fontSize = 13.sp, color = Muted)
             }
-            Boby(Mood.Cheer, 54.dp)
+            Boby(Mood.Cheer, 48.dp)
         }
 
-        val dueNow = WordRepo.reviewDueCount(store)
-        val newToday = WordRepo.reviewNewCount(store)
-        val trackedStates = store.reviewStates().filterKeys { WordRepo.get(it) != null }
-        val masteredCount = trackedStates.values.count { it.repetitions >= 3 && it.intervalDays >= 21 }
-        val needsPracticeCount = trackedStates.values.count { it.lapses >= 2 }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp),
-                color = SunTint
-            ) {
-                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$dueNow", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Night)
-                    Text("مستحقة", fontSize = 13.sp, color = Muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SunTint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$dueNow", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("مستحقة", fontSize = 12.sp, color = Muted)
                 }
             }
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp),
-                color = Tint
-            ) {
-                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$newToday", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Night)
-                    Text("جديدة اليوم", fontSize = 13.sp, color = Muted)
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = Tint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$newToday", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("جديدة اليوم", fontSize = 12.sp, color = Muted)
+                }
+            }
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SkyTint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$masteredCount", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("ثبتت", fontSize = 12.sp, color = Muted)
                 }
             }
         }
 
-        Section("تقدمك في تثبيت الكلمات") {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ResultStat("بطاقات متعلمة", trackedStates.size.toString())
+        if (trackedStates.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("تقدم تثبيت الكلمات", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
+                    Text("${trackedStates.size} بطاقة · $needsPracticeCount محتاجة تركيز", fontSize = 11.sp, color = Muted)
                 }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ResultStat("ثبتت", masteredCount.toString())
-                }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ResultStat("محتاجة تركيز", needsPracticeCount.toString())
-                }
+                LinearProgressIndicator(
+                    progress = { (masteredCount.toFloat() / trackedStates.size).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(50)),
+                    color = Teal, trackColor = Line
+                )
             }
-            LinearProgressIndicator(
-                progress = { if (trackedStates.isEmpty()) 0f else masteredCount.toFloat() / trackedStates.size },
-                modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(5.dp)),
-                color = Teal,
-                trackColor = Line
-            )
-            Text(
-                if (trackedStates.isEmpty()) "ابدأ أول جلسة عشان تتابع تقدمك هنا."
-                else "وصلت لمرحلة الثبات في $masteredCount من ${trackedStates.size} بطاقة.",
-                fontSize = 13.sp,
-                color = Muted
-            )
         }
 
         when {
             queue.isEmpty() -> {
-                Section("أحسنت! 🎉") {
-                    Boby(Mood.Cheer, 82.dp)
-                    Text(
-                        "مفيش كلمات مستحقة دلوقتي. هتظهرلك كلمات جديدة كل يوم، والكلمات اللي راجعتها هترجع في موعدها.",
-                        fontSize = 16.sp,
-                        color = Night
-                    )
-                    PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Boby(Mood.Cheer, 76.dp)
+                        Text("كده زي الفل! 🎉", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text("مفيش كلمات مستحقة دلوقتي. ارجع بكرة وهتلاقي كلمات جديدة للمراجعة.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
+                        PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                    }
                 }
             }
             index >= queue.size -> {
-                Section("خلصت جلسة المراجعة!") {
-                    Boby(Mood.Cheer, 82.dp)
-                    Text("راجعت $completed كلمة، وتذكرت $remembered منها بشكل جيد أو سهل.", fontSize = 17.sp, color = Night)
-                    LinearProgressIndicator(
-                        progress = { if (completed == 0) 0f else remembered.toFloat() / completed },
-                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
-                        color = Teal,
-                        trackColor = Line
-                    )
-                    PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Boby(Mood.Cheer, 76.dp)
+                        Text("خلصت جلسة المراجعة!", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text("راجعت $completed كلمة، وتذكرت $remembered منها بشكل جيد أو سهل.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
+                        LinearProgressIndicator(
+                            progress = { if (completed == 0) 0f else remembered.toFloat() / completed },
+                            modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)),
+                            color = Teal, trackColor = Line
+                        )
+                        PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                    }
                 }
             }
             else -> {
                 val word = queue[index]
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
-                        Text("تمت مراجعة $completed", fontSize = 13.sp, color = TealDark)
+                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
+                        Text("أنجزت $completed", fontSize = 12.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
                     }
                     LinearProgressIndicator(
-                        progress = { index.toFloat() / queue.size.coerceAtLeast(1) },
-                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
-                        color = Teal,
-                        trackColor = Line
+                        progress = { (index.toFloat() / queue.size.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(50)),
+                        color = Teal, trackColor = Line
                     )
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White,
-                    border = BorderStroke(2.5.dp, Night),
-                    modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(22.dp), 5.dp)
+                    shape = RoundedCornerShape(24.dp), color = Color.White,
+                    border = BorderStroke(1.5.dp, Line),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        Modifier.fillMaxWidth().padding(24.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("افتكر معنى الكلمة قبل ما تكشف الإجابة", fontSize = 15.sp, color = Muted)
-                        En(
-                            word.en,
-                            if (word.en.length > 18) 30.sp else 38.sp,
-                            Night,
-                            FontWeight.ExtraBold,
-                            TextAlign.Center,
-                            Modifier.fillMaxWidth()
-                        )
-                        if (word.ipa.isNotEmpty()) {
-                            En(word.ipa, 18.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
-                        }
-                        SpeakButton(52.dp) { speak(word.en) }
+                        Text("فكّر في المعنى قبل ما تكشف الإجابة", fontSize = 14.sp, color = Muted)
+                        En(word.en, if (word.en.length > 18) 30.sp else 38.sp, Night, FontWeight.ExtraBold, TextAlign.Center, Modifier.fillMaxWidth())
+                        if (word.ipa.isNotEmpty()) En(word.ipa, 17.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
+                        SpeakButton(50.dp) { speak(word.en) }
 
                         if (revealed) {
-                            Text(
-                                word.ar,
-                                fontSize = 25.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TealDark,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            if (word.example.isNotEmpty()) {
-                                Ltr {
-                                    Text(word.example, fontSize = 17.sp, color = Night, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    Text(word.ar, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TealDark, textAlign = TextAlign.Center)
+                                    if (word.example.isNotEmpty()) {
+                                        Ltr { Text(word.example, fontSize = 16.sp, color = Night, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+                                    }
+                                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 14.sp, color = Muted, textAlign = TextAlign.Center)
                                 }
-                            }
-                            if (word.exampleAr.isNotEmpty()) {
-                                Text(word.exampleAr, fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                             }
                         }
                     }
@@ -1897,42 +1863,24 @@ fun ReviewScreen(store: SettingsStore) {
                 if (!revealed) {
                     PrimaryButton("اكشف المعنى", Modifier.fillMaxWidth()) { revealed = true }
                 } else {
-                    Text("قيّم مدى سهولة تذكرك للكلمة:", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("قيّم مدى سهولة تذكرك للكلمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) {
-                            store.recordReview(word.id, ReviewRating.Again)
-                            completed++
-                            index++
-                            revealed = false
+                            store.recordReview(word.id, ReviewRating.Again); completed++; index++; revealed = false
                         }
                         PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) {
-                            store.recordReview(word.id, ReviewRating.Hard)
-                            completed++
-                            index++
-                            revealed = false
+                            store.recordReview(word.id, ReviewRating.Hard); completed++; index++; revealed = false
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) {
-                            store.recordReview(word.id, ReviewRating.Good)
-                            completed++
-                            remembered++
-                            index++
-                            revealed = false
+                            store.recordReview(word.id, ReviewRating.Good); completed++; remembered++; index++; revealed = false
                         }
                         PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) {
-                            store.recordReview(word.id, ReviewRating.Easy)
-                            completed++
-                            remembered++
-                            index++
-                            revealed = false
+                            store.recordReview(word.id, ReviewRating.Easy); completed++; remembered++; index++; revealed = false
                         }
                     }
-                    Text(
-                        "نسيتها: بعد 10 دقائق · صعبة: بعد يوم · كويسة: بعد 1–3 أيام · سهلة: بعد 4–7 أيام، وبعدها الفواصل بتزيد تدريجيًا.",
-                        fontSize = 13.sp,
-                        color = Muted
-                    )
+                    Text("تقييمك بيحدد ميعاد المراجعة الجاية تلقائيًا.", fontSize = 12.sp, color = Muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
