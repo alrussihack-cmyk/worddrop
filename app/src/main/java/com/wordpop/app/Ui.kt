@@ -11,6 +11,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.mutableStateListOf
@@ -80,6 +83,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -105,8 +109,7 @@ val Mint = Color(0xFF2FE0B5)
 val Cloud = Color(0xFFF6F8FC)       // Paper: screen background
 val Muted = Color(0xFF5A6278)
 val Line = Color(0xFFDCE1EE)
-val Beige = Color(0xFFEEF1F8)       // soft fill
-val Gold = Color(0xFF946200)        // deep amber text
+val SunTint = Color(0xFFFFF1C9)
 val Spark = Color(0xFFFFC93C)       // Sun
 val Sun = Color(0xFFFFC93C)
 val Coral = Color(0xFFFF5C5C)
@@ -165,10 +168,18 @@ fun En(
 
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "primaryShadow")
+    val offset by animateDpAsState(if (pressed) 4.dp else 0.dp, tween(80), label = "primaryPress")
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 52.dp)
+            .graphicsLayer { translationY = offset.toPx() }
+            .hardShadow(shape, depth),
+        shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
@@ -178,10 +189,18 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
 
 @Composable
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "secondaryShadow")
+    val offset by animateDpAsState(if (pressed) 4.dp else 0.dp, tween(80), label = "secondaryPress")
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 52.dp)
+            .graphicsLayer { translationY = offset.toPx() }
+            .hardShadow(shape, depth),
+        shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
@@ -635,7 +654,7 @@ fun HomeScreen(
         }
 
         if (page == Page.Home) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("الكلمات العائمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
@@ -726,7 +745,7 @@ fun HomeScreen(
             Text(
                 if (paused) "الكلمات متوقفة لحد $untilText" else "الكلمات شغالة",
                 fontSize = 16.sp,
-                color = if (paused) Gold else Night
+                color = if (paused) Muted else Night
             )
             ChipRow {
                 listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
@@ -1112,6 +1131,12 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         StarButton(favW) { favW = store.toggleFavWord(word.id) }
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Boby(Mood.Wow, 46.dp)
+                    }
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -1342,7 +1367,7 @@ private fun QuizSession(
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Beige)
+                        .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold)
@@ -1469,7 +1494,7 @@ private fun QuizSession(
                         when {
                             answered && isCorrect -> Color.White
                             answered && isPicked -> Danger
-                            else -> Beige
+                            else -> Color.White
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -1572,7 +1597,7 @@ private fun QuizResult(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = if (pct >= 50) Teal else Gold,
+                color = if (pct >= 50) Teal else Sun,
                 trackColor = Line
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
