@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -179,14 +182,14 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
     Button(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = modifier.heightIn(min = 52.dp)
+        modifier = modifier.heightIn(min = 48.dp)
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -200,14 +203,14 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
     OutlinedButton(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = modifier.heightIn(min = 52.dp)
+        modifier = modifier.heightIn(min = 48.dp)
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -216,38 +219,40 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(22.dp)
     Box(
         modifier = Modifier
-            .heightIn(min = 44.dp)
-            .hardShadow(shape, 3.dp)
+            .heightIn(min = 38.dp)
+            .hardShadow(shape, 2.dp)
             .clip(shape)
             .background(if (selected) Teal else Color.White)
             .border(2.dp, Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 13.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
             color = Night,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 16.sp
+            fontSize = 14.sp
         )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChipRow(content: @Composable RowScope.() -> Unit) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 5.dp, start = 2.dp, end = 2.dp),
+fun ChipRow(content: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content
     )
 }
 
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(22.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(22.dp), 5.dp)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, fontSize = 22.sp, fontFamily = Display, color = Night)
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 3.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, fontSize = 18.sp, fontFamily = Display, color = Night)
             content()
         }
     }
@@ -278,7 +283,7 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
 fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(40.dp)
             .clip(CircleShape)
             .background(Cloud)
             .border(2.dp, Night, CircleShape)
@@ -293,7 +298,7 @@ fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
 @Composable
 fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
         Ltr {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StepBtn("−", "نقّص ساعة") { onChange((value + 23) % 24) }
@@ -301,7 +306,7 @@ fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
                     hourLabel(value),
                     modifier = Modifier.width(72.dp),
                     textAlign = TextAlign.Center,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Night
                 )
@@ -500,7 +505,7 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
 fun StarButton(selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(40.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClickLabel = "المفضلة", onClick = onClick),
         contentAlignment = Alignment.Center
@@ -655,8 +660,8 @@ fun HomeScreen(
             .background(Cloud)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -671,7 +676,7 @@ fun HomeScreen(
                 }
                 Text("WordPop", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
             } else {
-                Text(page.title, fontSize = 24.sp, fontFamily = Display, color = Night)
+                Text(page.title, fontSize = 22.sp, fontFamily = Display, color = Night)
             }
         }
 
@@ -1149,8 +1154,8 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
@@ -1164,12 +1169,12 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             }
             Text(
                 "تعلّم كلمة",
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Night,
                 modifier = Modifier.weight(1f)
             )
-            Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 14.sp, color = Muted)
+            Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 12.sp, color = Muted)
         }
 
         if (step == 0) {
@@ -1177,9 +1182,9 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(horizontal = 18.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         StarButton(favW) { favW = store.toggleFavWord(word.id) }
@@ -1188,7 +1193,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Boby(Mood.Wow, 46.dp)
+                        Boby(Mood.Wow, 40.dp)
                     }
                     Box(
                         Modifier
@@ -1201,20 +1206,21 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     En(
                         word.en,
                         when {
-                            word.en.length > 22 -> 28.sp
-                            word.en.length > 14 -> 34.sp
-                            else -> 44.sp
+                            word.en.length > 22 -> 26.sp
+                            word.en.length > 14 -> 32.sp
+                            else -> 38.sp
                         },
                         Night, FontWeight.ExtraBold, TextAlign.Center,
                         Modifier.fillMaxWidth()
                     )
                     if (word.ipa.isNotEmpty()) {
-                        En(word.ipa, 20.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
+                        En(word.ipa, 16.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
                     }
-                    SpeakButton(56.dp) { speak(word.en) }
+                    SpeakButton(48.dp) { speak(word.en) }
                     Text(
                         word.ar,
-                        fontSize = 26.sp,
+                        fontSize = 23.sp,
+                        lineHeight = 30.sp,
                         fontWeight = FontWeight.Bold,
                         color = Night,
                         textAlign = TextAlign.Center,
@@ -1224,18 +1230,18 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             }
 
             if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(16.dp), 4.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TealDark, modifier = Modifier.weight(1f))
                         StarButton(favS) { favS = store.toggleFavSentence(word.id) }
                     }
                     Ltr {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(word.example, fontSize = 20.sp, color = Night, modifier = Modifier.weight(1f))
-                            SpeakButton(44.dp) { speak(word.example) }
+                            Text(word.example, fontSize = 18.sp, color = Night, modifier = Modifier.weight(1f))
+                            SpeakButton(40.dp) { speak(word.example) }
                         }
                     }
-                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 18.sp, color = Muted)
+                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 15.sp, color = Muted)
                 }
             }
 
