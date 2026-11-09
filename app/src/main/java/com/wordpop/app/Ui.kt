@@ -589,6 +589,9 @@ fun HomeScreen(
                 return
             }
             if (!exactAlarmGranted) {
+                // Remember the user's intent; MainActivity starts the service when access is granted.
+                store.enabled = true
+                enabled = true
                 onRequestExactAlarm()
                 return
             }
