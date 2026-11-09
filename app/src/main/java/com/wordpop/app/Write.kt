@@ -147,12 +147,13 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
 @Composable
 private fun ModeCard(emoji: String, title: String, desc: String, stats: String, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, Line),
+        border = BorderStroke(2.5.dp, Night),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .hardShadow(RoundedCornerShape(20.dp), 4.dp)
+            .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(
@@ -210,7 +211,7 @@ private fun WriteProgress(index: Int, total: Int, answered: Boolean, streak: Int
 
 @Composable
 private fun PromptCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -254,8 +255,8 @@ private fun LetterBoxes(typed: String, target: String, showTarget: Boolean) {
                         .weight(1f)
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (good) Color.White else Color(0xFFFBD0D3))
-                        .border(1.5.dp, if (good) Teal else Danger, RoundedCornerShape(8.dp)),
+                        .background(if (good) Color.White else MissTint)
+                        .border(2.dp, if (good) Night else Danger, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(c?.toString() ?: "", fontSize = size, fontWeight = FontWeight.Bold, color = Night)
@@ -296,7 +297,7 @@ private fun WriteResult(
     val pct = scorePct(perfect, helped, total)
     LaunchedEffect(Unit) { saveRound(store, prefix, pct) }
 
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -304,12 +305,13 @@ private fun WriteResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
                     .size(110.dp)
                     .clip(CircleShape)
-                    .background(if (pct >= 50) Tint else Beige)
-                    .border(3.dp, if (pct >= 50) Teal else Gold, CircleShape),
+                    .background(if (pct >= 50) Teal else Sun)
+                    .border(3.dp, Night, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text("$pct%", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Night)
@@ -328,8 +330,9 @@ private fun WriteResult(
                 progress = { pct / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(2.dp, Night, RoundedCornerShape(6.dp)),
                 color = if (pct >= 50) Teal else Gold,
                 trackColor = Line
             )
@@ -476,7 +479,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
                     color = Night,
                     textAlign = TextAlign.Center
                 ),
-                cursorBrush = SolidColor(Teal),
+                cursorBrush = SolidColor(Night),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
                     autoCorrectEnabled = false,
@@ -494,7 +497,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
                             .heightIn(min = 64.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White)
-                            .border(2.dp, if (status == 1) Danger else Teal, RoundedCornerShape(16.dp))
+                            .border(2.5.dp, if (status == 1) Danger else Night, RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -589,9 +592,10 @@ private fun WordChip(text: String, state: Int, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
     Box(
         Modifier
+            .hardShadow(shape, 3.dp)
             .clip(shape)
-            .background(if (state == 1) Color(0xFFFDE7E8) else Color.White)
-            .border(1.5.dp, if (state == 1) Danger else Teal, shape)
+            .background(if (state == 1) MissTint else Teal)
+            .border(2.dp, if (state == 1) Danger else Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
@@ -727,17 +731,17 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
             val bg by animateColorAsState(
                 when {
                     !answered -> Color.White
-                    isCorrect -> Tint
-                    isPicked -> Color(0xFFFDE7E8)
+                    isCorrect -> Teal
+                    isPicked -> MissTint
                     else -> Color.White
                 }, tween(220), label = "bg"
             )
             val borderC by animateColorAsState(
                 when {
-                    !answered -> Line
-                    isCorrect -> Teal
+                    !answered -> Night
+                    isCorrect -> Night
                     isPicked -> Danger
-                    else -> Line
+                    else -> Night
                 }, tween(220), label = "borderC"
             )
             val shape = RoundedCornerShape(14.dp)
@@ -745,9 +749,10 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 58.dp)
+                    .hardShadow(shape, 4.dp)
                     .clip(shape)
                     .background(bg)
-                    .border(if (answered && (isCorrect || isPicked)) 2.dp else 1.5.dp, borderC, shape)
+                    .border(2.5.dp, borderC, shape)
                     .clickable(enabled = !answered, role = Role.Button) {
                         picked = opt
                         attempts = 1
@@ -764,7 +769,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                         .clip(CircleShape)
                         .background(
                             when {
-                                answered && isCorrect -> Teal
+                                answered && isCorrect -> Color.White
                                 answered && isPicked -> Danger
                                 else -> Beige
                             }
@@ -772,7 +777,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     if (answered && isCorrect) {
-                        Icon(painterResource(R.drawable.ic_check), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(painterResource(R.drawable.ic_check), null, tint = Night, modifier = Modifier.size(20.dp))
                     } else if (answered && isPicked) {
                         Icon(painterResource(R.drawable.ic_close), null, tint = Color.White, modifier = Modifier.size(20.dp))
                     } else {
@@ -788,7 +793,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = Color.White,
-                border = BorderStroke(1.5.dp, if (status == 1) Danger else Line),
+                border = BorderStroke(2.5.dp, if (status == 1) Danger else Night),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 96.dp)

@@ -247,12 +247,12 @@ class BannerTheme(
 
 object BannerThemes {
     val all = listOf(
-        BannerTheme("فوم", 0xFFFFFFFF.toInt(), 0xFF12211F.toInt(), 0xFF5B6F6B.toInt(), 0xFF0B7F6C.toInt(), 0xFFFFFFFF.toInt(), 0xFFD9E6E3.toInt(), 0xFFE6F1EE.toInt()),
-        BannerTheme("أبيس", 0xFF0F1C1A.toInt(), 0xFFFFFFFF.toInt(), 0xFFB6CBC6.toInt(), 0xFF2BB89E.toInt(), 0xFF07120F.toInt(), 0xFF1F3532.toInt(), 0xFF1C302C.toInt()),
-        BannerTheme("لاجون", 0xFF0B7F6C.toInt(), 0xFFFFFFFF.toInt(), 0xFFF2FBF8.toInt(), 0xFFFFFFFF.toInt(), 0xFF0B7F6C.toInt(), 0xFF0A6F5D.toInt(), 0xFF096C5C.toInt()),
-        BannerTheme("رمل", 0xFFF1EADB.toInt(), 0xFF1F1B14.toInt(), 0xFF6E6552.toInt(), 0xFFA8741A.toInt(), 0xFFFFFFFF.toInt(), 0xFFE0D6BF.toInt(), 0xFFE5DCC8.toInt()),
-        BannerTheme("مدّ", 0xFF1F5AA6.toInt(), 0xFFFFFFFF.toInt(), 0xFFD6E4F7.toInt(), 0xFFFFFFFF.toInt(), 0xFF1F5AA6.toInt(), 0xFF2A68B8.toInt(), 0xFF1B4687.toInt()),
-        BannerTheme("بوب", 0xFFCF3560.toInt(), 0xFFFFFFFF.toInt(), 0xFFFFF6F8.toInt(), 0xFFFFFFFF.toInt(), 0xFFCF3560.toInt(), 0xFFD9496F.toInt(), 0xFFBD3359.toInt())
+        BannerTheme("ورق", 0xFFFFFFFF.toInt(), 0xFF12182B.toInt(), 0xFF5A6278.toInt(), 0xFF2FE0B5.toInt(), 0xFF12182B.toInt(), 0xFF12182B.toInt(), 0xFFEEF1F8.toInt()),
+        BannerTheme("ليل", 0xFF12182B.toInt(), 0xFFFFFFFF.toInt(), 0xFFC9D2F0.toInt(), 0xFF2FE0B5.toInt(), 0xFF12182B.toInt(), 0xFF2FE0B5.toInt(), 0xFF232B48.toInt()),
+        BannerTheme("نعناع", 0xFF2FE0B5.toInt(), 0xFF12182B.toInt(), 0xFF26304D.toInt(), 0xFF12182B.toInt(), 0xFFFFFFFF.toInt(), 0xFF12182B.toInt(), 0xFF8EF0D5.toInt()),
+        BannerTheme("شمس", 0xFFFFC93C.toInt(), 0xFF12182B.toInt(), 0xFF26304D.toInt(), 0xFF12182B.toInt(), 0xFFFFFFFF.toInt(), 0xFF12182B.toInt(), 0xFFFFDE85.toInt()),
+        BannerTheme("سماء", 0xFF59B8FF.toInt(), 0xFF12182B.toInt(), 0xFF26304D.toInt(), 0xFF12182B.toInt(), 0xFFFFFFFF.toInt(), 0xFF12182B.toInt(), 0xFFA6D8FF.toInt()),
+        BannerTheme("مرجان", 0xFFFF5C5C.toInt(), 0xFF12182B.toInt(), 0xFF2A1218.toInt(), 0xFF12182B.toInt(), 0xFFFFFFFF.toInt(), 0xFF12182B.toInt(), 0xFFFF9A9A.toInt())
     )
 
     fun get(i: Int): BannerTheme = all.getOrElse(i) { all[0] }

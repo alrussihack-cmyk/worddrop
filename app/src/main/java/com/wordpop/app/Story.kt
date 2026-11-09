@@ -226,14 +226,14 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
                 val done = picked != null
                 val right = o == q.answer
                 val bg = when {
-                    done && right -> Tint
-                    done && o == picked -> Color(0xFFFDE7E8)
+                    done && right -> Teal
+                    done && o == picked -> MissTint
                     else -> Cloud
                 }
                 val line = when {
-                    done && right -> Teal
+                    done && right -> Night
                     done && o == picked -> Danger
-                    else -> Line
+                    else -> Night
                 }
                 Surface(
                     shape = RoundedCornerShape(14.dp), color = bg,
@@ -365,7 +365,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         current?.let { st ->
             Surface(
                 shape = RoundedCornerShape(16.dp), color = Cloud,
-                border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()
+                border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(st.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
@@ -397,7 +397,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
             }
 
             // Step 2: retrieval practice
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("اختبار القصة", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
                     if (!quiz) {
@@ -419,7 +419,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
             }
 
             // Step 3: production + AI feedback
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("اكتب بكلماتك", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
                     Text("لخّص القصة في جملتين أو تلاتة بالإنجليزي، وهنصحح لك.", fontSize = 14.sp, color = Muted)

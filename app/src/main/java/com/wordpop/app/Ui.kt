@@ -87,6 +87,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -97,29 +98,35 @@ import java.util.Locale
 
 // ---------- brand ----------
 
-val Teal = Color(0xFF0B7F6C)      // Lagoon: primary
-val TealDark = Color(0xFF0A5E51)  // Lagoon Deep: text on tint
-val Night = Color(0xFF12211F)       // Ink: main text
-val Mint = Color(0xFF0B7F6C)
-val Cloud = Color(0xFFFFFFFF)
-val Muted = Color(0xFF5B6F6B)
-val Line = Color(0xFFD9E6E3)
-val Beige = Color(0xFFF4F9F8)       // Foam: soft card
-val Gold = Color(0xFF946200)        // deep amber: text/buttons with white
-val Spark = Color(0xFFF4B223)       // Spark: stars, pop dot
-val Tint = Color(0xFFDDF2EE)        // Lagoon tint
-val Danger = Color(0xFFBF2530)
+val Teal = Color(0xFF2FE0B5)      // Mint: primary fill (text on it is Night)
+val TealDark = Color(0xFF0A6F5C)  // Mint Deep: accent text on white / tint
+val Night = Color(0xFF12182B)       // Ink: text and borders
+val Mint = Color(0xFF2FE0B5)
+val Cloud = Color(0xFFF6F8FC)       // Paper: screen background
+val Muted = Color(0xFF5A6278)
+val Line = Color(0xFFDCE1EE)
+val Beige = Color(0xFFEEF1F8)       // soft fill
+val Gold = Color(0xFF946200)        // deep amber text
+val Spark = Color(0xFFFFC93C)       // Sun
+val Sun = Color(0xFFFFC93C)
+val Coral = Color(0xFFFF5C5C)
+val Sky = Color(0xFF59B8FF)
+val SkyTint = Color(0xFFDDEFFF)
+val Tint = Color(0xFFD8F8EE)        // Mint tint
+val Danger = Color(0xFFC62F3A)
+val MissTint = Color(0xFFFFE3E3)
 
 @Composable
 fun WordPopTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Teal,
-            onPrimary = Color.White,
+            onPrimary = Night,
             background = Cloud,
             surface = Color.White,
             onSurface = Night
-        )
+        ),
+        typography = brandTypography()
     ) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl, content = content)
     }
@@ -147,6 +154,7 @@ fun En(
             color = color,
             fontSize = size,
             fontWeight = weight,
+            fontFamily = if (size.value >= 30f) Display else Readex,
             textAlign = align,
             lineHeight = size * 1.25f
         )
@@ -159,9 +167,10 @@ fun En(
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Color.White)
+        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(2.5.dp, Night),
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
@@ -171,10 +180,10 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(2.dp, Teal),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = TealDark)
+        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(2.5.dp, Night),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
@@ -186,17 +195,18 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .heightIn(min = 44.dp)
+            .hardShadow(shape, 3.dp)
             .clip(shape)
             .background(if (selected) Teal else Color.White)
-            .border(1.5.dp, if (selected) Teal else Line, shape)
+            .border(2.dp, Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
-            color = if (selected) Color.White else Night,
-            fontWeight = FontWeight.Bold,
+            color = Night,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             fontSize = 16.sp
         )
     }
@@ -205,7 +215,7 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun ChipRow(content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 5.dp, start = 2.dp, end = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content
     )
@@ -213,9 +223,9 @@ fun ChipRow(content: @Composable RowScope.() -> Unit) {
 
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(22.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(22.dp), 5.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
+            Text(title, fontSize = 22.sp, fontFamily = Display, color = Night)
             content()
         }
     }
@@ -226,15 +236,17 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(size)
+            .hardShadow(CircleShape, 3.dp)
             .clip(CircleShape)
             .background(Teal)
+            .border(2.5.dp, Night, CircleShape)
             .clickable(role = Role.Button, onClickLabel = "نطق الكلمة", onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             painterResource(R.drawable.ic_volume),
             contentDescription = "نطق الكلمة",
-            tint = Color.White,
+            tint = Night,
             modifier = Modifier.size(size * 0.5f)
         )
     }
@@ -247,7 +259,7 @@ fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
             .size(44.dp)
             .clip(CircleShape)
             .background(Cloud)
-            .border(1.5.dp, Line, CircleShape)
+            .border(2.dp, Night, CircleShape)
             .semantics { contentDescription = desc }
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -380,11 +392,11 @@ enum class Page(val title: String, val icon: Int) {
 @Composable
 fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
     Column(Modifier.fillMaxWidth().background(Color.White)) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+        Box(Modifier.fillMaxWidth().height(2.5.dp).background(Night))
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
             Page.values().forEach { p ->
                 val selected = p == page
-                val tint = if (selected) Teal else Night
+                val tint = Night
                 Column(
                     Modifier
                         .weight(1f)
@@ -392,12 +404,21 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        painterResource(if (selected && p == Page.Favorites) R.drawable.ic_star else p.icon),
-                        contentDescription = null,
-                        tint = tint,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    val pill = RoundedCornerShape(12.dp)
+                    Box(
+                        Modifier
+                            .width(52.dp)
+                            .height(32.dp)
+                            .then(if (selected) Modifier.clip(pill).background(Teal).border(2.dp, Night, pill) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painterResource(if (selected && p == Page.Favorites) R.drawable.ic_star else p.icon),
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                     Spacer(Modifier.height(2.dp))
                     Text(
                         p.title, fontSize = 12.sp, color = tint,
@@ -420,12 +441,13 @@ fun QuickAction(label: String, icon: Int, filled: Boolean, onClick: () -> Unit) 
         Box(
             Modifier
                 .size(64.dp)
+                .hardShadow(CircleShape, 4.dp)
                 .clip(CircleShape)
                 .background(if (filled) Teal else Color.White)
-                .border(1.dp, if (filled) Teal else Line, CircleShape),
+                .border(2.5.dp, Night, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(painterResource(icon), contentDescription = null, tint = if (filled) Color.White else Night, modifier = Modifier.size(26.dp))
+            Icon(painterResource(icon), contentDescription = null, tint = Night, modifier = Modifier.size(26.dp))
         }
         Text(label, fontSize = 14.sp, color = Night, textAlign = TextAlign.Center)
     }
@@ -438,7 +460,7 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
         Switch(
             checked = checked,
             onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
+            colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, checkedBorderColor = Night, uncheckedBorderColor = Night, uncheckedThumbColor = Night, uncheckedTrackColor = Color.White)
         )
     }
 }
@@ -584,11 +606,11 @@ fun HomeScreen(
             if (page == Page.Home) {
                 Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
                 Column {
-                    Text("ووردبوب", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("ووردبوب", fontSize = 30.sp, fontFamily = Display, color = Night)
                     Text("كلمة كل شوية.. وإنجليزيتك بتكبر", fontSize = 15.sp, color = Muted)
                 }
             } else {
-                Text(page.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Night)
+                Text(page.title, fontSize = 24.sp, fontFamily = Display, color = Night)
             }
         }
 
@@ -625,7 +647,7 @@ fun HomeScreen(
                         fontSize = 16.sp,
                         color = Night
                     )
-                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Gold) { onRequestOverlay() }
+                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Sun) { onRequestOverlay() }
                 }
             }
         }
@@ -643,6 +665,7 @@ fun HomeScreen(
             val paused = pausedUntil > System.currentTimeMillis()
             val untilText = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
                 .format(java.util.Date(pausedUntil))
+            if (paused) Boby(Mood.Sleep, 64.dp)
             Text(
                 if (paused) "الكلمات متوقفة لحد $untilText" else "الكلمات شغالة",
                 fontSize = 16.sp,
@@ -771,7 +794,7 @@ fun HomeScreen(
                         sound = it
                         store.sound = it
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, checkedBorderColor = Night, uncheckedBorderColor = Night, uncheckedThumbColor = Night, uncheckedTrackColor = Color.White)
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -787,7 +810,7 @@ fun HomeScreen(
                         autoSpeak = it
                         store.autoSpeak = it
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Teal)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, checkedBorderColor = Night, uncheckedBorderColor = Night, uncheckedThumbColor = Night, uncheckedTrackColor = Color.White)
                 )
             }
         }
@@ -1021,7 +1044,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
         }
 
         if (step == 0) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1065,7 +1088,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 }
             }
 
-            if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(16.dp), 4.dp)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TealDark, modifier = Modifier.weight(1f))
@@ -1120,7 +1143,7 @@ fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("المفضلة", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Night)
+            Text("المفضلة", fontSize = 24.sp, fontFamily = Display, color = Night)
         }
         ChipRow {
             Chip("كلمات (${words.size})", tab == 0) { tab = 0 }
@@ -1157,7 +1180,10 @@ fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
 
 @Composable
 fun EmptyFav(text: String) {
-    Text(text, fontSize = 16.sp, color = Muted, modifier = Modifier.padding(vertical = 12.dp))
+    Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Boby(Mood.Happy, 72.dp)
+        Text(text, fontSize = 16.sp, color = Muted, modifier = Modifier.weight(1f))
+    }
 }
 
 @Composable
@@ -1270,15 +1296,16 @@ private fun QuizSession(
             progress = { (index + if (answered) 1 else 0).toFloat() / total },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .border(2.dp, Night, RoundedCornerShape(6.dp)),
             color = Teal,
             trackColor = Line
         )
     }
 
     // question card
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1325,8 +1352,8 @@ private fun QuizSession(
         val bg by animateColorAsState(
             when {
                 !answered -> Color.White
-                isCorrect -> Tint
-                isPicked -> Color(0xFFFDE7E8)
+                isCorrect -> Teal
+                isPicked -> MissTint
                 else -> Color.White
             },
             tween(220), label = "optBg"
@@ -1334,9 +1361,9 @@ private fun QuizSession(
         val borderColor by animateColorAsState(
             when {
                 !answered -> Line
-                isCorrect -> Teal
+                isCorrect -> Night
                 isPicked -> Danger
-                else -> Line
+                else -> Night
             },
             tween(220), label = "optBorder"
         )
@@ -1345,9 +1372,10 @@ private fun QuizSession(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 60.dp)
+                .hardShadow(shape, 4.dp)
                 .clip(shape)
                 .background(bg)
-                .border(if (answered && (isCorrect || isPicked)) 2.dp else 1.5.dp, borderColor, shape)
+                .border(2.5.dp, borderColor, shape)
                 .clickable(enabled = !answered, role = Role.Button) {
                     picked = opt
                     if (isCorrect) {
@@ -1376,7 +1404,7 @@ private fun QuizSession(
                     .clip(CircleShape)
                     .background(
                         when {
-                            answered && isCorrect -> Teal
+                            answered && isCorrect -> Color.White
                             answered && isPicked -> Danger
                             else -> Beige
                         }
@@ -1384,7 +1412,7 @@ private fun QuizSession(
                 contentAlignment = Alignment.Center
             ) {
                 if (answered && isCorrect) {
-                    Icon(painterResource(R.drawable.ic_check), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(painterResource(R.drawable.ic_check), null, tint = Night, modifier = Modifier.size(20.dp))
                 } else if (answered && isPicked) {
                     Icon(painterResource(R.drawable.ic_close), null, tint = Color.White, modifier = Modifier.size(20.dp))
                 } else {
@@ -1404,10 +1432,11 @@ private fun QuizSession(
         val ok = picked == q.correct
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (ok) Tint else Color(0xFFFDE7E8),
+            color = if (ok) Tint else MissTint,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Boby(if (ok) Mood.Happy else Mood.Think, 48.dp)
                 Text(
                     if (ok) {
                         if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
@@ -1445,7 +1474,7 @@ private fun QuizResult(
     onNewWord: () -> Unit
 ) {
     val pct = if (total == 0) 0 else score * 100 / total
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -1453,12 +1482,13 @@ private fun QuizResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
                     .size(110.dp)
                     .clip(CircleShape)
-                    .background(if (pct >= 50) Tint else Beige)
-                    .border(3.dp, if (pct >= 50) Teal else Gold, CircleShape),
+                    .background(if (pct >= 50) Teal else Sun)
+                    .border(3.dp, Night, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text("$score/$total", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Night)

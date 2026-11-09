@@ -270,11 +270,34 @@ class OverlayService : Service() {
         }
     }
 
+    private fun font(res: Int, fallback: Typeface): Typeface = try {
+        resources.getFont(res)
+    } catch (e: Exception) {
+        fallback
+    }
+
+    /** Rounded panel with a thick border and a solid shadow under it, like a sticker. */
+    private fun chunkyBackground(fill: Int, edge: Int, radius: Int, depth: Int): android.graphics.drawable.Drawable {
+        val shadow = GradientDrawable().apply {
+            setColor(edge)
+            cornerRadius = radius.toFloat()
+        }
+        val main = GradientDrawable().apply {
+            setColor(fill)
+            cornerRadius = radius.toFloat()
+            setStroke(dp(3), edge)
+        }
+        return android.graphics.drawable.LayerDrawable(arrayOf(shadow, main)).apply {
+            setLayerInset(0, 0, depth, 0, 0)
+            setLayerInset(1, 0, 0, 0, depth)
+        }
+    }
+
     private fun pill(label: String, t: BannerTheme, onClick: (TextView) -> Unit): TextView =
         TextView(this).apply {
             text = label
             textSize = 12.5f * scale
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = font(R.font.readex_bold, Typeface.DEFAULT_BOLD)
             setTextColor(t.text)
             gravity = Gravity.CENTER
             maxLines = 1
@@ -282,7 +305,8 @@ class OverlayService : Service() {
             setPadding(dp(4), dp(9), dp(4), dp(9))
             background = GradientDrawable().apply {
                 setColor(t.chip)
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(2), t.stroke)
             }
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(dp(3), dp(3), dp(3), dp(3))
@@ -299,13 +323,8 @@ class OverlayService : Service() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = GradientDrawable().apply {
-                setColor(t.bg)
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), t.stroke)
-            }
-            elevation = dp(8).toFloat()
+            setPadding(dp(12), dp(10), dp(12), dp(10) + dp(5))
+            background = chunkyBackground(t.bg, t.stroke, dp(22), dp(5))
         }
 
         // ----- header: logo, word, translation, speaker, close -----
@@ -326,8 +345,8 @@ class OverlayService : Service() {
         }
         val en = TextView(this).apply {
             text = w.en
-            textSize = 20f * scale
-            typeface = Typeface.DEFAULT_BOLD
+            textSize = 26f * scale
+            typeface = font(R.font.lalezar, Typeface.DEFAULT_BOLD)
             setTextColor(t.text)
             textDirection = View.TEXT_DIRECTION_LTR
             gravity = Gravity.START
@@ -337,6 +356,7 @@ class OverlayService : Service() {
         val ar = TextView(this).apply {
             text = w.ar
             textSize = 14f * scale
+            typeface = font(R.font.readex_medium, Typeface.DEFAULT)
             setTextColor(t.sub)
             gravity = Gravity.START
             maxLines = 2
@@ -351,6 +371,7 @@ class OverlayService : Service() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(t.accent)
+                setStroke(dp(2), t.stroke)
             }
             setPadding(dp(11), dp(11), dp(11), dp(11))
             contentDescription = "نطق الكلمة"
