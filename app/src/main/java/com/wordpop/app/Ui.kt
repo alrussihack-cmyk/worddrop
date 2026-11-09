@@ -679,7 +679,7 @@ fun HomeScreen(
         }
 
         if (!overlayGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = SunTint, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "لازم تسمح للتطبيق يظهر فوق التطبيقات التانية، من غير كده الكلمات مش هتظهر.",
@@ -692,7 +692,7 @@ fun HomeScreen(
         }
 
         if (!exactAlarmGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(20.dp), color = SunTint, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "عشان الكلمات تظهر تلقائيًا في الخلفية وفي مواعيدها، اسمح للتطبيق بالتنبيهات الدقيقة.",
@@ -1370,7 +1370,7 @@ private fun QuizSession(
                         .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold)
+                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
                 }
             }
         }
@@ -1679,7 +1679,7 @@ fun ReviewScreen(store: SettingsStore) {
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(16.dp),
-                color = Beige
+                color = SunTint
             ) {
                 Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$dueNow", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, color = Night)
