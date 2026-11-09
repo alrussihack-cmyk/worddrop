@@ -195,8 +195,11 @@ class OverlayService : Service() {
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         lp.y = statusBarHeight() + rawDp(8)
 
-        // Hidden until it has been measured and moved to the chosen spot, so it never jumps.
+        // Start slightly lower and smaller, then pop into place like the WordPop sticker identity.
         view.alpha = 0f
+        view.scaleX = 0.9f
+        view.scaleY = 0.9f
+        view.translationY = dp(14).toFloat()
         try {
             wm.addView(view, lp)
         } catch (e: Exception) {
@@ -206,7 +209,20 @@ class OverlayService : Service() {
         bannerParams = lp
         view.post {
             placeBanner(view, lp, s)
-            view.alpha = s.opacity / 100f
+            val targetAlpha = s.opacity / 100f
+            if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                view.animate()
+                    .alpha(targetAlpha)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .translationY(0f)
+                    .setDuration(280L)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
+                    .start()
+            } else {
+                // Respect the system's Reduce motion setting.
+                view.animate().alpha(targetAlpha).setDuration(120L).start()
+            }
         }
 
         resetTimer()
