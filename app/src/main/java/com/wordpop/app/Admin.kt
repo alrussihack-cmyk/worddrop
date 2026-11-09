@@ -291,7 +291,7 @@ private fun AdminPanel(
             Chip("أوقف 3 ساعات", false) { store.pausedUntil = System.currentTimeMillis() + 3 * 3600_000L; paused = true; refresh() }
             Chip("كمّل", false) { store.pausedUntil = 0L; paused = false; refresh() }
         }
-        if (paused) Text("الظهور موقوف مؤقتًا.", fontSize = 14.sp, color = Gold)
+        if (paused) Text("الظهور موقوف مؤقتًا.", fontSize = 14.sp, color = Muted)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("اعرض كلمة دلوقتي", false) { sendToService(ctx, OverlayService.ACTION_SHOW_NOW) }
         }
