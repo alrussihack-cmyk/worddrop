@@ -317,16 +317,17 @@ fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
     }
 }
 
-/** Text-to-speech for the in-app screens. Returns a function that speaks English text. */
+/** Text-to-speech for in-app screens, using the accent selected in Settings. */
 @Composable
 fun rememberSpeaker(): (String) -> Unit {
     val ctx = LocalContext.current
+    val store = remember { SettingsStore(ctx) }
     var ready by remember { mutableStateOf(false) }
     val holder = remember { arrayOfNulls<TextToSpeech>(1) }
     DisposableEffect(Unit) {
         val engine = TextToSpeech(ctx.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                holder[0]?.language = Locale.US
+                holder[0]?.let { applyEnglishAccent(it, store.speechAccent) }
                 ready = true
             }
         }
@@ -336,7 +337,12 @@ fun rememberSpeaker(): (String) -> Unit {
             holder[0] = null
         }
     }
-    return { text -> if (ready) holder[0]?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui") }
+    return { text ->
+        if (ready) holder[0]?.let { engine ->
+            applyEnglishAccent(engine, store.speechAccent)
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui")
+        }
+    }
 }
 
 // ---------- app root ----------
@@ -949,6 +955,48 @@ fun HomeScreen(
                 )
             }
         }
+        }
+
+        if (page == Page.Settings) {
+            val speakAccentSample = rememberSpeaker()
+            Section("نطق الكلمات") {
+                Text(
+                    "اختار اللكنة الإنجليزية اللي تحب تسمع بيها الكلمات والأمثلة.",
+                    fontSize = 14.sp,
+                    color = Muted
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        SpeechAccents.AMERICAN to "أمريكي 🇺🇸",
+                        SpeechAccents.BRITISH to "بريطاني 🇬🇧",
+                        SpeechAccents.AUSTRALIAN to "أسترالي 🇦🇺"
+                    ).forEach { (id, label) ->
+                        Chip(label, store.speechAccent == id) {
+                            store.speechAccent = id
+                        }
+                    }
+                }
+                PrimaryButton("اسمع عينة من اللكنة", Modifier.fillMaxWidth()) {
+                    speakAccentSample(
+                        "Hello! How are you today? It is a beautiful day to learn something new."
+                    )
+                }
+                SecondaryButton("تنزيل أو تحديث الأصوات", Modifier.fillMaxWidth()) {
+                    try {
+                        ctx.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                    } catch (_: Exception) {
+                    }
+                }
+                Text(
+                    "لأفضل صوت طبيعي، نزّل الصوت عالي الجودة للّكنة المختارة من محرك النطق في موبايلك. توفر الأصوات يختلف حسب الجهاز.",
+                    fontSize = 12.sp,
+                    color = Muted
+                )
+            }
         }
 
         if (page == Page.Settings) {
