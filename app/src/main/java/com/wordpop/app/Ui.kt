@@ -344,7 +344,7 @@ fun rememberSpeaker(): (String) -> Unit {
                 engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui")
             }
         }
-        val worker = store.ttsWorkerUrl
+        val worker = AiConfigSync.workerUrl
         if (worker.isNotBlank()) {
             EasyVoiceClient.speak(ctx.applicationContext, worker, text, store.speechVoice, fallback)
         } else {
@@ -595,7 +595,6 @@ fun HomeScreen(
     var sound by remember { mutableStateOf(store.sound) }
     var speechAccent by remember { mutableStateOf(store.speechAccent) }
     var speechVoice by remember { mutableStateOf(store.speechVoice) }
-    var ttsWorkerUrl by remember { mutableStateOf(store.ttsWorkerUrl) }
     var level by remember { mutableIntStateOf(store.level) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
@@ -1037,20 +1036,12 @@ fun HomeScreen(
                         }
                     }
                 }
-                androidx.compose.material3.OutlinedTextField(
-                    value = ttsWorkerUrl,
-                    onValueChange = {
-                        ttsWorkerUrl = it
-                        store.ttsWorkerUrl = it
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Cloudflare Worker URL") },
-                    placeholder = { Text("https://wordpop-tts.yourname.workers.dev") },
-                    singleLine = true
-                )
                 Text(
-                    if (ttsWorkerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
-                    else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائيًا إلى Android TTS.",
+                    if (AiConfigSync.workerUrl.isBlank()) {
+                        "رابط خدمة الصوت والذكاء الاصطناعي يتم ضبطه مركزيًا من WordPop Control. الصوت الحالي: Android TTS."
+                    } else {
+                        "إعدادات الخدمة متصلة من WordPop Control. لو فشل EasyVoice، التطبيق يرجع تلقائيًا إلى Android TTS."
+                    },
                     fontSize = 12.sp,
                     color = Muted
                 )
