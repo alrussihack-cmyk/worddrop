@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "922302031640",
+    "project_id": "wordpop-control",
+    "storage_bucket": "wordpop-control.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922302031640:android:373289c5e99f1e19dc206d",
+        "android_client_info": {
+          "package_name": "com.wordpop.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmVtFJdA7u91gfXBT2SFX4xrG-gx683fM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922302031640:android:c9b5bf543ee8c1e8dc206d",
+        "android_client_info": {
+          "package_name": "com.wordpop.control"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmVtFJdA7u91gfXBT2SFX4xrG-gx683fM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
