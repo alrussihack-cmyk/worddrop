@@ -162,16 +162,6 @@ fun AiVocabularyTab(
             }
         }
 
-        Text(
-            if (AiConfigSync.isReady) {
-                "إعدادات OpenRouter ومفتاح API تتم إدارتها مركزيًا من WordPop Control."
-            } else {
-                "خدمة الذكاء الاصطناعي غير جاهزة. اطلب من المسؤول ضبط مفتاح OpenRouter ورابط الخدمة من WordPop Control."
-            },
-            fontSize = 13.sp,
-            color = if (AiConfigSync.isReady) TealDark else Muted
-        )
-
         if (error.isNotBlank()) Text(error, color = Danger, fontSize = 13.sp)
         if (notice.isNotBlank()) Text(notice, color = TealDark, fontSize = 13.sp)
 
