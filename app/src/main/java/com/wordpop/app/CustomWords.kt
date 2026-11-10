@@ -10,9 +10,10 @@ class WordPopApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         WordRepo.init(this)
-        // Migrate legacy preferences and protect the OpenRouter API key before the UI starts.
+        // API credentials are managed centrally by WordPop Control; the learner stores no key.
         SettingsStore(this)
-        // Keep the shared cloud vocabulary cached locally for offline learning.
+        // Keep public runtime settings and cloud vocabulary cached for offline use.
+        AiConfigSync.start(this)
         WordCloudSync.start(this)
         SettingsCardsSync.start(this)
     }
