@@ -1,6 +1,9 @@
 package com.wordpop.app
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 data class Word(
     val id: Int,
@@ -120,8 +123,7 @@ object WordRepo {
     @Volatile
     private var cloud: List<Word> = emptyList()
 
-    @Volatile
-    var all: List<Word> = builtIn
+    var all: List<Word> by mutableStateOf(builtIn)
         private set
 
     @Volatile
