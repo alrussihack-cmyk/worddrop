@@ -10,8 +10,11 @@ const cors = {
   "Access-Control-Max-Age": "86400",
 };
 
-// Best-effort per-isolate protection. Add a Cloudflare Rate Limiting rule before public launch.
-const aiBuckets = new Map();
+// Cloudflare's native binding is the production limiter. The local map is only a
+// development fallback when running without the binding.
+const fallbackBuckets = new Map();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const FALLBACK_RATE_LIMIT = 12;
 
 export default {
   async fetch(request, env) {
@@ -28,15 +31,18 @@ export default {
     }
 
     if (url.pathname === "/admin/config" && request.method === "POST") {
+      if (!(await allowRequest(request, env, "admin"))) return rateLimited();
       return saveAdminConfig(request, env);
     }
 
     if (url.pathname === "/ai/chat" && request.method === "POST") {
+      if (!(await allowRequest(request, env, "ai"))) return rateLimited();
       return generateAiResponse(request, env);
     }
 
     // Existing EasyVoice endpoint remains compatible with older WordPop builds.
     if (url.pathname === "/" && request.method === "POST") {
+      if (!(await allowRequest(request, env, "tts"))) return rateLimited();
       return generateSpeech(request, env);
     }
 
@@ -153,9 +159,6 @@ async function saveAdminConfig(request, env) {
 }
 
 async function generateAiResponse(request, env) {
-  if (!allowAiRequest(request)) {
-    return json({ error: "طلبات كتير في وقت قصير. استنى شوية وجرب تاني." }, 429);
-  }
   const configSecret = getConfigSecret(env);
   if (configSecret.length < 32) {
     return json({ error: "خدمة الذكاء الاصطناعي غير مهيأة على الخادم." }, 503);
@@ -340,19 +343,48 @@ function bearerToken(request) {
   return match ? match[1].trim() : "";
 }
 
-function allowAiRequest(request) {
+async function allowRequest(request, env, route) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const key = `${route}:${ip}`;
+  const limiter = env.WORDPOP_RATE_LIMITER;
+
+  if (limiter && typeof limiter.limit === "function") {
+    try {
+      const result = await limiter.limit({ key });
+      return result?.success === true;
+    } catch {
+      // Fail closed if the configured production limiter is unavailable.
+      return false;
+    }
+  }
+
+  return allowFallbackRequest(key);
+}
+
+function allowFallbackRequest(key) {
   const now = Date.now();
-  const windowMs = 10 * 60 * 1000;
-  const limit = 12;
-  const current = aiBuckets.get(ip);
-  if (!current || now - current.startedAt >= windowMs) {
-    aiBuckets.set(ip, { startedAt: now, count: 1 });
+  const current = fallbackBuckets.get(key);
+  if (current && now - current.startedAt < RATE_LIMIT_WINDOW_MS) {
+    if (current.count >= FALLBACK_RATE_LIMIT) return false;
+    current.count += 1;
     return true;
   }
-  if (current.count >= limit) return false;
-  current.count += 1;
+
+  if (fallbackBuckets.size >= 2_000) {
+    for (const [bucketKey, bucket] of fallbackBuckets) {
+      if (now - bucket.startedAt >= RATE_LIMIT_WINDOW_MS) fallbackBuckets.delete(bucketKey);
+    }
+    if (fallbackBuckets.size >= 2_000) return false;
+  }
+
+  fallbackBuckets.set(key, { startedAt: now, count: 1 });
   return true;
+}
+
+function rateLimited() {
+  const response = json({ error: "طلبات كتير في وقت قصير. استنى دقيقة وجرب تاني." }, 429);
+  response.headers.set("Retry-After", "60");
+  return response;
 }
 
 function friendlyOpenRouterError(status, text) {
