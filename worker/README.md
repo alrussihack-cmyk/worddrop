@@ -16,7 +16,8 @@ This Cloudflare Worker is the single server-side gateway for WordPop AI and Easy
 4. Keep the existing `EASYVOICE_API_KEY` secret if you use EasyVoice.
 5. In Firebase Console, publish the updated `firestore.rules` from the WordPop Control repository.
 6. Open WordPop Control → **AI & API Settings**. Enter the Worker HTTPS URL, OpenRouter API key, and model, then save.
-7. Turn on the AI service. The key is encrypted by the Worker and is never sent back to the apps.
+7. Optionally enter the EasyVoice API key in the same Control screen. If you leave it blank, the existing EASYVOICE_API_KEY Worker secret remains the fallback.
+8. Turn on the AI service. Both API keys are encrypted by the Worker and are never sent back to the apps.
 
 ## Endpoints
 
@@ -30,6 +31,7 @@ Body:
 ```json
 {
   "apiKey": "sk-or-...",
+  "easyVoiceApiKey": "optional EasyVoice key",
   "model": "openai/gpt-4o-mini",
   "workerUrl": "https://wordpop-tts.example.workers.dev",
   "enabled": true
