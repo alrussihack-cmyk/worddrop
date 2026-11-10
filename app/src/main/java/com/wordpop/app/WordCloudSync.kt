@@ -2,6 +2,9 @@ package com.wordpop.app
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -20,29 +23,41 @@ object WordCloudSync {
     @Volatile
     private var registration: ListenerRegistration? = null
 
+    /** Visible diagnostic state so learner can report connection/rules failures without Logcat. */
+    var status: String by mutableStateOf("لم يبدأ الاتصال بعد")
+        private set
+
     @Synchronized
     fun start(context: Context) {
         if (registration != null) return
 
+        status = "جاري تهيئة الاتصال بمكتبة الكلمات…"
         // Firebase is optional until the app's own google-services.json is installed.
         if (FirebaseApp.getApps(context).isEmpty()) {
+            status = "Firebase غير مهيأ في هذه النسخة؛ يتم استخدام الكلمات المحلية فقط."
             Log.i(TAG, "Firebase is not configured yet; using built-in and local words.")
             return
         }
 
+        status = "جاري الاتصال بالسحابة…"
         registration = FirebaseFirestore.getInstance()
             .collection("words")
             .whereEqualTo("active", true)
             .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
                 if (error != null) {
                     // Keep the last successful local cache if the device is offline or rules reject access.
+                    status = "فشل الاتصال: " + (error.localizedMessage ?: error.javaClass.simpleName)
                     Log.w(TAG, "Cloud vocabulary sync failed; keeping cached words.", error)
                     return@addSnapshotListener
                 }
 
-                if (snapshot == null) return@addSnapshotListener
+                if (snapshot == null) {
+                    status = "لم تصل استجابة من السحابة؛ جاري إعادة المحاولة."
+                    return@addSnapshotListener
+                }
                 // An empty first cache snapshot must not erase our previously saved offline copy.
                 if (snapshot.metadata.isFromCache && snapshot.isEmpty) {
+                    status = "لا توجد نسخة سحابية محفوظة على الجهاز؛ في انتظار اتصال الإنترنت."
                     return@addSnapshotListener
                 }
 
@@ -68,6 +83,8 @@ object WordCloudSync {
                 }.sortedBy { -it.id }
 
                 WordRepo.setCloudWords(context.applicationContext, words)
+                val source = if (snapshot.metadata.isFromCache) "من النسخة المحلية" else "من السحابة"
+                status = if (words.isEmpty()) "تم الاتصال، لكن لا توجد كلمات نشطة." else "تم تحميل ${words.size} كلمة نشطة $source."
                 Log.i(TAG, "Synced ${words.size} active cloud words.")
             }
     }
