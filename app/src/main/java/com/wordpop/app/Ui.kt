@@ -427,23 +427,24 @@ private object AnswerFeedbackAudio {
                 .setSampleRate(SAMPLE_RATE)
                 .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                 .build()
-            track = AudioTrack.Builder()
+            val builtTrack = AudioTrack.Builder()
                 .setAudioAttributes(attributes)
                 .setAudioFormat(format)
                 .setBufferSizeInBytes(pcm.size * 2)
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
+            track = builtTrack
 
-            val written = track.write(pcm, 0, pcm.size)
+            val written = builtTrack.write(pcm, 0, pcm.size)
             if (written != pcm.size) {
-                track.release()
+                builtTrack.release()
                 return
             }
-            track.setVolume(0.9f)
-            activeTrack = track
-            track.play()
+            builtTrack.setVolume(0.9f)
+            activeTrack = builtTrack
+            builtTrack.play()
 
-            val playingTrack = track
+            val playingTrack = builtTrack
             val durationMs = totalSamples * 1000L / SAMPLE_RATE + 120L
             mainHandler.postDelayed({
                 synchronized(this) {
