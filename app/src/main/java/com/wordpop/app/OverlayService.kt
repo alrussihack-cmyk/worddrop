@@ -631,7 +631,7 @@ class OverlayService : Service() {
             }
         }
         if (AiConfigSync.workerUrl.isNotBlank()) {
-            EasyVoiceClient.speak(this, settings.ttsWorkerUrl, text, settings.speechVoice, fallback)
+            EasyVoiceClient.speak(this, AiConfigSync.workerUrl, text, settings.speechVoice, fallback)
         } else {
             fallback()
         }
