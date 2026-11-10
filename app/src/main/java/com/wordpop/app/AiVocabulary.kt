@@ -248,7 +248,7 @@ fun AiVocabularyTab(
                     preview = generated
                     editingIndex = -1
                     draft = null
-                    notice = "اتولدت \${generated.size} كلمة. راجعها وعدّلها قبل ما تضيفها."
+                    notice = "اتولدت ${generated.size} كلمة. راجعها وعدّلها قبل ما تضيفها."
                 } catch (exception: Exception) {
                     error = exception.message ?: "حصل خطأ أثناء التوليد. جرّب تاني."
                 } finally {
@@ -265,7 +265,7 @@ fun AiVocabularyTab(
                 WordRepo.all.any { it.en.trim().equals(candidate.en.trim(), ignoreCase = true) }
             }
             Text(
-                "\${preview.size} كلمة في المعاينة • $duplicateCount مكررة وموجودة بالفعل",
+                "${preview.size} كلمة في المعاينة • $duplicateCount مكررة وموجودة بالفعل",
                 fontSize = 13.sp,
                 color = Muted
             )
@@ -376,15 +376,15 @@ fun AiVocabularyTab(
                 }
             }
 
-            PrimaryButton("اعتماد وإضافة (\${preview.size})", Modifier.fillMaxWidth()) {
+            PrimaryButton("اعتماد وإضافة (${preview.size})", Modifier.fillMaxWidth()) {
                 val result = WordRepo.addCustomWords(context, preview)
                 preview = emptyList()
                 editingIndex = -1
                 draft = null
                 onAdded(result)
-                notice = "تمت إضافة \${result.added} كلمة إلى مكتبتك."
-                if (result.duplicates > 0) notice += " تم تجاهل \${result.duplicates} مكررة."
-                if (result.skipped > 0) notice += " تم تجاهل \${result.skipped} غير مكتملة."
+                notice = "تمت إضافة ${result.added} كلمة إلى مكتبتك."
+                if (result.duplicates > 0) notice += " تم تجاهل ${result.duplicates} مكررة."
+                if (result.skipped > 0) notice += " تم تجاهل ${result.skipped} غير مكتملة."
             }
             SecondaryButton("إلغاء القائمة", Modifier.fillMaxWidth()) {
                 preview = emptyList()
