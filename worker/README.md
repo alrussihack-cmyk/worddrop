@@ -70,6 +70,9 @@ Returns MP3 bytes. The existing EasyVoice key remains a Cloudflare secret.
 
 ## Protection notes
 
-- The AI endpoint applies a best-effort per-IP limit of 12 requests per 10 minutes. Before a public launch, add a Cloudflare Rate Limiting rule for `/ai/chat` and monitor OpenRouter usage.
+- AI, TTS, and admin routes use the Cloudflare Workers Rate Limiting binding `WORDPOP_RATE_LIMITER`: 12 requests per 60 seconds per client IP and route.
+- The native binding is configured in `wrangler.toml`. Deploy with Wrangler 4.36.0 or later so the binding is attached to the Worker. The local in-memory fallback is for development only.
+- Cloudflare's built-in Worker limiter is approximate and scoped to each Cloudflare location; it is not a strict global quota. For a strict global limit, use a Durable Object-backed limiter. Monitor 429 responses and upstream OpenRouter/EasyVoice usage.
+- Run the Worker checks with `npm --prefix worker test`.
 - Never put `WORDPOP_CONFIG_SECRET`, `CONFIG_ENCRYPTION_KEY`, or an OpenRouter key in source control or an APK.
 - If the encryption secret is rotated, re-enter the OpenRouter key in WordPop Control so the Worker can encrypt it with the new secret.
