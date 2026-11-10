@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.wordpop.app
 
 import androidx.compose.foundation.BorderStroke
