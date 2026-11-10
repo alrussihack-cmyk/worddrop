@@ -427,8 +427,8 @@ fun SettingsSwipeScreen(
                                 color = Muted
                             )
                             Text(
-                                if (workerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
-                                else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائياً إلى Android TTS.",
+                                if (AiConfigSync.workerUrl.isBlank()) "الصوت الحالي: Android TTS. يتم ضبط رابط Worker من WordPop Control."
+                                else "EasyVoice مفعّل من WordPop Control. لو فشل الاتصال، التطبيق يرجع تلقائياً إلى Android TTS.",
                                 fontSize = 12.sp,
                                 color = SettingsMuted
                             )
