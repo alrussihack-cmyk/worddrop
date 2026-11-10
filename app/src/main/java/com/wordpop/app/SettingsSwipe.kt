@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -144,7 +145,26 @@ fun SettingsSwipeScreen(
     )
 
     Column(
-        Modifier.fillMaxSize().background(SettingsPaper).statusBarsPadding()
+        Modifier.fillMaxSize()
+            .background(SettingsPaper)
+            .drawBehind {
+                // Match the supplied settings identity: warm paper with a subtle dotted texture.
+                val step = 16.dp.toPx()
+                var y = 4.dp.toPx()
+                while (y < size.height) {
+                    var x = 4.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(
+                            color = SettingsInk.copy(alpha = 0.075f),
+                            radius = 1.15.dp.toPx(),
+                            center = Offset(x, y)
+                        )
+                        x += step
+                    }
+                    y += step
+                }
+            }
+            .statusBarsPadding()
     ) {
         Row(
             Modifier.fillMaxWidth().height(84.dp).padding(horizontal = 22.dp, vertical = 10.dp),
