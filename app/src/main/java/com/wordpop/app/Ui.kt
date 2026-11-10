@@ -1681,11 +1681,12 @@ private fun QuizSession(
         val shakeX = remember(q, opt) { Animatable(0f) }
         LaunchedEffect(answered, isPicked, isCorrect, store.feedbackAnimations) {
             if (answered && isPicked && !isCorrect && store.feedbackAnimations) {
+                shakeX.snapTo(0.1f)
                 shakeX.animateTo(
                     targetValue = 0f,
                     animationSpec = keyframes {
                         durationMillis = 320
-                        0f at 0
+                        0.1f at 0
                         (-10f) at 60
                         8f at 120
                         (-5f) at 180
