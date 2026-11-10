@@ -14,6 +14,7 @@ class WordPopApplication : Application() {
         SettingsStore(this)
         // Keep the shared cloud vocabulary cached locally for offline learning.
         WordCloudSync.start(this)
+        SettingsCardsSync.start(this)
     }
 }
 
