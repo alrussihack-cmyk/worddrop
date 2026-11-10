@@ -118,6 +118,9 @@ object WordRepo {
     private var custom: List<Word> = emptyList()
 
     @Volatile
+    private var cloud: List<Word> = emptyList()
+
+    @Volatile
     var all: List<Word> = builtIn
         private set
 
@@ -126,12 +129,40 @@ object WordRepo {
 
     val customWords: List<Word> get() = custom
 
-    /** Loads the user's imported words. Called once at process start. */
-    fun init(ctx: Context) = setCustom(CustomWords.load(ctx))
+    /** Loads local imports and the last cached shared library at process start. */
+    fun init(ctx: Context) {
+        custom = CustomWords.load(ctx)
+        cloud = CloudWordsStore.load(ctx)
+        rebuild()
+    }
 
     private fun setCustom(list: List<Word>) {
         custom = list
-        val merged = builtIn + list
+        rebuild()
+    }
+
+    /** Replaces the cached cloud vocabulary after a successful Firestore snapshot. */
+    fun setCloudWords(ctx: Context, list: List<Word>) {
+        cloud = list
+        CloudWordsStore.save(ctx, list)
+        rebuild()
+    }
+
+    private fun rebuild() {
+        // Built-in words take precedence, so cloud duplicates do not reset existing learning IDs.
+        val seen = mutableSetOf<String>()
+        val merged = buildList {
+            builtIn.forEach { word ->
+                add(word)
+                seen += word.en.trim().lowercase()
+            }
+            custom.forEach { word ->
+                if (seen.add(word.en.trim().lowercase())) add(word)
+            }
+            cloud.forEach { word ->
+                if (seen.add(word.en.trim().lowercase())) add(word)
+            }
+        }
         all = merged
         byId = merged.associateBy { it.id }
     }
