@@ -12,7 +12,7 @@ This Cloudflare Worker is the single server-side gateway for WordPop AI and Easy
 
 1. Deploy this Worker to the existing `wordpop-tts` Cloudflare Worker.
 2. In Cloudflare Dashboard, open **Workers & Pages → wordpop-tts → Settings → Variables and Secrets**.
-3. Add a secret named `WORDPOP_CONFIG_SECRET`. Use a randomly generated value of at least 32 characters and keep it private. Do not put it in GitHub, Firebase, or either APK.
+3. Add a secret named `WORDPOP_CONFIG_SECRET`. Use a randomly generated value of at least 32 characters and keep it private. Do not put it in GitHub, Firebase, or either APK. For compatibility with an already-created secret, the Worker also accepts `CONFIG_ENCRYPTION_KEY`.
 4. Keep the existing `EASYVOICE_API_KEY` secret if you use EasyVoice.
 5. In Firebase Console, publish the updated `firestore.rules` from the WordPop Control repository.
 6. Open WordPop Control → **AI & API Settings**. Enter the Worker HTTPS URL, OpenRouter API key, and model, then save.
@@ -71,5 +71,5 @@ Returns MP3 bytes. The existing EasyVoice key remains a Cloudflare secret.
 ## Protection notes
 
 - The AI endpoint applies a best-effort per-IP limit of 12 requests per 10 minutes. Before a public launch, add a Cloudflare Rate Limiting rule for `/ai/chat` and monitor OpenRouter usage.
-- Never put `WORDPOP_CONFIG_SECRET` or an OpenRouter key in source control or an APK.
+- Never put `WORDPOP_CONFIG_SECRET`, `CONFIG_ENCRYPTION_KEY`, or an OpenRouter key in source control or an APK.
 - If the encryption secret is rotated, re-enter the OpenRouter key in WordPop Control so the Worker can encrypt it with the new secret.
