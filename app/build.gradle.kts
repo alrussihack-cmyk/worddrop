@@ -9,8 +9,6 @@ if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-}
-
 android {
     namespace = "com.wordpop.app"
     compileSdk = 36
