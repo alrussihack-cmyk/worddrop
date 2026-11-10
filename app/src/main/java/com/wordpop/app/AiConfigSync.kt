@@ -78,6 +78,7 @@ object AiConfigSync {
                 enabled = snapshot.getBoolean("enabled") == true
                 keyConfigured = !snapshot.getString("encryptedKey").isNullOrBlank() &&
                     !snapshot.getString("iv").isNullOrBlank()
+                if (keyConfigured) clearLegacyLocalCredentials(context)
 
                 status = when {
                     snapshot.metadata.isFromCache -> "تم تحميل آخر إعدادات محفوظة على الجهاز."
@@ -88,6 +89,19 @@ object AiConfigSync {
                 }
                 saveCache(context)
             }
+    }
+
+    private fun clearLegacyLocalCredentials(context: Context) {
+        context.applicationContext
+            .getSharedPreferences("wordpop_secrets", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+        context.applicationContext
+            .getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+            .edit()
+            .remove("orKey")
+            .apply()
     }
 
     private fun loadCache(context: Context) {
