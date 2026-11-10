@@ -23,7 +23,7 @@ export default {
       return json({
         ok: true,
         aiConfigured: Boolean(config?.encryptedKey && config?.iv && config?.enabled),
-        ttsConfigured: Boolean(env.EASYVOICE_API_KEY),
+        ttsConfigured: Boolean((config?.encryptedTtsKey && config?.ivTts) || env.EASYVOICE_API_KEY),
       }, 200);
     }
 
@@ -58,6 +58,7 @@ async function saveAdminConfig(request, env) {
   const workerUrl = typeof body.workerUrl === "string" ? body.workerUrl.trim().replace(/\/+$/, "") : "";
   const model = typeof body.model === "string" ? body.model.trim() : "";
   const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+  const easyVoiceApiKey = typeof body.easyVoiceApiKey === "string" ? body.easyVoiceApiKey.trim() : "";
   const enabled = body.enabled === true;
 
   try {
@@ -75,17 +76,29 @@ async function saveAdminConfig(request, env) {
   if (apiKey && (apiKey.length < 16 || apiKey.length > 500)) {
     return json({ error: "The OpenRouter key does not look valid." }, 400);
   }
+  if (easyVoiceApiKey && (easyVoiceApiKey.length < 12 || easyVoiceApiKey.length > 500)) {
+    return json({ error: "The EasyVoice key does not look valid." }, 400);
+  }
 
   const previous = await readRuntimeConfig().catch(() => null);
   let encryptedKey = previous?.encryptedKey || "";
   let iv = previous?.iv || "";
   let keyHint = previous?.keyHint || "";
+  let encryptedTtsKey = previous?.encryptedTtsKey || "";
+  let ivTts = previous?.ivTts || "";
+  let ttsKeyHint = previous?.ttsKeyHint || "";
 
   if (apiKey) {
     const encrypted = await encryptSecret(apiKey, env.WORDPOP_CONFIG_SECRET);
     encryptedKey = encrypted.ciphertext;
     iv = encrypted.iv;
     keyHint = "••••" + apiKey.slice(-4);
+  }
+  if (easyVoiceApiKey) {
+    const encrypted = await encryptSecret(easyVoiceApiKey, env.WORDPOP_CONFIG_SECRET);
+    encryptedTtsKey = encrypted.ciphertext;
+    ivTts = encrypted.iv;
+    ttsKeyHint = "••••" + easyVoiceApiKey.slice(-4);
   }
   if (!encryptedKey || !iv) {
     return json({ error: "Add the OpenRouter API key before saving for the first time." }, 400);
@@ -97,6 +110,9 @@ async function saveAdminConfig(request, env) {
     encryptedKey: { stringValue: encryptedKey },
     iv: { stringValue: iv },
     keyHint: { stringValue: keyHint },
+    encryptedTtsKey: { stringValue: encryptedTtsKey },
+    ivTts: { stringValue: ivTts },
+    ttsKeyHint: { stringValue: ttsKeyHint },
     model: { stringValue: model },
     workerUrl: { stringValue: workerUrl },
     enabled: { booleanValue: enabled },
@@ -123,7 +139,16 @@ async function saveAdminConfig(request, env) {
     }, status);
   }
 
-  return json({ ok: true, keyConfigured: true, keyHint, model, workerUrl, enabled }, 200);
+  return json({
+    ok: true,
+    keyConfigured: true,
+    keyHint,
+    ttsKeyConfigured: Boolean(encryptedTtsKey && ivTts),
+    ttsKeyHint,
+    model,
+    workerUrl,
+    enabled,
+  }, 200);
 }
 
 async function generateAiResponse(request, env) {
@@ -189,8 +214,17 @@ async function generateAiResponse(request, env) {
 }
 
 async function generateSpeech(request, env) {
-  if (!env.EASYVOICE_API_KEY) {
-    return json({ error: "TTS service is not configured." }, 503);
+  const runtime = await readRuntimeConfig().catch(() => null);
+  let easyVoiceKey = env.EASYVOICE_API_KEY || "";
+  if (runtime?.encryptedTtsKey && runtime?.ivTts && env.WORDPOP_CONFIG_SECRET) {
+    try {
+      easyVoiceKey = await decryptSecret(runtime.encryptedTtsKey, runtime.ivTts, env.WORDPOP_CONFIG_SECRET);
+    } catch {
+      return json({ error: "EasyVoice key could not be decrypted. Re-enter it in WordPop Control." }, 503);
+    }
+  }
+  if (!easyVoiceKey) {
+    return json({ error: "TTS service is not configured in WordPop Control." }, 503);
   }
 
   let body;
@@ -211,7 +245,7 @@ async function generateSpeech(request, env) {
     const upstream = await fetch("https://easyvoice.ae/api/v1/audio/speech", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.EASYVOICE_API_KEY}`,
+        Authorization: `Bearer ${easyVoiceKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -246,6 +280,9 @@ async function readRuntimeConfig() {
     encryptedKey: fields.encryptedKey?.stringValue || "",
     iv: fields.iv?.stringValue || "",
     keyHint: fields.keyHint?.stringValue || "",
+    encryptedTtsKey: fields.encryptedTtsKey?.stringValue || "",
+    ivTts: fields.ivTts?.stringValue || "",
+    ttsKeyHint: fields.ttsKeyHint?.stringValue || "",
     model: fields.model?.stringValue || "",
     workerUrl: fields.workerUrl?.stringValue || "",
     enabled: fields.enabled?.booleanValue === true,
