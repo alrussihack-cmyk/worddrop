@@ -47,7 +47,8 @@ export default {
 async function saveAdminConfig(request, env) {
   const token = bearerToken(request);
   if (!token) return json({ error: "Administrator sign-in is required." }, 401);
-  if (!env.WORDPOP_CONFIG_SECRET || env.WORDPOP_CONFIG_SECRET.length < 32) {
+  const configSecret = getConfigSecret(env);
+  if (configSecret.length < 32) {
     return json({ error: "AI configuration encryption is not configured on the Worker." }, 503);
   }
 
@@ -89,13 +90,13 @@ async function saveAdminConfig(request, env) {
   let ttsKeyHint = previous?.ttsKeyHint || "";
 
   if (apiKey) {
-    const encrypted = await encryptSecret(apiKey, env.WORDPOP_CONFIG_SECRET);
+    const encrypted = await encryptSecret(apiKey, configSecret);
     encryptedKey = encrypted.ciphertext;
     iv = encrypted.iv;
     keyHint = "••••" + apiKey.slice(-4);
   }
   if (easyVoiceApiKey) {
-    const encrypted = await encryptSecret(easyVoiceApiKey, env.WORDPOP_CONFIG_SECRET);
+    const encrypted = await encryptSecret(easyVoiceApiKey, configSecret);
     encryptedTtsKey = encrypted.ciphertext;
     ivTts = encrypted.iv;
     ttsKeyHint = "••••" + easyVoiceApiKey.slice(-4);
@@ -155,7 +156,8 @@ async function generateAiResponse(request, env) {
   if (!allowAiRequest(request)) {
     return json({ error: "طلبات كتير في وقت قصير. استنى شوية وجرب تاني." }, 429);
   }
-  if (!env.WORDPOP_CONFIG_SECRET || env.WORDPOP_CONFIG_SECRET.length < 32) {
+  const configSecret = getConfigSecret(env);
+  if (configSecret.length < 32) {
     return json({ error: "خدمة الذكاء الاصطناعي غير مهيأة على الخادم." }, 503);
   }
 
@@ -175,7 +177,7 @@ async function generateAiResponse(request, env) {
   }
 
   try {
-    const apiKey = await decryptSecret(config.encryptedKey, config.iv, env.WORDPOP_CONFIG_SECRET);
+    const apiKey = await decryptSecret(config.encryptedKey, config.iv, configSecret);
     const upstream = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
@@ -216,9 +218,10 @@ async function generateAiResponse(request, env) {
 async function generateSpeech(request, env) {
   const runtime = await readRuntimeConfig().catch(() => null);
   let easyVoiceKey = env.EASYVOICE_API_KEY || "";
-  if (runtime?.encryptedTtsKey && runtime?.ivTts && env.WORDPOP_CONFIG_SECRET) {
+  const configSecret = getConfigSecret(env);
+  if (runtime?.encryptedTtsKey && runtime?.ivTts && configSecret.length >= 32) {
     try {
-      easyVoiceKey = await decryptSecret(runtime.encryptedTtsKey, runtime.ivTts, env.WORDPOP_CONFIG_SECRET);
+      easyVoiceKey = await decryptSecret(runtime.encryptedTtsKey, runtime.ivTts, configSecret);
     } catch {
       return json({ error: "EasyVoice key could not be decrypted. Re-enter it in WordPop Control." }, 503);
     }
@@ -323,6 +326,12 @@ function toBase64(bytes) {
 
 function fromBase64(value) {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+}
+
+// WORDPOP_CONFIG_SECRET is the preferred name. CONFIG_ENCRYPTION_KEY is
+// accepted as a compatibility alias for an existing Cloudflare secret.
+function getConfigSecret(env) {
+  return env.WORDPOP_CONFIG_SECRET || env.CONFIG_ENCRYPTION_KEY || "";
 }
 
 function bearerToken(request) {
