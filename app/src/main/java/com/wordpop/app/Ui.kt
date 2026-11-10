@@ -2,8 +2,11 @@
 package com.wordpop.app
 
 import android.content.Intent
-import android.media.AudioManager
-import android.media.ToneGenerator
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
@@ -94,6 +97,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -111,6 +117,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.sin
 
 // ---------- brand ----------
 
@@ -358,28 +366,120 @@ fun rememberSpeaker(): (String) -> Unit {
     }
 }
 
-/** Short, original Android UI tones for answer feedback; respects the learner's sound setting. */
-@Composable
-private fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit {
-    val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 65) }
-    DisposableEffect(tone) {
-        onDispose { tone.release() }
+/** Small, original three-note success chime and descending error cue. */
+private object AnswerFeedbackAudio {
+    private const val SAMPLE_RATE = 22_050
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var activeTrack: AudioTrack? = null
+
+    private data class Note(val frequency: Double, val durationMs: Int, val gain: Double)
+
+    @Synchronized
+    fun play(correct: Boolean) {
+        stopCurrent()
+        val notes = if (correct) {
+            listOf(
+                Note(659.25, 90, 0.78),
+                Note(783.99, 95, 0.82),
+                Note(1046.50, 190, 0.92)
+            )
+        } else {
+            listOf(
+                Note(392.00, 135, 0.76),
+                Note(293.66, 210, 0.88)
+            )
+        }
+        val gapSamples = SAMPLE_RATE / 100
+        val totalSamples = notes.sumOf { SAMPLE_RATE * it.durationMs / 1000 } +
+            gapSamples * (notes.size - 1)
+        val pcm = ShortArray(totalSamples)
+        var cursor = 0
+
+        notes.forEachIndexed { noteIndex, note ->
+            val count = SAMPLE_RATE * note.durationMs / 1000
+            val attack = (SAMPLE_RATE * 0.008).toInt().coerceAtLeast(1)
+            val release = (SAMPLE_RATE * 0.035).toInt().coerceAtLeast(1)
+            for (i in 0 until count) {
+                val envelope = minOf(
+                    1.0,
+                    i.toDouble() / attack,
+                    (count - i).toDouble() / release
+                ).coerceAtLeast(0.0)
+                val phase = 2.0 * PI * note.frequency * i / SAMPLE_RATE
+                val wave = sin(phase) + 0.18 * sin(phase * 2.0)
+                val sample = (wave * envelope * note.gain * 0.34 * Short.MAX_VALUE)
+                    .toInt()
+                    .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                pcm[cursor + i] = sample.toShort()
+            }
+            cursor += count
+            if (noteIndex < notes.lastIndex) cursor += gapSamples
+        }
+
+        var track: AudioTrack? = null
+        try {
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val format = AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(SAMPLE_RATE)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build()
+            track = AudioTrack.Builder()
+                .setAudioAttributes(attributes)
+                .setAudioFormat(format)
+                .setBufferSizeInBytes(pcm.size * 2)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+
+            val written = track.write(pcm, 0, pcm.size)
+            if (written != pcm.size) {
+                track.release()
+                return
+            }
+            track.setVolume(0.9f)
+            activeTrack = track
+            track.play()
+
+            val playingTrack = track
+            val durationMs = totalSamples * 1000L / SAMPLE_RATE + 120L
+            mainHandler.postDelayed({
+                synchronized(this) {
+                    if (activeTrack === playingTrack) activeTrack = null
+                }
+                runCatching {
+                    if (playingTrack.playState == AudioTrack.PLAYSTATE_PLAYING) playingTrack.stop()
+                }
+                runCatching { playingTrack.release() }
+            }, durationMs)
+        } catch (_: Exception) {
+            if (activeTrack === track) activeTrack = null
+            runCatching { track?.release() }
+        }
     }
-    return remember(tone, store) {
+
+    private fun stopCurrent() {
+        val previous = activeTrack ?: return
+        activeTrack = null
+        runCatching {
+            if (previous.playState == AudioTrack.PLAYSTATE_PLAYING) previous.stop()
+        }
+        runCatching { previous.release() }
+    }
+}
+
+@Composable
+private fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit =
+    remember(store) {
         { correct ->
             if (store.feedbackSound) {
-                try {
-                    tone.startTone(
-                        if (correct) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_NACK,
-                        if (correct) 180 else 240
-                    )
-                } catch (_: RuntimeException) {
-                    // Audio feedback is optional; never interrupt a learning session.
-                }
+                // Sound generation is local; no network request or third-party asset is needed.
+                AnswerFeedbackAudio.play(correct)
             }
         }
     }
-}
 
 // ---------- app root ----------
 
@@ -1565,6 +1665,7 @@ private fun QuizSession(
 
     val q = questions[index]
     val answered = picked != null
+    val shakeDistancePx = with(LocalDensity.current) { 12.dp.toPx() }
     LaunchedEffect(round, index) {
         if (q.type == QType.Listen) speak(q.word.en)
     }
@@ -1650,10 +1751,10 @@ private fun QuizSession(
                     animationSpec = keyframes {
                         durationMillis = 320
                         0.1f at 0
-                        (-10f) at 60
-                        8f at 120
-                        (-5f) at 180
-                        3f at 240
+                        (-shakeDistancePx) at 60
+                        (shakeDistancePx * 0.72f) at 120
+                        (-shakeDistancePx * 0.42f) at 180
+                        (shakeDistancePx * 0.22f) at 240
                         0f at 320
                     }
                 )
@@ -1795,23 +1896,41 @@ private fun CelebrationBurst() {
     LaunchedEffect(Unit) { started = true }
     val progress by animateFloatAsState(
         targetValue = if (started) 1f else 0f,
-        animationSpec = tween(500),
+        animationSpec = tween(720),
         label = "wordPopCelebration"
     )
     val colors = listOf(Sun, Teal, Coral, Sky)
-    val points = listOf(
-        0.08f to 0.20f, 0.18f to 0.62f, 0.29f to 0.12f, 0.40f to 0.72f,
-        0.59f to 0.18f, 0.70f to 0.66f, 0.82f to 0.10f, 0.93f to 0.55f
+    val particles = listOf(
+        0.05f to 0.08f, 0.12f to 0.40f, 0.19f to 0.18f, 0.26f to 0.62f,
+        0.33f to 0.10f, 0.40f to 0.46f, 0.47f to 0.20f, 0.54f to 0.66f,
+        0.61f to 0.12f, 0.68f to 0.48f, 0.75f to 0.16f, 0.82f to 0.60f,
+        0.89f to 0.10f, 0.96f to 0.42f, 0.29f to 0.30f, 0.72f to 0.32f
     )
-    Canvas(Modifier.fillMaxWidth().height(28.dp)) {
-        points.forEachIndexed { index, point ->
-            val x = size.width * point.first
-            val y = size.height * (point.second + progress * (0.25f + (index % 3) * 0.12f))
-            drawCircle(
-                color = colors[index % colors.size],
-                radius = 3.5.dp.toPx(),
-                center = Offset(x, y)
-            )
+    Canvas(Modifier.fillMaxWidth().height(48.dp)) {
+        val pieceWidth = 4.dp.toPx()
+        val pieceHeight = 8.dp.toPx()
+        particles.forEachIndexed { index, point ->
+            val drift = sin(progress * 5.5f + index * 1.7f) * 8.dp.toPx()
+            val x = size.width * point.first + drift
+            val fall = 0.72f + (index % 4) * 0.09f
+            val y = size.height * (point.second + progress * fall)
+            val fade = (1f - (progress - 0.78f).coerceAtLeast(0f) * 4.5f).coerceIn(0f, 1f)
+            val color = colors[index % colors.size].copy(alpha = fade)
+            rotate(
+                degrees = progress * (if (index % 2 == 0) 420f else -360f) + index * 19f,
+                pivot = Offset(x, y)
+            ) {
+                if (index % 4 == 0) {
+                    drawCircle(color = color, radius = 2.6.dp.toPx(), center = Offset(x, y))
+                } else {
+                    drawRoundRect(
+                        color = color,
+                        topLeft = Offset(x - pieceWidth / 2f, y - pieceHeight / 2f),
+                        size = Size(pieceWidth, pieceHeight),
+                        cornerRadius = CornerRadius(1.5.dp.toPx())
+                    )
+                }
+            }
         }
     }
 }
