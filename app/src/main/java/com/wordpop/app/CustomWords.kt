@@ -12,6 +12,8 @@ class WordPopApplication : Application() {
         WordRepo.init(this)
         // Migrate legacy preferences and protect the OpenRouter API key before the UI starts.
         SettingsStore(this)
+        // Keep the shared cloud vocabulary cached locally for offline learning.
+        WordCloudSync.start(this)
     }
 }
 
