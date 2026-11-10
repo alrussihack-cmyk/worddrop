@@ -103,6 +103,9 @@ fun SettingsSwipeScreen(
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var sound by remember { mutableStateOf(store.sound) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
+    var feedbackSound by remember { mutableStateOf(store.feedbackSound) }
+    var feedbackAnimations by remember { mutableStateOf(store.feedbackAnimations) }
+    var feedbackHaptics by remember { mutableStateOf(store.feedbackHaptics) }
     var accent by remember { mutableStateOf(store.speechAccent) }
     var voice by remember { mutableStateOf(store.speechVoice) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
@@ -221,7 +224,7 @@ fun SettingsSwipeScreen(
                         "بره الساعات دي مش هتظهرلك كلمات.",
                         "اختار اللي تحب تتعلمه.",
                         "اختار مستوى الكلمات المناسب ليك.",
-                        "مدة ظهور الشريط وصوته.",
+                        "مدة ظهور الشريط وصوته وتأثيرات التعلّم.",
                         "اختار اللكنة اللي تحب تسمع بيها الكلمات والأمثلة.",
                         "اختار صوتاً طبيعياً من أصوات EasyVoice.",
                         "اسحب النافذة بصباعك لأي مكان على الشاشة.",
@@ -364,6 +367,20 @@ fun SettingsSwipeScreen(
                             SettingsSwitch("انطق الكلمة تلقائيًا أول ما تظهر", autoSpeak, SettingsLilac) {
                                 autoSpeak = it
                                 store.autoSpeak = it
+                            }
+                            SettingsDivider()
+                            Text("تأثيرات التعلّم", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = SettingsInk)
+                            SettingsSwitch("صوت الإجابة الصح والغلط", feedbackSound, SettingsMint) {
+                                feedbackSound = it
+                                store.feedbackSound = it
+                            }
+                            SettingsSwitch("أنيميشن الفوز والخطأ", feedbackAnimations, SettingsMint) {
+                                feedbackAnimations = it
+                                store.feedbackAnimations = it
+                            }
+                            SettingsSwitch("الاهتزاز عند الإجابة", feedbackHaptics, SettingsMint) {
+                                feedbackHaptics = it
+                                store.feedbackHaptics = it
                             }
                         }
                         6 -> {
