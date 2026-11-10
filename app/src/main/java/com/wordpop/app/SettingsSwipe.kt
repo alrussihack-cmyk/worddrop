@@ -45,6 +45,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -83,7 +84,13 @@ fun SettingsSwipeScreen(
     onOpenAdmin: () -> Unit
 ) {
     val ctx = LocalContext.current
-    val pagerState = rememberPagerState(pageCount = { 12 })
+    val visibleCardIds = SettingsCardsSync.visibleCardIds
+    val pagerState = rememberPagerState(pageCount = { visibleCardIds.size })
+    LaunchedEffect(visibleCardIds.size) {
+        if (visibleCardIds.isNotEmpty() && pagerState.currentPage >= visibleCardIds.size) {
+            pagerState.scrollToPage(visibleCardIds.lastIndex)
+        }
+    }
     val scope = rememberCoroutineScope()
     val speak = rememberSpeaker()
 
@@ -182,7 +189,7 @@ fun SettingsSwipeScreen(
                 border = BorderStroke(2.dp, SettingsMint)
             ) {
                 Text(
-                    (pagerState.currentPage + 1).toString().padStart(2, '0') + " / 12",
+                    ((pagerState.currentPage + 1).coerceAtMost(visibleCardIds.size)).toString().padStart(2, '0') + " / " + visibleCardIds.size,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     fontSize = 17.sp,
                     fontFamily = Display,
@@ -201,13 +208,14 @@ fun SettingsSwipeScreen(
                 contentPadding = PaddingValues(horizontal = sidePadding),
                 pageSpacing = 14.dp
             ) { page ->
+                val cardIndex = SettingsCardsSync.cardIds.indexOf(visibleCardIds[page]).coerceAtLeast(0)
                 SettingsCardFrame(
-                    number = page + 1,
+                    number = cardIndex + 1,
                     title = listOf(
                         "خد استراحة", "كل قد إيه؟", "ساعات الظهور", "نوع الكلمات",
                         "المستوى", "شكل الظهور", "نطق الكلمات", "صوت طبيعي EasyVoice AI",
                         "مكان النافذة", "شكل النافذة", "عدم الإزعاج", "صيانة"
-                    )[page],
+                    )[cardIndex],
                     description = listOf(
                         "اختار مدة راحة وتقدر تستأنف في أي وقت.",
                         "كل قد إيه تظهرلك كلمة؟",
@@ -222,10 +230,10 @@ fun SettingsSwipeScreen(
                         "قرّر إمتى النافذة متظهرش.",
                         "لو الكلمات بتتأخر أو عايز تتحكم في التطبيق."
                     )[page],
-                    accent = accentColors[page],
+                    accent = accentColors[cardIndex],
                     modifier = Modifier.fillMaxHeight()
                 ) {
-                    when (page) {
+                    when (cardIndex)
                         0 -> {
                             val paused = pausedUntil > System.currentTimeMillis()
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -573,6 +581,11 @@ fun SettingsSwipeScreen(
                                 }
                             }
                             SettingsDivider()
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("حالة بطاقات الإعدادات", fontSize = 16.sp, fontFamily = Display, color = SettingsInk)
+                                Text(SettingsCardsSync.status, fontSize = 12.sp, color = SettingsMuted)
+                            }
+                            SettingsDivider()
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("لوحة التحكم", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
                                 Text("إدارة كل التطبيق باسم مستخدم ورقم سري.", fontSize = 13.sp, color = SettingsMuted)
@@ -589,7 +602,7 @@ fun SettingsSwipeScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            repeat(12) { index ->
+            repeat(visibleCardIds.size) { index ->
                 Box(
                     Modifier.padding(horizontal = 3.dp).width(if (pagerState.currentPage == index) 24.dp else 8.dp)
                         .height(8.dp).clip(CircleShape)
