@@ -342,12 +342,12 @@ private fun AdminPanel(
             }
         }
         SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) { ask("تمسح كل الكلمات اللي استوردتها؟") { WordRepo.clearCustom(ctx); tick++ } }
-        SecondaryButton("امسح مفتاح OpenRouter", Modifier.fillMaxWidth()) { ask("تمسح المفتاح المحفوظ؟") { store.orKey = ""; tick++ } }
+        Text("مفاتيح OpenRouter وEasyVoice تُدار بأمان من تطبيق WordPop Control، ولا تُحفظ داخل هذا الجهاز.", fontSize = 13.sp, color = Muted)
     }
 
     // ---- backup ----
     Section("نسخة احتياطية") {
-        Text("احفظ إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. مفتاح OpenRouter وبيانات دخول لوحة التحكم لا يتم تضمينهما؛ أدخل المفتاح وأنشئ حساب اللوحة مرة أخرى على الجهاز الجديد.", fontSize = 14.sp, color = Muted)
+        Text("احفظ إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. مفاتيح API تُدار من WordPop Control ولا يتم تضمينها في النسخة الاحتياطية.", fontSize = 14.sp, color = Muted)
         PrimaryButton("احفظ نسخة", Modifier.fillMaxWidth()) { exportLauncher.launch("wordpop-backup.json") }
         SecondaryButton("استرجع من ملف", Modifier.fillMaxWidth()) {
             confirm = "الاسترجاع هيستبدل كل بياناتك الحالية. متأكد؟" to { importLauncher.launch(arrayOf("*/*")) }
