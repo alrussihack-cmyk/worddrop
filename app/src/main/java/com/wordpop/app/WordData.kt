@@ -183,6 +183,42 @@ object WordRepo {
         return result
     }
 
+    /** Adds AI-generated words to the device-local custom library after duplicate validation. */
+    fun addCustomWords(ctx: Context, words: List<Word>): ImportResult {
+        val seen = all.map { it.en.trim().lowercase() }.toMutableSet()
+        var nextId = maxOf(CustomWords.FIRST_ID, (custom.maxOfOrNull { it.id } ?: 0) + 1)
+        var duplicates = 0
+        var skipped = 0
+        val additions = mutableListOf<Word>()
+
+        words.forEach { word ->
+            val english = word.en.trim()
+            val arabic = word.ar.trim()
+            if (english.isBlank() || arabic.isBlank()) {
+                skipped++
+            } else if (!seen.add(english.lowercase())) {
+                duplicates++
+            } else {
+                additions += word.copy(
+                    id = nextId++,
+                    en = english,
+                    ipa = word.ipa.trim(),
+                    ar = arabic,
+                    kind = word.kind.ifBlank { "كلمة" },
+                    example = word.example.trim(),
+                    exampleAr = word.exampleAr.trim()
+                )
+            }
+        }
+
+        if (additions.isNotEmpty()) {
+            val updated = custom + additions
+            CustomWords.save(ctx, updated)
+            setCustom(updated)
+        }
+        return ImportResult(additions.size, duplicates, skipped)
+    }
+
     fun clearCustom(ctx: Context) {
         CustomWords.save(ctx, emptyList())
         setCustom(emptyList())
