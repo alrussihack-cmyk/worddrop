@@ -11,8 +11,10 @@ class SettingsStore(context: Context) {
 
     init {
         migrateLegacySettings()
-        // Move any API key saved by older versions into Android Keystore-backed storage.
-        ApiKeyVault.migrateLegacy(appContext, legacyPrefs)
+        // Remove old learner-side OpenRouter credentials. WordPop Control now owns API settings.
+        legacyPrefs.edit().remove("orKey").commit()
+        appContext.getSharedPreferences("wordpop_secrets", Context.MODE_PRIVATE)
+            .edit().clear().apply()
     }
 
     /**
@@ -25,7 +27,7 @@ class SettingsStore(context: Context) {
 
         val editor = prefs.edit()
         legacyPrefs.all.forEach { (key, value) ->
-            if (key == "orKey") return@forEach
+            if (key == "orKey" || key == "orModel" || key == "ttsWorkerUrl") return@forEach
             when (value) {
                 is Boolean -> editor.putBoolean(key, value)
                 is Int -> editor.putInt(key, value)
@@ -146,11 +148,6 @@ class SettingsStore(context: Context) {
                 ?: SpeechAccents.AMERICAN
         ).apply()
 
-    /** Cloudflare Worker URL used as a secure proxy for EasyVoice. */
-    var ttsWorkerUrl: String
-        get() = prefs.getString("ttsWorkerUrl", "")?.trim() ?: ""
-        set(v) = prefs.edit().putString("ttsWorkerUrl", v.trim()).apply()
-
     /** EasyVoice voice ID; free-tier English voices only by default. */
     var speechVoice: String
         get() = prefs.getString("speechVoice", "af_nova")
@@ -233,14 +230,6 @@ class SettingsStore(context: Context) {
         prefs.edit().putStringSet(key, (intSet(key) - id).map { it.toString() }.toSet()).apply()
     }
 
-    var orKey: String
-        get() = ApiKeyVault.get(appContext)
-        set(v) = ApiKeyVault.set(appContext, v)
-
-    var orModel: String
-        get() = prefs.getString("orModel", null) ?: "openai/gpt-4o-mini"
-        set(v) = prefs.edit().putString("orModel", v.trim()).apply()
-
     var storiesJson: String
         get() = prefs.getString("stories", "[]") ?: "[]"
         set(v) = prefs.edit().putString("stories", v).apply()
@@ -256,7 +245,7 @@ class SettingsStore(context: Context) {
     fun exportAll(): String {
         val o = org.json.JSONObject()
         // Never export the legacy API-key field, even if an old install has not migrated yet.
-        prefs.all.filterKeys { it != "orKey" && it != LEGACY_MIGRATION_MARKER }.forEach { (k, v) ->
+        prefs.all.filterKeys { it !in setOf("orKey", "orModel", "ttsWorkerUrl", LEGACY_MIGRATION_MARKER) }.forEach { (k, v) ->
             val item = org.json.JSONObject()
             when (v) {
                 is Boolean -> item.put("t", "b").put("v", v)
@@ -278,7 +267,7 @@ class SettingsStore(context: Context) {
         e.clear()
         o.keys().forEach { k ->
             // Ignore keys from older or hand-crafted backups; secrets are device-local.
-            if (k == "orKey") return@forEach
+            if (k in setOf("orKey", "orModel", "ttsWorkerUrl")) return@forEach
             val item = o.getJSONObject(k)
             when (item.getString("t")) {
                 "b" -> e.putBoolean(k, item.getBoolean("v"))
