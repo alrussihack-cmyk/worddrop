@@ -410,6 +410,8 @@ fun WordPopApp(
                     FavoritesScreen(store = store, onOpenWord = { learnId = it })
                 } else if (page == Page.Write) {
                     WriteScreen(store = store)
+                } else if (page == Page.Settings) {
+                    SettingsSwipeScreen(store = store, onOpenAdmin = { adminOpen = true })
                 } else {
                     HomeScreen(
                         store = store,
