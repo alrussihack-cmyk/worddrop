@@ -28,8 +28,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,8 +48,6 @@ import java.net.URL
 data class Story(val title: String, val en: String, val ar: String, val words: List<String>)
 
 object StoryApi {
-    private const val URL_CHAT = "https://openrouter.ai/api/v1/chat/completions"
-
     val genres = listOf("مغامرة" to "an adventure", "كوميدي" to "a funny comedy", "غموض" to "a light mystery",
         "يوم عادي" to "an everyday-life situation", "سفر" to "a travel story", "شغل" to "a workplace story")
     val levels = listOf("بسيط" to "simple A2-level", "متوسط" to "B1-level", "متقدم" to "B2-level")
@@ -69,37 +65,34 @@ $list
 Reply with JSON only, no other text: {"title":"...","story":"...","translation":"..."}"""
     }
 
-    private fun friendly(code: Int, text: String): String {
-        val msg = try { JSONObject(text).getJSONObject("error").getString("message") } catch (e: Exception) { text.take(120) }
-        return when (code) {
-            401, 403 -> "المفتاح مش مقبول. تأكد منه."
-            402 -> "الرصيد خلص في حساب OpenRouter."
-            429 -> "طلبات كتير، جرب بعد شوية."
-            else -> "خطأ $code: $msg"
-        }
-    }
-
-    /** Blocking chat call returning the JSON object inside the reply. Run off the main thread. */
-    internal fun chatJson(key: String, model: String, prompt: String, maxTokens: Int): JSONObject {
+    /** Calls the shared Worker; the OpenRouter credential never enters the learner app. */
+    internal fun chatJson(workerUrl: String, prompt: String, maxTokens: Int): JSONObject {
+        val endpoint = workerUrl.trim().trimEnd('/') + "/ai/chat"
         val body = JSONObject()
-            .put("model", model)
-            .put("temperature", 0.8)
-            .put("max_tokens", maxTokens)
-            .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", prompt)))
-        val conn = URL(URL_CHAT).openConnection() as HttpURLConnection
+            .put("prompt", prompt)
+            .put("maxTokens", maxTokens)
+        val conn = URL(endpoint).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 20000
             conn.readTimeout = 90000
             conn.doOutput = true
-            conn.setRequestProperty("Authorization", "Bearer $key")
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("X-Title", "WordPop")
             conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            if (code !in 200..299) throw Exception(friendly(code, text))
+            if (code !in 200..299) {
+                val message = try { JSONObject(text).optString("error") } catch (_: Exception) { "" }
+                val fallback = when (code) {
+                    401, 403 -> "تعذر التحقق من إعدادات الخدمة."
+                    402 -> "رصيد OpenRouter غير كافٍ."
+                    429 -> "طلبات كتير في وقت قصير. حاول بعد شوية."
+                    503 -> "خدمة الذكاء الاصطناعي غير مفعّلة من WordPop Control."
+                    else -> "حصل خطأ أثناء الاتصال بخدمة الذكاء الاصطناعي ($code)."
+                }
+                throw Exception(message.ifBlank { fallback })
+            }
             val content = JSONObject(text).getJSONArray("choices").getJSONObject(0)
                 .getJSONObject("message").getString("content")
             val start = content.indexOf('{')
@@ -115,8 +108,8 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
         }
     }
 
-    fun generate(key: String, model: String, words: List<Word>, genre: String, level: String): Story {
-        val o = chatJson(key, model, storyPrompt(words, genre, level), 1200)
+    fun generate(workerUrl: String, words: List<Word>, genre: String, level: String): Story {
+        val o = chatJson(workerUrl, storyPrompt(words, genre, level), 1200)
         return Story(
             title = o.optString("title", "قصتي"),
             en = o.getString("story").trim(),
@@ -126,13 +119,13 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
     }
 
     /** Returns the corrected text and short Arabic tips. */
-    fun feedback(key: String, model: String, story: Story, text: String): Pair<String, String> {
+    fun feedback(workerUrl: String, story: Story, text: String): Pair<String, String> {
         val prompt = """A learner (Arabic speaker, B1) read this story and then wrote their own short text about it.
 Story: ${story.en.replace("**", "")}
 Learner text: $text
 Correct the learner's text keeping their meaning and simple wording. Then give at most 3 short tips in Egyptian Arabic about the mistakes (grammar, spelling, word choice), each with a tiny example.
 Reply with JSON only: {"corrected":"...","tips":"..."}"""
-        val o = chatJson(key, model, prompt, 700)
+        val o = chatJson(workerUrl, prompt, 700)
         return o.optString("corrected", text) to o.optString("tips")
     }
 
@@ -265,9 +258,6 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
 @Composable
 fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     val scope = rememberCoroutineScope()
-    var key by remember { mutableStateOf(store.orKey) }
-    var model by remember { mutableStateOf(store.orModel) }
-    var editKey by remember { mutableStateOf(store.orKey.isEmpty()) }
     var picked by remember(words.size) { mutableStateOf(words.take(6).map { it.id }.toSet()) }
     var genre by remember { mutableIntStateOf(0) }
     var level by remember { mutableIntStateOf(1) }
@@ -334,40 +324,16 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                             StoryApi.levels.forEachIndexed { i, l -> Chip(l.first, level == i) { level = i } }
                         }
 
-                        if (editKey) {
-                            Text("إعدادات الذكاء الاصطناعي", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
-                            OutlinedTextField(
-                                value = key, onValueChange = { key = it }, singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                placeholder = { Text("sk-or-...") },
-                                label = { Text("مفتاح OpenRouter") }
-                            )
-                            OutlinedTextField(value = model, onValueChange = { model = it }, singleLine = true, modifier = Modifier.fillMaxWidth(), label = { Text("الموديل") })
-                            SecondaryButton("حفظ الإعدادات", Modifier.fillMaxWidth()) {
-                                try {
-                                    store.orKey = key
-                                    store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
-                                    model = store.orModel
-                                    editKey = key.isBlank()
-                                    error = ""
-                                } catch (e: Exception) {
-                                    error = "تعذر حفظ المفتاح بأمان على هذا الجهاز. جرّب مرة أخرى."
-                                }
-                            }
-                        } else {
-                            Text(
-                                "إعدادات المفتاح والموديل",
-                                fontSize = 13.sp, color = TealDark,
-                                modifier = Modifier.clickable { editKey = true }.padding(vertical = 5.dp)
-                            )
-                        }
-
+                        Text(
+                            if (AiConfigSync.isReady) "إعدادات OpenRouter تتم إدارتها مركزيًا من WordPop Control."
+                            else "خدمة الذكاء الاصطناعي غير مفعّلة. اطلب من المسؤول ضبطها في WordPop Control.",
+                            fontSize = 13.sp,
+                            color = if (AiConfigSync.isReady) TealDark else Muted
+                        )
                         if (error.isNotEmpty()) Text(error, fontSize = 13.sp, color = Danger)
                         PrimaryButton(if (loading) "بنكتب القصة..." else "اعمل قصتي", Modifier.fillMaxWidth()) {
                             if (loading) return@PrimaryButton
-                            if (store.orKey.isBlank()) { editKey = true; error = "ضيف مفتاح OpenRouter الأول."; return@PrimaryButton }
+                            if (!AiConfigSync.isReady) { error = "خدمة الذكاء الاصطناعي غير مفعّلة من WordPop Control."; return@PrimaryButton }
                             if (picked.size < 2) { error = "اختار كلمتين على الأقل."; return@PrimaryButton }
                             error = ""; loading = true
                             val chosen = words.filter { it.id in picked }
@@ -375,7 +341,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                             val l = StoryApi.levels[level].second
                             scope.launch {
                                 try {
-                                    val generated = withContext(Dispatchers.IO) { StoryApi.generate(store.orKey, store.orModel, chosen, g, l) }
+                                    val generated = withContext(Dispatchers.IO) { StoryApi.generate(AiConfigSync.workerUrl, chosen, g, l) }
                                     saved = listOf(generated) + saved
                                     StoryApi.save(store, saved)
                                     current = generated
@@ -466,7 +432,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         error = ""; fbLoading = true
                         scope.launch {
                             try {
-                                fb = withContext(Dispatchers.IO) { StoryApi.feedback(store.orKey, store.orModel, story, myText.trim()) }
+                                fb = withContext(Dispatchers.IO) { StoryApi.feedback(AiConfigSync.workerUrl, story, myText.trim()) }
                             } catch (e: Exception) {
                                 error = e.message ?: "حصل خطأ، جرب تاني."
                             }
