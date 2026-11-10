@@ -167,7 +167,13 @@ async function handleSpeech(request, env, cors) {
   if (!allowedVoices.has(voice)) return json({ error: "Voice is not enabled on this Worker" }, 400, cors);
 
   try {
-    const config = await readRuntimeConfig(env);
+    let config = {};
+    try {
+      config = await readRuntimeConfig(env);
+    } catch {
+      // Preserve the legacy Worker secret as a fallback during Firestore outages.
+      if (!env.EASYVOICE_API_KEY) throw new Error("Could not load the shared EasyVoice settings.");
+    }
     const apiKey = config.encryptedTtsKey && config.ivTts
       ? await decryptSecret(config.encryptedTtsKey, config.ivTts, env.CONFIG_ENCRYPTION_KEY)
       : env.EASYVOICE_API_KEY;
