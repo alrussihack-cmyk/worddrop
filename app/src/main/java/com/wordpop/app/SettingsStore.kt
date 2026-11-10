@@ -11,10 +11,8 @@ class SettingsStore(context: Context) {
 
     init {
         migrateLegacySettings()
-        // Remove old learner-side OpenRouter credentials. WordPop Control now owns API settings.
-        legacyPrefs.edit().remove("orKey").commit()
-        appContext.getSharedPreferences("wordpop_secrets", Context.MODE_PRIVATE)
-            .edit().clear().apply()
+        // Keep any old encrypted key until the central Control configuration is confirmed.
+        // AiConfigSync clears legacy local credentials after a server-side key is available.
     }
 
     /**
