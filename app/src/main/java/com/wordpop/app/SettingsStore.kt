@@ -75,6 +75,19 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("sound", true)
         set(v) = prefs.edit().putBoolean("sound", v).apply()
 
+    /** Sound and motion preferences for in-app learning feedback. */
+    var feedbackSound: Boolean
+        get() = prefs.getBoolean("feedbackSound", true)
+        set(v) = prefs.edit().putBoolean("feedbackSound", v).apply()
+
+    var feedbackAnimations: Boolean
+        get() = prefs.getBoolean("feedbackAnimations", true)
+        set(v) = prefs.edit().putBoolean("feedbackAnimations", v).apply()
+
+    var feedbackHaptics: Boolean
+        get() = prefs.getBoolean("feedbackHaptics", true)
+        set(v) = prefs.edit().putBoolean("feedbackHaptics", v).apply()
+
     /** Banner position set by dragging. Y = -1 means the default spot under the status bar. */
     var bannerX: Int
         get() = prefs.getInt("bannerX", 0)
