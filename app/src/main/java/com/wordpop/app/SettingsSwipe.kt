@@ -229,11 +229,11 @@ fun SettingsSwipeScreen(
                         "الحجم والشفافية واللون والأزرار.",
                         "قرّر إمتى النافذة متظهرش.",
                         "لو الكلمات بتتأخر أو عايز تتحكم في التطبيق."
-                    )[page],
+                    )[cardIndex],
                     accent = accentColors[cardIndex],
                     modifier = Modifier.fillMaxHeight()
                 ) {
-                    when (cardIndex)
+                    when (cardIndex) {
                         0 -> {
                             val paused = pausedUntil > System.currentTimeMillis()
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
