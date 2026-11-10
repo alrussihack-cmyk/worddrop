@@ -105,7 +105,6 @@ fun SettingsSwipeScreen(
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var accent by remember { mutableStateOf(store.speechAccent) }
     var voice by remember { mutableStateOf(store.speechVoice) }
-    var workerUrl by remember { mutableStateOf(store.ttsWorkerUrl) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
     var opacity by remember { mutableFloatStateOf(store.opacity.toFloat()) }
@@ -418,19 +417,15 @@ fun SettingsSwipeScreen(
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
-                            Ltr {
-                                OutlinedTextField(
-                                    value = workerUrl,
-                                    onValueChange = {
-                                        workerUrl = it
-                                        store.ttsWorkerUrl = it
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("Cloudflare Worker URL") },
-                                    placeholder = { Text("https://wordpop-tts.workers.dev") },
-                                    singleLine = true
-                                )
-                            }
+                            Text(
+                                if (AiConfigSync.workerUrl.isBlank()) {
+                                    "رابط خدمة الصوت والذكاء الاصطناعي يتم ضبطه من WordPop Control."
+                                } else {
+                                    "رابط خدمة الصوت والذكاء الاصطناعي متصل من WordPop Control."
+                                },
+                                fontSize = 12.sp,
+                                color = Muted
+                            )
                             Text(
                                 if (workerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
                                 else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائياً إلى Android TTS.",
