@@ -20,8 +20,20 @@ This Cloudflare Worker keeps the EasyVoice API key on the server. The Android ap
 
 ## API
 
-POST `/` with JSON:
+### Health check
+
+Send `GET /health`. A healthy Worker returns HTTP 200 with JSON:
+
+```json
+{ "ok": true, "service": "wordpop-tts", "status": "healthy" }
+```
+
+### Text-to-speech
+
+Send `POST /` with JSON:
+
 ```json
 { "input": "Hello there", "voice": "af_nova", "speed": 1.0 }
 ```
+
 Returns MP3 bytes. The Worker currently enables documented free English voices only. The free EasyVoice plan has a shared daily character quota and rate limits; it is not unlimited.
