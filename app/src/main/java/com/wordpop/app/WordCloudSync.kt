@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.MetadataChanges
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -32,7 +33,7 @@ object WordCloudSync {
         registration = FirebaseFirestore.getInstance()
             .collection("words")
             .whereEqualTo("active", true)
-            .addSnapshotListener { snapshot, error ->
+            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
                 if (error != null) {
                     // Keep the last successful local cache if the device is offline or rules reject access.
                     Log.w(TAG, "Cloud vocabulary sync failed; keeping cached words.", error)
@@ -40,6 +41,10 @@ object WordCloudSync {
                 }
 
                 if (snapshot == null) return@addSnapshotListener
+                // An empty first cache snapshot must not erase our previously saved offline copy.
+                if (snapshot.metadata.isFromCache && snapshot.isEmpty) {
+                    return@addSnapshotListener
+                }
 
                 val words = snapshot.documents.mapNotNull { document ->
                     val cloudId = document.getLong("id") ?: return@mapNotNull null
