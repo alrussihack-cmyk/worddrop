@@ -1229,6 +1229,16 @@ fun HomeScreen(
         }
 
         if (page == Page.Settings) {
+            Section("حالة مزامنة الكلمات") {
+                Text(
+                    WordCloudSync.status,
+                    fontSize = 15.sp,
+                    color = if (WordCloudSync.status.startsWith("تم تحميل")) TealDark else Muted
+                )
+            }
+        }
+
+        if (page == Page.Settings) {
             Section("لوحة التحكم") {
                 Text("إدارة كل التطبيق باسم مستخدم ورقم سري.", fontSize = 15.sp, color = Muted)
                 SecondaryButton("افتح لوحة التحكم", Modifier.fillMaxWidth()) { onOpenAdmin() }
