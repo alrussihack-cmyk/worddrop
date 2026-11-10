@@ -2,11 +2,19 @@ export default {
   async fetch(request, env) {
     const cors = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Access-Control-Max-Age": "86400",
     };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+
+    // Lightweight health check used by the WordPop settings screen.
+    // Keep this separate from POST /, which generates speech audio.
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/health") {
+      return json({ ok: true, service: "wordpop-tts", status: "healthy" }, 200, cors);
+    }
+
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
     if (!env.EASYVOICE_API_KEY) return json({ error: "TTS service is not configured" }, 503, cors);
 
