@@ -80,7 +80,7 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
     }
 
     /** Blocking chat call returning the JSON object inside the reply. Run off the main thread. */
-    private fun chatJson(key: String, model: String, prompt: String, maxTokens: Int): JSONObject {
+    internal fun chatJson(key: String, model: String, prompt: String, maxTokens: Int): JSONObject {
         val body = JSONObject()
             .put("model", model)
             .put("temperature", 0.8)
