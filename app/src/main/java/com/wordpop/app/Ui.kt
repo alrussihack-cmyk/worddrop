@@ -621,9 +621,6 @@ fun HomeScreen(
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
-    var feedbackSound by remember { mutableStateOf(store.feedbackSound) }
-    var feedbackAnimations by remember { mutableStateOf(store.feedbackAnimations) }
-    var feedbackHaptics by remember { mutableStateOf(store.feedbackHaptics) }
     var speechAccent by remember { mutableStateOf(store.speechAccent) }
     var speechVoice by remember { mutableStateOf(store.speechVoice) }
     var level by remember { mutableIntStateOf(store.level) }
@@ -998,40 +995,6 @@ fun HomeScreen(
                 )
             }
         }
-        }
-
-        if (page == Page.Settings) {
-            Section("تأثيرات التعلّم") {
-                Text(
-                    "خلّي تجربة WordPop أكثر حيوية، أو اقفل أي تأثير مش بتحبه.",
-                    fontSize = 14.sp,
-                    color = Muted
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("صوت الإجابة الصح والغلط", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = feedbackSound,
-                        onCheckedChange = { feedbackSound = it; store.feedbackSound = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("أنيميشن الفوز والخطأ", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = feedbackAnimations,
-                        onCheckedChange = { feedbackAnimations = it; store.feedbackAnimations = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("الاهتزاز عند الإجابة", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = feedbackHaptics,
-                        onCheckedChange = { feedbackHaptics = it; store.feedbackHaptics = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
-                    )
-                }
-            }
         }
 
         if (page == Page.Settings) {
