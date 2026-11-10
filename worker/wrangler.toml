@@ -1,3 +1,13 @@
 name = "wordpop-tts"
 main = "src/index.js"
 compatibility_date = "2026-11-09"
+
+# Shared approximate per-IP protection for AI, TTS and admin routes.
+# Counters are scoped per Cloudflare location; use WAF rules for stricter edge protection.
+[[ratelimits]]
+name = "WORDPOP_RATE_LIMITER"
+namespace_id = "2026111010"
+
+  [ratelimits.simple]
+  limit = 12
+  period = 60
