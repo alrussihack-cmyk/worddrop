@@ -2,6 +2,8 @@
 package com.wordpop.app
 
 import android.content.Intent
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
@@ -46,8 +48,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -353,6 +358,29 @@ fun rememberSpeaker(): (String) -> Unit {
     }
 }
 
+/** Short, original Android UI tones for answer feedback; respects the learner's sound setting. */
+@Composable
+private fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit {
+    val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 65) }
+    DisposableEffect(tone) {
+        onDispose { tone.release() }
+    }
+    return remember(tone, store) {
+        { correct ->
+            if (store.feedbackSound) {
+                try {
+                    tone.startTone(
+                        if (correct) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_NACK,
+                        if (correct) 180 else 240
+                    )
+                } catch (_: RuntimeException) {
+                    // Audio feedback is optional; never interrupt a learning session.
+                }
+            }
+        }
+    }
+}
+
 // ---------- app root ----------
 
 @Composable
@@ -593,6 +621,9 @@ fun HomeScreen(
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
+    var feedbackSound by remember { mutableStateOf(store.feedbackSound) }
+    var feedbackAnimations by remember { mutableStateOf(store.feedbackAnimations) }
+    var feedbackHaptics by remember { mutableStateOf(store.feedbackHaptics) }
     var speechAccent by remember { mutableStateOf(store.speechAccent) }
     var speechVoice by remember { mutableStateOf(store.speechVoice) }
     var level by remember { mutableIntStateOf(store.level) }
@@ -967,6 +998,40 @@ fun HomeScreen(
                 )
             }
         }
+        }
+
+        if (page == Page.Settings) {
+            Section("تأثيرات التعلّم") {
+                Text(
+                    "خلّي تجربة WordPop أكثر حيوية، أو اقفل أي تأثير مش بتحبه.",
+                    fontSize = 14.sp,
+                    color = Muted
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("صوت الإجابة الصح والغلط", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = feedbackSound,
+                        onCheckedChange = { feedbackSound = it; store.feedbackSound = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("أنيميشن الفوز والخطأ", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = feedbackAnimations,
+                        onCheckedChange = { feedbackAnimations = it; store.feedbackAnimations = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("الاهتزاز عند الإجابة", fontSize = 15.sp, color = Night, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = feedbackHaptics,
+                        onCheckedChange = { feedbackHaptics = it; store.feedbackHaptics = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Night, checkedTrackColor = Teal, uncheckedThumbColor = Night, uncheckedTrackColor = Line)
+                    )
+                }
+            }
         }
 
         if (page == Page.Settings) {
@@ -1508,6 +1573,7 @@ private fun QuizSession(
     onNewWord: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val answerFeedback = rememberAnswerFeedback(store)
     var round by remember { mutableIntStateOf(0) }
     val questions = remember(round) {
         val start = if (round == 0) first else WordRepo.pick(store)
@@ -1612,6 +1678,25 @@ private fun QuizSession(
     q.options.forEachIndexed { i, opt ->
         val isCorrect = opt == q.correct
         val isPicked = picked == opt
+        val shakeX = remember(q, opt) { Animatable(0f) }
+        LaunchedEffect(answered, isPicked, isCorrect, store.feedbackAnimations) {
+            if (answered && isPicked && !isCorrect && store.feedbackAnimations) {
+                shakeX.animateTo(
+                    targetValue = 0f,
+                    animationSpec = keyframes {
+                        durationMillis = 320
+                        0f at 0
+                        (-10f) at 60
+                        8f at 120
+                        (-5f) at 180
+                        3f at 240
+                        0f at 320
+                    }
+                )
+            } else {
+                shakeX.snapTo(0f)
+            }
+        }
         val bg by animateColorAsState(
             when {
                 !answered -> Color.White
@@ -1619,7 +1704,7 @@ private fun QuizSession(
                 isPicked -> MissTint
                 else -> Color.White
             },
-            tween(220), label = "optBg"
+            tween(if (store.feedbackAnimations) 220 else 0), label = "optBg"
         )
         val borderColor by animateColorAsState(
             when {
@@ -1628,7 +1713,7 @@ private fun QuizSession(
                 isPicked -> Danger
                 else -> Night
             },
-            tween(220), label = "optBorder"
+            tween(if (store.feedbackAnimations) 220 else 0), label = "optBorder"
         )
         val shape = RoundedCornerShape(14.dp)
         Row(
@@ -1639,8 +1724,10 @@ private fun QuizSession(
                 .clip(shape)
                 .background(bg)
                 .border(2.5.dp, borderColor, shape)
+                .graphicsLayer { translationX = shakeX.value }
                 .clickable(enabled = !answered, role = Role.Button) {
                     picked = opt
+                    answerFeedback(isCorrect)
                     if (isCorrect) {
                         score++
                         streak++
@@ -1650,7 +1737,7 @@ private fun QuizSession(
                         if (store.reviewStates().containsKey(q.word.id)) {
                             store.recordReview(q.word.id, ReviewRating.Good)
                         }
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     } else {
                         streak = 0
                         wrong.add(q.word)
@@ -1659,7 +1746,7 @@ private fun QuizSession(
                         if (store.reviewStates().containsKey(q.word.id)) {
                             store.recordReview(q.word.id, ReviewRating.Again)
                         }
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     onLearnedChanged()
                 }
@@ -1697,7 +1784,12 @@ private fun QuizSession(
     }
 
     // feedback
-    AnimatedVisibility(visible = answered, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
+    AnimatedVisibility(
+        visible = answered,
+        enter = fadeIn(tween(if (store.feedbackAnimations) 200 else 0)) +
+            expandVertically(tween(if (store.feedbackAnimations) 250 else 0)) +
+            scaleIn(tween(if (store.feedbackAnimations) 220 else 0))
+    ) {
         val ok = picked == q.correct
         Surface(
             shape = RoundedCornerShape(16.dp),
@@ -1705,7 +1797,8 @@ private fun QuizSession(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Boby(if (ok) Mood.Happy else Mood.Think, 48.dp)
+                if (ok && store.feedbackAnimations) CelebrationBurst()
+                Boby(if (ok) Mood.Cheer else Mood.Think, 48.dp)
                 Text(
                     if (ok) {
                         if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
@@ -1850,6 +1943,8 @@ fun ResultStat(label: String, value: String) {
 @Composable
 fun ReviewScreen(store: SettingsStore) {
     val speak = rememberSpeaker()
+    val answerFeedback = rememberAnswerFeedback(store)
+    val haptic = LocalHapticFeedback.current
     var queue by remember { mutableStateOf(WordRepo.reviewQueue(store)) }
     var index by remember { mutableIntStateOf(0) }
     var revealed by remember { mutableStateOf(false) }
@@ -1994,17 +2089,24 @@ fun ReviewScreen(store: SettingsStore) {
                     Text("قيّم مدى سهولة تذكرك للكلمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) {
+                            answerFeedback(false)
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             store.recordReview(word.id, ReviewRating.Again); completed++; index++; revealed = false
                         }
                         PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) {
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             store.recordReview(word.id, ReviewRating.Hard); completed++; index++; revealed = false
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) {
+                            answerFeedback(true)
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             store.recordReview(word.id, ReviewRating.Good); completed++; remembered++; index++; revealed = false
                         }
                         PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) {
+                            answerFeedback(true)
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             store.recordReview(word.id, ReviewRating.Easy); completed++; remembered++; index++; revealed = false
                         }
                     }
