@@ -1,27 +1,73 @@
-# WordPop EasyVoice Worker
+# WordPop Shared API Worker
 
-This Cloudflare Worker keeps the EasyVoice API key on the server. The Android app sends only the text and selected voice to this Worker.
+This Cloudflare Worker is the single server-side gateway for WordPop AI and EasyVoice.
 
-## Deploy
+- OpenRouter API keys are encrypted with AES-GCM before being stored in the public-readable Firestore runtime document.
+- The encryption secret exists only as a Cloudflare Worker secret.
+- WordPop Control is the only app that can update the runtime document. Firestore rules verify the Firebase administrator account.
+- The learner app receives only the Worker URL and service status. It never receives the OpenRouter API key.
+- The root POST endpoint remains compatible with existing EasyVoice TTS builds.
 
-1. Install Node.js, then run `npm install -g wrangler`.
-2. From this folder, run `npx wrangler login`.
-3. Add your EasyVoice key as a Cloudflare secret (do not commit it):
-   ```bash
-   npx wrangler secret put EASYVOICE_API_KEY
-   ```
-   Paste the key created in EasyVoice when prompted.
-4. Deploy:
-   ```bash
-   npx wrangler deploy
-   ```
-5. Copy the Worker URL, usually `https://wordpop-tts.<your-subdomain>.workers.dev`.
-6. Paste that URL in WordPop > Settings > Speech > Cloudflare Worker URL.
+## One-time setup
 
-## API
+1. Deploy this Worker to the existing `wordpop-tts` Cloudflare Worker.
+2. In Cloudflare Dashboard, open **Workers & Pages → wordpop-tts → Settings → Variables and Secrets**.
+3. Add a secret named `WORDPOP_CONFIG_SECRET`. Use a randomly generated value of at least 32 characters and keep it private. Do not put it in GitHub, Firebase, or either APK.
+4. Keep the existing `EASYVOICE_API_KEY` secret if you use EasyVoice.
+5. In Firebase Console, publish the updated `firestore.rules` from the WordPop Control repository.
+6. Open WordPop Control → **AI & API Settings**. Enter the Worker HTTPS URL, OpenRouter API key, and model, then save.
+7. Turn on the AI service. The key is encrypted by the Worker and is never sent back to the apps.
 
-POST `/` with JSON:
+## Endpoints
+
+### Admin configuration
+
+`POST /admin/config`
+
+Requires `Authorization: Bearer <Firebase ID token>` from a signed-in active WordPop administrator.
+
+Body:
+```json
+{
+  "apiKey": "sk-or-...",
+  "model": "openai/gpt-4o-mini",
+  "workerUrl": "https://wordpop-tts.example.workers.dev",
+  "enabled": true
+}
+```
+
+The API key may be omitted on later updates to retain the current key. The Worker encrypts it with AES-GCM and writes only ciphertext to Firestore. Firestore security rules enforce active-admin access.
+
+### AI generation
+
+`POST /ai/chat`
+
+Body:
+```json
+{ "prompt": "Return JSON only: ...", "maxTokens": 1200 }
+```
+
+The Worker selects the model and key from the protected runtime configuration. The learner app cannot choose or receive either value.
+
+### Health
+
+`GET /health`
+
+Returns service readiness flags without exposing credentials.
+
+### EasyVoice TTS
+
+`POST /`
+
+Body:
 ```json
 { "input": "Hello there", "voice": "af_nova", "speed": 1.0 }
 ```
-Returns MP3 bytes. The Worker currently enables documented free English voices only. The free EasyVoice plan has a shared daily character quota and rate limits; it is not unlimited.
+
+Returns MP3 bytes. The existing EasyVoice key remains a Cloudflare secret.
+
+## Protection notes
+
+- The AI endpoint applies a best-effort per-IP limit of 12 requests per 10 minutes. Before a public launch, add a Cloudflare Rate Limiting rule for `/ai/chat` and monitor OpenRouter usage.
+- Never put `WORDPOP_CONFIG_SECRET` or an OpenRouter key in source control or an APK.
+- If the encryption secret is rotated, re-enter the OpenRouter key in WordPop Control so the Worker can encrypt it with the new secret.
