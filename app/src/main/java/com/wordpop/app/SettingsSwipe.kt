@@ -127,11 +127,11 @@ fun SettingsSwipeScreen(
             System.currentTimeMillis() + minutes * 60_000L
         } else {
             Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, 1)
                 set(Calendar.HOUR_OF_DAY, 7)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
+                if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
             }.timeInMillis
         }
         store.pausedUntil = until
@@ -390,17 +390,19 @@ fun SettingsSwipeScreen(
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
-                            OutlinedTextField(
-                                value = workerUrl,
-                                onValueChange = {
-                                    workerUrl = it
-                                    store.ttsWorkerUrl = it
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Cloudflare Worker URL") },
-                                placeholder = { Text("https://wordpop-tts.workers.dev") },
-                                singleLine = true
-                            )
+                            Ltr {
+                                OutlinedTextField(
+                                    value = workerUrl,
+                                    onValueChange = {
+                                        workerUrl = it
+                                        store.ttsWorkerUrl = it
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text("Cloudflare Worker URL") },
+                                    placeholder = { Text("https://wordpop-tts.workers.dev") },
+                                    singleLine = true
+                                )
+                            }
                             Text(
                                 if (workerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
                                 else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائياً إلى Android TTS.",
