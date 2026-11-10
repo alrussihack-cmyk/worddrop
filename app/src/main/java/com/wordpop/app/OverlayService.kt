@@ -630,7 +630,7 @@ class OverlayService : Service() {
                 }
             }
         }
-        if (settings.ttsWorkerUrl.isNotBlank()) {
+        if (AiConfigSync.workerUrl.isNotBlank()) {
             EasyVoiceClient.speak(this, settings.ttsWorkerUrl, text, settings.speechVoice, fallback)
         } else {
             fallback()
