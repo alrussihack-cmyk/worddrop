@@ -18,16 +18,22 @@ object Scheduler {
         val at = nextTime(SettingsStore(ctx), from)
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pending(ctx)
-        try {
-            if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) {
-                // Exact alarms fire on time even in Doze, and let the app start its service from the background.
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
-            } else {
-                am.setAlarmClock(AlarmManager.AlarmClockInfo(at, pi), pi)
-            }
-        } catch (e: SecurityException) {
-            am.setAlarmClock(AlarmManager.AlarmClockInfo(at, pi), pi)
+        if (!hasExactAlarmAccess(ctx)) {
+            am.cancel(pi)
+            return
         }
+        try {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        } catch (e: SecurityException) {
+            // Permission can be revoked between the check and scheduling.
+            am.cancel(pi)
+        }
+    }
+
+    fun hasExactAlarmAccess(ctx: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return am.canScheduleExactAlarms()
     }
 
     fun cancel(ctx: Context) {
@@ -97,7 +103,7 @@ class TickReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val s = SettingsStore(context)
-        if (s.enabled && Settings.canDrawOverlays(context)) {
+        if (s.enabled && Settings.canDrawOverlays(context) && Scheduler.hasExactAlarmAccess(context)) {
             sendToService(context, OverlayService.ACTION_START)
         }
     }

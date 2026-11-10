@@ -1,6 +1,9 @@
 package com.wordpop.app
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 data class Word(
     val id: Int,
@@ -118,7 +121,9 @@ object WordRepo {
     private var custom: List<Word> = emptyList()
 
     @Volatile
-    var all: List<Word> = builtIn
+    private var cloud: List<Word> = emptyList()
+
+    var all: List<Word> by mutableStateOf(builtIn)
         private set
 
     @Volatile
@@ -126,12 +131,40 @@ object WordRepo {
 
     val customWords: List<Word> get() = custom
 
-    /** Loads the user's imported words. Called once at process start. */
-    fun init(ctx: Context) = setCustom(CustomWords.load(ctx))
+    /** Loads local imports and the last cached shared library at process start. */
+    fun init(ctx: Context) {
+        custom = CustomWords.load(ctx)
+        cloud = CloudWordsStore.load(ctx)
+        rebuild()
+    }
 
     private fun setCustom(list: List<Word>) {
         custom = list
-        val merged = builtIn + list
+        rebuild()
+    }
+
+    /** Replaces the cached cloud vocabulary after a successful Firestore snapshot. */
+    fun setCloudWords(ctx: Context, list: List<Word>) {
+        cloud = list
+        CloudWordsStore.save(ctx, list)
+        rebuild()
+    }
+
+    private fun rebuild() {
+        // Built-in words take precedence, so cloud duplicates do not reset existing learning IDs.
+        val seen = mutableSetOf<String>()
+        val merged = buildList {
+            builtIn.forEach { word ->
+                add(word)
+                seen += word.en.trim().lowercase()
+            }
+            custom.forEach { word ->
+                if (seen.add(word.en.trim().lowercase())) add(word)
+            }
+            cloud.forEach { word ->
+                if (seen.add(word.en.trim().lowercase())) add(word)
+            }
+        }
         all = merged
         byId = merged.associateBy { it.id }
     }
@@ -148,6 +181,42 @@ object WordRepo {
             setCustom(updated)
         }
         return result
+    }
+
+    /** Adds AI-generated words to the device-local custom library after duplicate validation. */
+    fun addCustomWords(ctx: Context, words: List<Word>): ImportResult {
+        val seen = all.map { it.en.trim().lowercase() }.toMutableSet()
+        var nextId = maxOf(CustomWords.FIRST_ID, (custom.maxOfOrNull { it.id } ?: 0) + 1)
+        var duplicates = 0
+        var skipped = 0
+        val additions = mutableListOf<Word>()
+
+        words.forEach { word ->
+            val english = word.en.trim()
+            val arabic = word.ar.trim()
+            if (english.isBlank() || arabic.isBlank()) {
+                skipped++
+            } else if (!seen.add(english.lowercase())) {
+                duplicates++
+            } else {
+                additions += word.copy(
+                    id = nextId++,
+                    en = english,
+                    ipa = word.ipa.trim(),
+                    ar = arabic,
+                    kind = word.kind.ifBlank { "كلمة" },
+                    example = word.example.trim(),
+                    exampleAr = word.exampleAr.trim()
+                )
+            }
+        }
+
+        if (additions.isNotEmpty()) {
+            val updated = custom + additions
+            CustomWords.save(ctx, updated)
+            setCustom(updated)
+        }
+        return ImportResult(additions.size, duplicates, skipped)
     }
 
     fun clearCustom(ctx: Context) {
@@ -168,6 +237,45 @@ object WordRepo {
         2 -> levelPool(s).filter { it.isPhrase }
         else -> levelPool(s)
     }.ifEmpty { all }
+
+    /** The same level and content filters used by the normal word picker. */
+    fun reviewPool(s: SettingsStore): List<Word> = basePool(s)
+
+    fun reviewDueCount(s: SettingsStore, now: Long = System.currentTimeMillis()): Int {
+        val states = s.reviewStates()
+        return basePool(s).count { word -> states[word.id]?.dueAt?.let { it <= now } == true }
+    }
+
+    fun reviewNewCount(s: SettingsStore, now: Long = System.currentTimeMillis()): Int {
+        val states = s.reviewStates()
+        val available = basePool(s).count { it.id !in states }
+        return minOf(available, s.newReviewCardsRemaining(now))
+    }
+
+    /**
+     * Due cards are shown oldest-first, followed by up to five new cards per local day.
+     * A session is capped so a large imported list never creates an overwhelming queue.
+     */
+    fun reviewQueue(s: SettingsStore, now: Long = System.currentTimeMillis()): List<Word> {
+        val pool = basePool(s)
+        val states = s.reviewStates()
+        val due = pool
+            .filter { word -> states[word.id]?.dueAt?.let { it <= now } == true }
+            .sortedBy { states[it.id]?.dueAt ?: Long.MAX_VALUE }
+            .take(ReviewScheduler.MAX_DUE_PER_SESSION)
+        val dueIds = due.mapTo(mutableSetOf()) { it.id }
+        val fresh = pool
+            .filter { it.id !in states && it.id !in dueIds }
+            .sortedBy { word ->
+                when {
+                    word.id in s.hard -> 0
+                    word.id !in s.learned -> 1
+                    else -> 2
+                }
+            }
+            .take(s.newReviewCardsRemaining(now))
+        return due + fresh
+    }
 
     /**
      * Words for a writing exercise. Words the user got wrong before come first, then words never

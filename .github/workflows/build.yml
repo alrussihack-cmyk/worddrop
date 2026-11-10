@@ -2,6 +2,8 @@ name: Build APK
 
 on:
   push:
+    branches: [main, master, fix/android-36-keystore-inexact-alarms]
+  pull_request:
     branches: [main, master]
   workflow_dispatch:
 
@@ -21,13 +23,21 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android 16 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "8.11.1"
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Run tests, lint and build debug APK
+        run: gradle testDebugUnitTest lintDebug assembleDebug --stacktrace
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk WordPop.apk
@@ -39,6 +49,7 @@ jobs:
           path: WordPop.apk
 
       - name: Publish APK to the "latest" release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest

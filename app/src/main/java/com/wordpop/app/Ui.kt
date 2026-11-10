@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.wordpop.app
 
 import android.content.Intent
@@ -11,11 +12,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.mutableStateListOf
@@ -80,6 +87,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -98,21 +109,20 @@ import java.util.Locale
 
 // ---------- brand ----------
 
-val Teal = Color(0xFF2FE0B5)      // Mint: primary fill (text on it is Night)
-val TealDark = Color(0xFF0A6F5C)  // Mint Deep: accent text on white / tint
-val Night = Color(0xFF12182B)       // Ink: text and borders
-val Mint = Color(0xFF2FE0B5)
-val Cloud = Color(0xFFF6F8FC)       // Paper: screen background
-val Muted = Color(0xFF5A6278)
-val Line = Color(0xFFDCE1EE)
-val Beige = Color(0xFFEEF1F8)       // soft fill
-val Gold = Color(0xFF946200)        // deep amber text
-val Spark = Color(0xFFFFC93C)       // Sun
-val Sun = Color(0xFFFFC93C)
+val Teal = Color(0xFF49E5C4)       // WordPop mint
+val TealDark = Color(0xFF078B78)   // Deep mint for readable accents
+val Night = Color(0xFF14243D)      // Ink navy
+val Mint = Color(0xFF49E5C4)
+val Cloud = Color(0xFFF6F8FC)      // Paper background
+val Muted = Color(0xFF68778F)
+val Line = Color(0xFFE3EAF2)
+val SunTint = Color(0xFFFFF6D9)
+val Spark = Color(0xFFFFE066)      // Sunny yellow
+val Sun = Color(0xFFFFE066)
 val Coral = Color(0xFFFF5C5C)
 val Sky = Color(0xFF59B8FF)
-val SkyTint = Color(0xFFDDEFFF)
-val Tint = Color(0xFFD8F8EE)        // Mint tint
+val SkyTint = Color(0xFFDDF1FF)
+val Tint = Color(0xFFDDF9F1)       // Soft mint surface
 val Danger = Color(0xFFC62F3A)
 val MissTint = Color(0xFFFFE3E3)
 
@@ -165,27 +175,43 @@ fun En(
 
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "primaryShadow")
+    val offset by animateDpAsState(if (pressed) 4.dp else 0.dp, tween(80), label = "primaryPress")
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 48.dp)
+            .graphicsLayer { translationY = offset.toPx() }
+            .hardShadow(shape, depth),
+        shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "secondaryShadow")
+    val offset by animateDpAsState(if (pressed) 4.dp else 0.dp, tween(80), label = "secondaryPress")
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 52.dp).hardShadow(RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 48.dp)
+            .graphicsLayer { translationY = offset.toPx() }
+            .hardShadow(shape, depth),
+        shape = shape,
         border = BorderStroke(2.5.dp, Night),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -194,38 +220,40 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(22.dp)
     Box(
         modifier = Modifier
-            .heightIn(min = 44.dp)
-            .hardShadow(shape, 3.dp)
+            .heightIn(min = 38.dp)
+            .hardShadow(shape, 2.dp)
             .clip(shape)
             .background(if (selected) Teal else Color.White)
             .border(2.dp, Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 13.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
             color = Night,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 16.sp
+            fontSize = 14.sp
         )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChipRow(content: @Composable RowScope.() -> Unit) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 5.dp, start = 2.dp, end = 2.dp),
+fun ChipRow(content: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content
     )
 }
 
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(22.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(22.dp), 5.dp)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, fontSize = 22.sp, fontFamily = Display, color = Night)
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 3.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, fontSize = 18.sp, fontFamily = Display, color = Night)
             content()
         }
     }
@@ -256,7 +284,7 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
 fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(40.dp)
             .clip(CircleShape)
             .background(Cloud)
             .border(2.dp, Night, CircleShape)
@@ -271,7 +299,7 @@ fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
 @Composable
 fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
         Ltr {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StepBtn("−", "نقّص ساعة") { onChange((value + 23) % 24) }
@@ -279,7 +307,7 @@ fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
                     hourLabel(value),
                     modifier = Modifier.width(72.dp),
                     textAlign = TextAlign.Center,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Night
                 )
@@ -289,16 +317,17 @@ fun HourStepper(label: String, value: Int, onChange: (Int) -> Unit) {
     }
 }
 
-/** Text-to-speech for the in-app screens. Returns a function that speaks English text. */
+/** Text-to-speech for in-app screens, using the accent selected in Settings. */
 @Composable
 fun rememberSpeaker(): (String) -> Unit {
     val ctx = LocalContext.current
+    val store = remember { SettingsStore(ctx) }
     var ready by remember { mutableStateOf(false) }
     val holder = remember { arrayOfNulls<TextToSpeech>(1) }
     DisposableEffect(Unit) {
         val engine = TextToSpeech(ctx.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                holder[0]?.language = Locale.US
+                holder[0]?.let { applyEnglishAccent(it, store.speechAccent) }
                 ready = true
             }
         }
@@ -308,7 +337,20 @@ fun rememberSpeaker(): (String) -> Unit {
             holder[0] = null
         }
     }
-    return { text -> if (ready) holder[0]?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui") }
+    return { text ->
+        val fallback = {
+            if (ready) holder[0]?.let { engine ->
+                applyEnglishAccent(engine, store.speechAccent)
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop-ui")
+            }
+        }
+        val worker = store.ttsWorkerUrl
+        if (worker.isNotBlank()) {
+            EasyVoiceClient.speak(ctx.applicationContext, worker, text, store.speechVoice, fallback)
+        } else {
+            fallback()
+        }
+    }
 }
 
 // ---------- app root ----------
@@ -316,10 +358,12 @@ fun rememberSpeaker(): (String) -> Unit {
 @Composable
 fun WordPopApp(
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     openWordId: Int?,
     onConsumeOpenWord: () -> Unit,
     onRequestOverlay: () -> Unit,
-    onRequestNotif: () -> Unit
+    onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit
 ) {
     val ctx = LocalContext.current
     val store = remember { SettingsStore(ctx) }
@@ -341,8 +385,10 @@ fun WordPopApp(
         AdminScreen(
             store = store,
             overlayGranted = overlayGranted,
+            exactAlarmGranted = exactAlarmGranted,
             onRequestOverlay = onRequestOverlay,
             onRequestNotif = onRequestNotif,
+            onRequestExactAlarm = onRequestExactAlarm,
             onClose = { adminOpen = false }
         )
     } else if (id != null) {
@@ -358,18 +404,24 @@ fun WordPopApp(
         val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(Modifier.fillMaxSize().background(Cloud).imePadding()) {
             Box(Modifier.weight(1f)) {
-                if (page == Page.Favorites) {
+                if (page == Page.Review) {
+                    ReviewScreen(store = store)
+                } else if (page == Page.Favorites) {
                     FavoritesScreen(store = store, onOpenWord = { learnId = it })
                 } else if (page == Page.Write) {
                     WriteScreen(store = store)
+                } else if (page == Page.Settings) {
+                    SettingsSwipeScreen(store = store, onOpenAdmin = { adminOpen = true })
                 } else {
                     HomeScreen(
                         store = store,
                         page = page,
                         onNavigate = { page = it },
                         overlayGranted = overlayGranted,
+                        exactAlarmGranted = exactAlarmGranted,
                         onRequestOverlay = onRequestOverlay,
                         onRequestNotif = onRequestNotif,
+                        onRequestExactAlarm = onRequestExactAlarm,
                         onStartLearning = { learnId = WordRepo.pick(store).id },
                         onOpenAdmin = { adminOpen = true }
                     )
@@ -383,6 +435,7 @@ fun WordPopApp(
 /** Tabs of the bottom bar. */
 enum class Page(val title: String, val icon: Int) {
     Home("الرئيسية", R.drawable.ic_home),
+    Review("المراجعة", R.drawable.ic_check),
     Write("الكتابة", R.drawable.ic_edit),
     Favorites("المفضلة", R.drawable.ic_star_outline),
     MyWords("كلماتي", R.drawable.ic_list),
@@ -469,7 +522,7 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
 fun StarButton(selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(40.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClickLabel = "المفضلة", onClick = onClick),
         contentAlignment = Alignment.Center
@@ -505,13 +558,29 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 }
 
 @Composable
+fun HomeStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = tint, shadowElevation = 1.dp) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 13.dp, horizontal = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            Text(label, fontSize = 11.sp, color = Night, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
 fun HomeScreen(
     store: SettingsStore,
     page: Page,
     onNavigate: (Page) -> Unit,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onStartLearning: () -> Unit,
     onOpenAdmin: () -> Unit = {}
 ) {
@@ -524,6 +593,9 @@ fun HomeScreen(
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var sound by remember { mutableStateOf(store.sound) }
+    var speechAccent by remember { mutableStateOf(store.speechAccent) }
+    var speechVoice by remember { mutableStateOf(store.speechVoice) }
+    var ttsWorkerUrl by remember { mutableStateOf(store.ttsWorkerUrl) }
     var level by remember { mutableIntStateOf(store.level) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
@@ -546,6 +618,8 @@ fun HomeScreen(
     var importMsg by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
     val total = wordsVersion.let { WordRepo.all.size }
+    val reviewDueCount = WordRepo.reviewDueCount(store)
+    val reviewNewCount = WordRepo.reviewNewCount(store)
     val customCount = wordsVersion.let { WordRepo.customWords.size }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -580,6 +654,13 @@ fun HomeScreen(
                 onRequestOverlay()
                 return
             }
+            if (!exactAlarmGranted) {
+                // Remember the user's intent; MainActivity starts the service when access is granted.
+                store.enabled = true
+                enabled = true
+                onRequestExactAlarm()
+                return
+            }
             onRequestNotif()
             requestBatteryExemption(ctx)
             store.enabled = true
@@ -599,118 +680,191 @@ fun HomeScreen(
             .background(Cloud)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             if (page == Page.Home) {
-                Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(52.dp))
-                Column {
-                    Text("ووردبوب", fontSize = 30.sp, fontFamily = Display, color = Night)
-                    Text("كلمة كل شوية.. وإنجليزيتك بتكبر", fontSize = 15.sp, color = Muted)
+                Image(painterResource(R.drawable.ic_logo), contentDescription = "WordPop", modifier = Modifier.size(48.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("صباح الخير 👋", fontSize = 23.sp, fontFamily = Display, color = Night)
+                    Text("جاهز تتعلم كلمات جديدة؟", fontSize = 13.sp, color = Muted)
                 }
+                Text("WordPop", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
             } else {
-                Text(page.title, fontSize = 24.sp, fontFamily = Display, color = Night)
+                Text(page.title, fontSize = 22.sp, fontFamily = Display, color = Night)
             }
         }
 
         if (page == Page.Home) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("الكلمات العائمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
-                    Text(
-                        if (enabled) "شغّال: ${intervalLabel(interval)}، من ${hourLabel(startH)} لحد ${hourLabel(endH)}" else "متوقف",
-                        fontSize = 15.sp,
-                        color = Muted
-                    )
-                }
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = { toggle(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Mint,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFC3D3CF),
-                        uncheckedBorderColor = Color(0xFF9FB5B0)
-                    )
-                )
-            }
-        }
-
-        if (!overlayGranted) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Beige, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "لازم تسمح للتطبيق يظهر فوق التطبيقات التانية، من غير كده الكلمات مش هتظهر.",
-                        fontSize = 16.sp,
-                        color = Night
-                    )
-                    PrimaryButton("افتح الإعدادات واسمح", Modifier.fillMaxWidth(), container = Sun) { onRequestOverlay() }
+            // One clear action, with supporting progress and tools kept secondary.
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = Tint,
+                shadowElevation = 3.dp
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.8f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text("مهمة اليوم", color = TealDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(
+                                if (reviewNewCount > 0) "$reviewNewCount كلمات جديدة" else "ابدأ بكلمة جديدة",
+                                fontSize = 25.sp, fontFamily = Display, color = Night
+                            )
+                            Text("جلسة خفيفة · خطوة صغيرة كل يوم", fontSize = 13.sp, color = Muted)
+                        }
+                        Boby(Mood.Cheer, 94.dp)
+                    }
+                    PrimaryButton("ابدأ التعلّم", Modifier.fillMaxWidth()) { onStartLearning() }
                 }
             }
-        }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            QuickAction("جرّب كلمة", R.drawable.ic_volume, true) {
-                if (overlayGranted) sendToService(ctx, OverlayService.ACTION_SHOW_NOW) else onRequestOverlay()
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("تقدمك في الكلمات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+                        Text("$learned / $total", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark)
+                    }
+                    LinearProgressIndicator(
+                        progress = { if (total == 0) 0f else (learned.toFloat() / total).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)),
+                        color = Teal, trackColor = Line
+                    )
+                    Text("كل كلمة بتتعلمها بتقرّبك من هدفك.", fontSize = 12.sp, color = Muted)
+                }
             }
-            QuickAction("ابدأ أتعلّم", R.drawable.ic_play, true) { onStartLearning() }
-            QuickAction("المفضلة", R.drawable.ic_star_outline, false) { onNavigate(Page.Favorites) }
-            QuickAction("كلماتي", R.drawable.ic_list, false) { onNavigate(Page.MyWords) }
-        }
 
-        Section("إيقاف مؤقت") {
-            val paused = pausedUntil > System.currentTimeMillis()
-            val untilText = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
-                .format(java.util.Date(pausedUntil))
-            if (paused) Boby(Mood.Sleep, 64.dp)
-            Text(
-                if (paused) "الكلمات متوقفة لحد $untilText" else "الكلمات شغالة",
-                fontSize = 16.sp,
-                color = if (paused) Gold else Night
-            )
-            ChipRow {
-                listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
-                    Chip(label, false) {
-                        val t = System.currentTimeMillis() + m * 60_000L
-                        store.pausedUntil = t
-                        pausedUntil = t
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                HomeStat(learned.toString(), "اتعلمتها", SkyTint, Modifier.weight(1f))
+                HomeStat(reviewDueCount.toString(), "للمراجعة", SunTint, Modifier.weight(1f))
+                HomeStat(store.favWords.size.toString(), "المفضلة", Tint, Modifier.weight(1f))
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Boby(Mood.Think, 54.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("المراجعة الذكية", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text(
+                            if (reviewDueCount + reviewNewCount > 0) "$reviewDueCount مستحقة · $reviewNewCount جديدة"
+                            else "ممتاز! مفيش كلمات مستحقة دلوقتي",
+                            fontSize = 12.sp, color = Muted
+                        )
+                    }
+                    SecondaryButton("ابدأ") { onNavigate(Page.Review) }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("الكلمات العائمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(
+                                if (enabled) "شغّالة · ${intervalLabel(interval)}" else "متوقفة مؤقتًا",
+                                fontSize = 12.sp, color = Muted
+                            )
+                        }
+                        Switch(
+                            checked = enabled, onCheckedChange = { toggle(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Night, checkedTrackColor = Teal,
+                                uncheckedThumbColor = Color.White, uncheckedTrackColor = Line
+                            )
+                        )
+                    }
+                    SecondaryButton("جرّب ظهور كلمة الآن", Modifier.fillMaxWidth()) {
+                        if (overlayGranted) sendToService(ctx, OverlayService.ACTION_SHOW_NOW) else onRequestOverlay()
                     }
                 }
-                Chip("لحد الصبح", false) {
-                    val cal = Calendar.getInstance().apply {
-                        set(Calendar.HOUR_OF_DAY, startH)
-                        set(Calendar.MINUTE, 0)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
-                    }
-                    if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
-                    store.pausedUntil = cal.timeInMillis
-                    pausedUntil = cal.timeInMillis
-                }
             }
-            if (paused) {
-                SecondaryButton("استئناف", Modifier.fillMaxWidth()) {
-                    store.pausedUntil = 0L
-                    pausedUntil = 0L
+
+            if (!overlayGranted || !exactAlarmGranted) {
+                val needsOverlay = !overlayGranted
+                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = SunTint) {
+                    Row(
+                        Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Boby(Mood.Think, 40.dp)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("خطوة أخيرة للتشغيل", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(
+                                if (needsOverlay) "اسمح بالظهور فوق التطبيقات."
+                                else "فعّل التنبيهات الدقيقة لمواعيد الكلمات.",
+                                fontSize = 12.sp, color = Muted
+                            )
+                        }
+                        PrimaryButton("تفعيل") {
+                            if (needsOverlay) onRequestOverlay() else onRequestExactAlarm()
+                        }
+                    }
                 }
             }
         }
 
-        Section("تقدّمك") {
-            Text("حفظت $learned من $total", fontSize = 17.sp, color = Night)
-            LinearProgressIndicator(
-                progress = { if (total == 0) 0f else learned.toFloat() / total },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-                color = Mint,
-                trackColor = Line
-            )
-        }
+        if (page == Page.Settings) {
+            Section("إيقاف مؤقت") {
+                val paused = pausedUntil > System.currentTimeMillis()
+                if (paused) {
+                    Text(
+                        "الكلمات متوقفة لحد " + java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(pausedUntil)),
+                        fontSize = 14.sp, color = Muted
+                    )
+                } else {
+                    Text("اختار مدة راحة، وتقدر تستأنف في أي وقت.", fontSize = 14.sp, color = Muted)
+                }
+                ChipRow {
+                    listOf(30 to "30 دقيقة", 60 to "ساعة", 180 to "3 ساعات").forEach { (m, label) ->
+                        Chip(label, false) {
+                            val until = System.currentTimeMillis() + m * 60_000L
+                            store.pausedUntil = until
+                            pausedUntil = until
+                        }
+                    }
+                    Chip("لحد الصبح", false) {
+                        val cal = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, startH)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        if (cal.timeInMillis <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1)
+                        store.pausedUntil = cal.timeInMillis
+                        pausedUntil = cal.timeInMillis
+                    }
+                }
+                if (paused) {
+                    SecondaryButton("استئناف الكلمات", Modifier.fillMaxWidth()) {
+                        store.pausedUntil = 0L
+                        pausedUntil = 0L
+                    }
+                }
+            }
         }
 
         if (page == Page.Settings) {
@@ -817,6 +971,96 @@ fun HomeScreen(
         }
 
         if (page == Page.Settings) {
+            val speakAccentSample = rememberSpeaker()
+            Section("نطق الكلمات") {
+                Text(
+                    "اختار اللكنة الإنجليزية اللي تحب تسمع بيها الكلمات والأمثلة.",
+                    fontSize = 14.sp,
+                    color = Muted
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        SpeechAccents.AMERICAN to "أمريكي 🇺🇸",
+                        SpeechAccents.BRITISH to "بريطاني 🇬🇧",
+                        SpeechAccents.AUSTRALIAN to "أسترالي 🇦🇺"
+                    ).forEach { (id, label) ->
+                        Chip(label, speechAccent == id) {
+                            speechAccent = id
+                            store.speechAccent = id
+                        }
+                    }
+                }
+                PrimaryButton("اسمع عينة من اللكنة", Modifier.fillMaxWidth()) {
+                    speakAccentSample(
+                        "Hello! How are you today? It is a beautiful day to learn something new."
+                    )
+                }
+                SecondaryButton("تنزيل أو تحديث الأصوات", Modifier.fillMaxWidth()) {
+                    try {
+                        ctx.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                    } catch (_: Exception) {
+                    }
+                }
+                Text(
+                    "لأفضل صوت طبيعي، نزّل الصوت عالي الجودة للّكنة المختارة من محرك النطق في موبايلك. توفر الأصوات يختلف حسب الجهاز.",
+                    fontSize = 12.sp,
+                    color = Muted
+                )
+            }
+            Section("EasyVoice AI — صوت طبيعي") {
+                Text(
+                    "اختار صوتًا من أصوات EasyVoice المجانية. الأصوات البريطانية المتاحة حاليًا تشمل Emma وDaniel، والأصوات الأمريكية تشمل Nova وHeart وBella وSky.",
+                    fontSize = 13.sp,
+                    color = Muted
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        "af_nova" to "Nova 🇺🇸",
+                        "af_heart" to "Heart 🇺🇸",
+                        "af_bella" to "Bella 🇺🇸",
+                        "bf_emma" to "Emma 🇬🇧",
+                        "bm_daniel" to "Daniel 🇬🇧"
+                    ).forEach { (voiceId, label) ->
+                        Chip(label, speechVoice == voiceId) {
+                            speechVoice = voiceId
+                            store.speechVoice = voiceId
+                            store.speechAccent = if (voiceId.startsWith("b")) SpeechAccents.BRITISH else SpeechAccents.AMERICAN
+                            speechAccent = store.speechAccent
+                        }
+                    }
+                }
+                androidx.compose.material3.OutlinedTextField(
+                    value = ttsWorkerUrl,
+                    onValueChange = {
+                        ttsWorkerUrl = it
+                        store.ttsWorkerUrl = it
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Cloudflare Worker URL") },
+                    placeholder = { Text("https://wordpop-tts.yourname.workers.dev") },
+                    singleLine = true
+                )
+                Text(
+                    if (ttsWorkerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
+                    else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائيًا إلى Android TTS.",
+                    fontSize = 12.sp,
+                    color = Muted
+                )
+                PrimaryButton("جرّب صوت EasyVoice", Modifier.fillMaxWidth()) {
+                    speakAccentSample("Hello! Welcome to WordPop. Let's learn a new word together.")
+                }
+            }
+        }
+
+        if (page == Page.Settings) {
         Section("مكان النافذة") {
             Text(
                 "اسحب النافذة بصباعك لأي مكان على الشاشة، وهتفتكر المكان.",
@@ -866,9 +1110,10 @@ fun HomeScreen(
                     )
                 )
                 Text("اللون", fontSize = 16.sp, color = Muted)
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BannerThemes.all.forEachIndexed { i, th ->
                         Column(
@@ -943,28 +1188,38 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-        Section("كلماتك الخاصة") {
-            Text(
-                "استورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية). مثال:",
-                fontSize = 15.sp,
-                color = Muted
-            )
-            Ltr {
-                Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
-            }
-            SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
-                importLauncher.launch(arrayOf("*/*"))
-            }
-            importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
-            if (customCount > 0) {
-                Text("عندك $customCount كلمة مستوردة.", fontSize = 15.sp, color = Muted)
-                SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) {
-                    WordRepo.clearCustom(ctx)
-                    wordsVersion++
-                    importMsg = "اتمسحت الكلمات المستوردة."
+            AiVocabularyTab(store = store) { result ->
+                wordsVersion++
+                importMsg = buildString {
+                    append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
+                    if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
+                    if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
                 }
             }
-        }
+
+            Spacer(Modifier.height(12.dp))
+            Section("إضافة كلمات من ملف") {
+                Text(
+                    "تقدر كمان تستورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية).",
+                    fontSize = 15.sp,
+                    color = Muted
+                )
+                Ltr {
+                    Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
+                }
+                SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
+                    importLauncher.launch(arrayOf("*/*"))
+                }
+                importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
+                if (customCount > 0) {
+                    Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 15.sp, color = Muted)
+                    SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
+                        WordRepo.clearCustom(ctx)
+                        wordsVersion++
+                        importMsg = "اتمسحت الكلمات الخاصة."
+                    }
+                }
+            }
         }
 
         if (page == Page.Settings) {
@@ -983,6 +1238,16 @@ fun HomeScreen(
                 }
             }
         }
+        }
+
+        if (page == Page.Settings) {
+            Section("حالة مزامنة الكلمات") {
+                Text(
+                    WordCloudSync.status,
+                    fontSize = 15.sp,
+                    color = if (WordCloudSync.status.startsWith("تم تحميل")) TealDark else Muted
+                )
+            }
         }
 
         if (page == Page.Settings) {
@@ -1020,8 +1285,8 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
@@ -1035,12 +1300,12 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             }
             Text(
                 "تعلّم كلمة",
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Night,
                 modifier = Modifier.weight(1f)
             )
-            Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 14.sp, color = Muted)
+            Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 12.sp, color = Muted)
         }
 
         if (step == 0) {
@@ -1048,12 +1313,18 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(horizontal = 18.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         StarButton(favW) { favW = store.toggleFavWord(word.id) }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Boby(Mood.Wow, 40.dp)
                     }
                     Box(
                         Modifier
@@ -1066,20 +1337,21 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                     En(
                         word.en,
                         when {
-                            word.en.length > 22 -> 28.sp
-                            word.en.length > 14 -> 34.sp
-                            else -> 44.sp
+                            word.en.length > 22 -> 26.sp
+                            word.en.length > 14 -> 32.sp
+                            else -> 38.sp
                         },
                         Night, FontWeight.ExtraBold, TextAlign.Center,
                         Modifier.fillMaxWidth()
                     )
                     if (word.ipa.isNotEmpty()) {
-                        En(word.ipa, 20.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
+                        En(word.ipa, 16.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
                     }
-                    SpeakButton(56.dp) { speak(word.en) }
+                    SpeakButton(48.dp) { speak(word.en) }
                     Text(
                         word.ar,
-                        fontSize = 26.sp,
+                        fontSize = 23.sp,
+                        lineHeight = 30.sp,
                         fontWeight = FontWeight.Bold,
                         color = Night,
                         textAlign = TextAlign.Center,
@@ -1089,18 +1361,18 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             }
 
             if (word.example.isNotEmpty()) Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(16.dp), 4.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("مثال", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TealDark, modifier = Modifier.weight(1f))
                         StarButton(favS) { favS = store.toggleFavSentence(word.id) }
                     }
                     Ltr {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(word.example, fontSize = 20.sp, color = Night, modifier = Modifier.weight(1f))
-                            SpeakButton(44.dp) { speak(word.example) }
+                            Text(word.example, fontSize = 18.sp, color = Night, modifier = Modifier.weight(1f))
+                            SpeakButton(40.dp) { speak(word.example) }
                         }
                     }
-                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 18.sp, color = Muted)
+                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 15.sp, color = Muted)
                 }
             }
 
@@ -1285,10 +1557,10 @@ private fun QuizSession(
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Beige)
+                        .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold)
+                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
                 }
             }
         }
@@ -1384,12 +1656,18 @@ private fun QuizSession(
                         if (streak > best) best = streak
                         store.markLearned(q.word.id)
                         store.hard = store.hard - q.word.id
+                        if (store.reviewStates().containsKey(q.word.id)) {
+                            store.recordReview(q.word.id, ReviewRating.Good)
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     } else {
                         streak = 0
                         wrong.add(q.word)
                         store.learned = store.learned - q.word.id
                         store.hard = store.hard + q.word.id
+                        if (store.reviewStates().containsKey(q.word.id)) {
+                            store.recordReview(q.word.id, ReviewRating.Again)
+                        }
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     onLearnedChanged()
@@ -1406,7 +1684,7 @@ private fun QuizSession(
                         when {
                             answered && isCorrect -> Color.White
                             answered && isPicked -> Danger
-                            else -> Beige
+                            else -> Color.White
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -1464,6 +1742,33 @@ private fun QuizSession(
 }
 
 @Composable
+private fun CelebrationBurst() {
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = tween(500),
+        label = "wordPopCelebration"
+    )
+    val colors = listOf(Sun, Teal, Coral, Sky)
+    val points = listOf(
+        0.08f to 0.20f, 0.18f to 0.62f, 0.29f to 0.12f, 0.40f to 0.72f,
+        0.59f to 0.18f, 0.70f to 0.66f, 0.82f to 0.10f, 0.93f to 0.55f
+    )
+    Canvas(Modifier.fillMaxWidth().height(28.dp)) {
+        points.forEachIndexed { index, point ->
+            val x = size.width * point.first
+            val y = size.height * (point.second + progress * (0.25f + (index % 3) * 0.12f))
+            drawCircle(
+                color = colors[index % colors.size],
+                radius = 3.5.dp.toPx(),
+                center = Offset(x, y)
+            )
+        }
+    }
+}
+
+@Composable
 private fun QuizResult(
     score: Int,
     total: Int,
@@ -1482,6 +1787,7 @@ private fun QuizResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (pct >= 80) CelebrationBurst()
             Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
@@ -1509,7 +1815,7 @@ private fun QuizResult(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = if (pct >= 50) Teal else Gold,
+                color = if (pct >= 50) Teal else Sun,
                 trackColor = Line
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -1544,5 +1850,177 @@ fun ResultStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
         Text(label, fontSize = 13.sp, color = Muted)
+    }
+}
+
+
+// ---------- smart spaced repetition ----------
+
+@Composable
+fun ReviewScreen(store: SettingsStore) {
+    val speak = rememberSpeaker()
+    var queue by remember { mutableStateOf(WordRepo.reviewQueue(store)) }
+    var index by remember { mutableIntStateOf(0) }
+    var revealed by remember { mutableStateOf(false) }
+    var completed by remember { mutableIntStateOf(0) }
+    var remembered by remember { mutableIntStateOf(0) }
+
+    fun reloadQueue() {
+        queue = WordRepo.reviewQueue(store)
+        index = 0
+        revealed = false
+        completed = 0
+        remembered = 0
+    }
+
+    val dueNow = WordRepo.reviewDueCount(store)
+    val newToday = WordRepo.reviewNewCount(store)
+    val trackedStates = store.reviewStates().filterKeys { WordRepo.get(it) != null }
+    val masteredCount = trackedStates.values.count { it.repetitions >= 3 && it.intervalDays >= 21 }
+    val needsPracticeCount = trackedStates.values.count { it.lapses >= 2 }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Cloud).statusBarsPadding()
+            .navigationBarsPadding().verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("المراجعة الذكية", fontSize = 24.sp, fontFamily = Display, color = Night)
+                Text("خطوة صغيرة النهارده تثبّت الكلمات لبكرة.", fontSize = 13.sp, color = Muted)
+            }
+            Boby(Mood.Cheer, 48.dp)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SunTint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$dueNow", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("مستحقة", fontSize = 12.sp, color = Muted)
+                }
+            }
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = Tint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$newToday", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("جديدة اليوم", fontSize = 12.sp, color = Muted)
+                }
+            }
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SkyTint) {
+                Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$masteredCount", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("ثبتت", fontSize = 12.sp, color = Muted)
+                }
+            }
+        }
+
+        if (trackedStates.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("تقدم تثبيت الكلمات", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
+                    Text("${trackedStates.size} بطاقة · $needsPracticeCount محتاجة تركيز", fontSize = 11.sp, color = Muted)
+                }
+                LinearProgressIndicator(
+                    progress = { (masteredCount.toFloat() / trackedStates.size).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(50)),
+                    color = Teal, trackColor = Line
+                )
+            }
+        }
+
+        when {
+            queue.isEmpty() -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Boby(Mood.Cheer, 76.dp)
+                        Text("كده زي الفل! 🎉", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text("مفيش كلمات مستحقة دلوقتي. ارجع بكرة وهتلاقي كلمات جديدة للمراجعة.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
+                        PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                    }
+                }
+            }
+            index >= queue.size -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Boby(Mood.Cheer, 76.dp)
+                        Text("خلصت جلسة المراجعة!", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text("راجعت $completed كلمة، وتذكرت $remembered منها بشكل جيد أو سهل.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
+                        LinearProgressIndicator(
+                            progress = { if (completed == 0) 0f else remembered.toFloat() / completed },
+                            modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)),
+                            color = Teal, trackColor = Line
+                        )
+                        PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
+                    }
+                }
+            }
+            else -> {
+                val word = queue[index]
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
+                        Text("أنجزت $completed", fontSize = 12.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                    }
+                    LinearProgressIndicator(
+                        progress = { (index.toFloat() / queue.size.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(50)),
+                        color = Teal, trackColor = Line
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(24.dp), color = Color.White,
+                    border = BorderStroke(1.5.dp, Line),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("فكّر في المعنى قبل ما تكشف الإجابة", fontSize = 14.sp, color = Muted)
+                        En(word.en, if (word.en.length > 18) 30.sp else 38.sp, Night, FontWeight.ExtraBold, TextAlign.Center, Modifier.fillMaxWidth())
+                        if (word.ipa.isNotEmpty()) En(word.ipa, 17.sp, Muted, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
+                        SpeakButton(50.dp) { speak(word.en) }
+
+                        if (revealed) {
+                            Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    Text(word.ar, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TealDark, textAlign = TextAlign.Center)
+                                    if (word.example.isNotEmpty()) {
+                                        Ltr { Text(word.example, fontSize = 16.sp, color = Night, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+                                    }
+                                    if (word.exampleAr.isNotEmpty()) Text(word.exampleAr, fontSize = 14.sp, color = Muted, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!revealed) {
+                    PrimaryButton("اكشف المعنى", Modifier.fillMaxWidth()) { revealed = true }
+                } else {
+                    Text("قيّم مدى سهولة تذكرك للكلمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) {
+                            store.recordReview(word.id, ReviewRating.Again); completed++; index++; revealed = false
+                        }
+                        PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) {
+                            store.recordReview(word.id, ReviewRating.Hard); completed++; index++; revealed = false
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) {
+                            store.recordReview(word.id, ReviewRating.Good); completed++; remembered++; index++; revealed = false
+                        }
+                        PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) {
+                            store.recordReview(word.id, ReviewRating.Easy); completed++; remembered++; index++; revealed = false
+                        }
+                    }
+                    Text("تقييمك بيحدد ميعاد المراجعة الجاية تلقائيًا.", fontSize = 12.sp, color = Muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }

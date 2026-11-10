@@ -1,0 +1,6 @@
+name = "wordpop-tts"
+main = "src/index.js"
+compatibility_date = "2026-11-09"
+
+[vars]
+FIREBASE_PROJECT_ID = "wordpop-control"

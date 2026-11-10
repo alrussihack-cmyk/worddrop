@@ -10,6 +10,11 @@ class WordPopApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         WordRepo.init(this)
+        // Migrate legacy preferences and protect the OpenRouter API key before the UI starts.
+        SettingsStore(this)
+        // Keep the shared cloud vocabulary cached locally for offline learning.
+        WordCloudSync.start(this)
+        SettingsCardsSync.start(this)
     }
 }
 
@@ -37,7 +42,8 @@ object CustomWords {
                     ar = o.getString("ar"),
                     kind = o.optString("kind", "كلمة"),
                     example = o.optString("ex"),
-                    exampleAr = o.optString("exAr")
+                    exampleAr = o.optString("exAr"),
+                    level = o.optString("level", "A")
                 )
             }
         } catch (e: Exception) {
@@ -65,6 +71,7 @@ object CustomWords {
                     .put("kind", it.kind)
                     .put("ex", it.example)
                     .put("exAr", it.exampleAr)
+                    .put("level", it.level)
             )
         }
         ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -82,7 +89,7 @@ object CustomWords {
         var skipped = 0
         var id = nextId
 
-        val lines = text.removePrefix("﻿").lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val lines = text.removePrefix("\uFEFF").lines().map { it.trim() }.filter { it.isNotEmpty() }
         for ((index, line) in lines.withIndex()) {
             val cols = splitLine(line).map { it.trim() }
             if (cols.size < 2 || cols[0].isEmpty() || cols[1].isEmpty()) {
