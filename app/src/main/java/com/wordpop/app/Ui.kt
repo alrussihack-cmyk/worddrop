@@ -194,7 +194,7 @@ fun En(
 
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(18.dp)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "primaryShadow")
@@ -202,20 +202,20 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
     Button(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = modifier.heightIn(min = 48.dp)
+        modifier = modifier.heightIn(min = 56.dp)
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.dp, Night),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(18.dp)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "secondaryShadow")
@@ -223,14 +223,14 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
     OutlinedButton(
         onClick = onClick,
         interactionSource = interaction,
-        modifier = modifier.heightIn(min = 48.dp)
+        modifier = modifier.heightIn(min = 56.dp)
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.dp, Night),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
