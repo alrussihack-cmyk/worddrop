@@ -4,9 +4,6 @@ import android.app.Application
 import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import java.util.concurrent.TimeUnit
 
 /**
@@ -26,12 +23,7 @@ class WordPopApplication : Application() {
             return
         }
 
-        val provider = if (BuildConfig.DEBUG) {
-            DebugAppCheckProviderFactory.getInstance()
-        } else {
-            PlayIntegrityAppCheckProviderFactory.getInstance()
-        }
-        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(provider)
+        AppCheckProviderInstaller.install()
     }
 
     private companion object {
