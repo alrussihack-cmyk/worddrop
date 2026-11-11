@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +37,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -47,7 +51,25 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** A generated story. In [en] and [ar] the target words are wrapped in ** markers. */
-data class Story(val title: String, val en: String, val ar: String, val words: List<String>)
+data class Story(
+    val title: String,
+    val en: String,
+    val ar: String,
+    val words: List<String>,
+    /** Exact English-to-Arabic highlighted target mapping; empty for stories saved by older builds. */
+    val wordMap: Map<String, String> = emptyMap()
+)
+
+private data class StoryWordPopup(val english: String, val arabic: String)
+private const val STORY_TARGET_TAG = "wordpop_story_target"
+
+private fun normalizeStoryTerm(value: String): String =
+    value.trim().trim { !it.isLetterOrDigit() && it != '\'' && it != '’' }.lowercase()
+
+private fun highlightedTerms(text: String): List<String> =
+    text.split("**").mapIndexedNotNull { index, part ->
+        if (index % 2 == 1) part.trim().takeIf { it.isNotEmpty() } else null
+    }
 
 object StoryApi {
     val genres = listOf("مغامرة" to "an adventure", "كوميدي" to "a funny comedy", "غموض" to "a light mystery",
@@ -64,7 +86,9 @@ $list
 - Wrap each use of these words in double asterisks, like **word**.
 - Make the scene vivid and memorable (a funny or surprising detail) so the words stick.
 - Also give a natural Egyptian-Arabic translation of the story. In the translation wrap the Arabic equivalent of each target word in ** too.
-Reply with JSON only, no other text: {"title":"...","story":"...","translation":"..."}"""
+- Return a "wordMap" JSON object mapping each exact English target word or phrase to the exact Arabic equivalent highlighted in the translation.
+- Every wordMap value must match the highlighted Arabic phrase exactly, without surrounding ** markers.
+Reply with JSON only, no other text: {"title":"...","story":"...","translation":"...","wordMap":{"generous":"كريم"}}"""
     }
 
     /** Calls the shared Worker; the OpenRouter credential never enters the learner app. */
@@ -113,11 +137,22 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
 
     fun generate(workerUrl: String, words: List<Word>, genre: String, level: String): Story {
         val o = chatJson(workerUrl, storyPrompt(words, genre, level), 1200)
+        val rawMap = o.optJSONObject("wordMap")
+        val wordMap = linkedMapOf<String, String>()
+        if (rawMap != null) {
+            val keys = rawMap.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = rawMap.optString(key).trim()
+                if (key.isNotBlank() && value.isNotBlank()) wordMap[key] = value
+            }
+        }
         return Story(
             title = o.optString("title", "قصتي"),
             en = o.getString("story").trim(),
             ar = o.optString("translation").trim(),
-            words = words.map { it.en }
+            words = words.map { it.en },
+            wordMap = wordMap
         )
     }
 
@@ -137,7 +172,23 @@ Reply with JSON only: {"corrected":"...","tips":"..."}"""
         (0 until arr.length()).map {
             val o = arr.getJSONObject(it)
             val w = o.getJSONArray("words")
-            Story(o.getString("title"), o.getString("en"), o.optString("ar"), (0 until w.length()).map { i -> w.getString(i) })
+            val rawMap = o.optJSONObject("wordMap")
+            val wordMap = linkedMapOf<String, String>()
+            if (rawMap != null) {
+                val keys = rawMap.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val value = rawMap.optString(key).trim()
+                    if (key.isNotBlank() && value.isNotBlank()) wordMap[key] = value
+                }
+            }
+            Story(
+                o.getString("title"),
+                o.getString("en"),
+                o.optString("ar"),
+                (0 until w.length()).map { i -> w.getString(i) },
+                wordMap
+            )
         }
     } catch (e: Exception) {
         emptyList()
@@ -149,17 +200,31 @@ Reply with JSON only: {"corrected":"...","tips":"..."}"""
             arr.put(
                 JSONObject().put("title", it.title).put("en", it.en).put("ar", it.ar)
                     .put("words", JSONArray(it.words))
+                    .put("wordMap", JSONObject(it.wordMap))
             )
         }
         store.storiesJson = arr.toString()
     }
 }
 
-private fun highlight(text: String): AnnotatedString = buildAnnotatedString {
-    text.split("**").forEachIndexed { i, part ->
-        if (i % 2 == 1) {
-            withStyle(SpanStyle(color = TealDark, background = Tint, fontWeight = FontWeight.Bold)) { append(part) }
-        } else append(part)
+private fun clickableHighlight(text: String): AnnotatedString = buildAnnotatedString {
+    text.split("**").forEachIndexed { index, part ->
+        if (index % 2 == 1) {
+            val start = length
+            withStyle(SpanStyle(color = TealDark, background = Tint, fontWeight = FontWeight.Bold)) {
+                append(part)
+            }
+            if (part.isNotBlank()) {
+                addStringAnnotation(
+                    tag = STORY_TARGET_TAG,
+                    annotation = part.trim(),
+                    start = start,
+                    end = length
+                )
+            }
+        } else {
+            append(part)
+        }
     }
 }
 
@@ -275,6 +340,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     var myText by remember { mutableStateOf("") }
     var fbLoading by remember { mutableStateOf(false) }
     var fb by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var selectedStoryWord by remember { mutableStateOf<StoryWordPopup?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(shape = RoundedCornerShape(20.dp), color = Tint) {
@@ -364,6 +430,8 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         }
 
         current?.let { story ->
+            val englishStoryText = remember(story.en) { clickableHighlight(story.en) }
+            val arabicStoryText = remember(story.ar) { clickableHighlight(story.ar) }
             Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -374,7 +442,25 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         Boby(Mood.Cheer, 42.dp)
                     }
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(highlight(story.en), fontSize = 17.sp, lineHeight = 27.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                        ClickableText(
+                            text = englishStoryText,
+                            style = TextStyle(fontSize = 17.sp, lineHeight = 27.sp, color = Night),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { offset ->
+                                val target = englishStoryText.getStringAnnotations(STORY_TARGET_TAG, offset, offset).firstOrNull()?.item
+                                if (target != null) {
+                                    val english = story.words.firstOrNull {
+                                        normalizeStoryTerm(it) == normalizeStoryTerm(target)
+                                    } ?: target
+                                    val arabic = words.firstOrNull {
+                                        normalizeStoryTerm(it.en) == normalizeStoryTerm(english)
+                                    }?.ar ?: story.wordMap.entries.firstOrNull {
+                                        normalizeStoryTerm(it.key) == normalizeStoryTerm(english)
+                                    }?.value ?: "المعنى العربي مش متاح للكلمة دي."
+                                    selectedStoryWord = StoryWordPopup(english, arabic)
+                                }
+                            }
+                        )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SecondaryButton("اسمع القصة", Modifier.weight(1f)) { speak(plain(story.en)) }
@@ -382,7 +468,30 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                     }
                     if (showAr && story.ar.isNotEmpty()) {
                         Surface(shape = RoundedCornerShape(14.dp), color = Tint) {
-                            Text(highlight(story.ar), fontSize = 15.sp, lineHeight = 25.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                                ClickableText(
+                                    text = arabicStoryText,
+                                    style = TextStyle(fontSize = 15.sp, lineHeight = 25.sp, color = Night),
+                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                    onClick = { offset ->
+                                        val target = arabicStoryText.getStringAnnotations(STORY_TARGET_TAG, offset, offset).firstOrNull()?.item
+                                        if (target != null) {
+                                            val mappedEnglish = story.wordMap.entries.firstOrNull {
+                                                normalizeStoryTerm(it.value) == normalizeStoryTerm(target)
+                                            }?.key
+                                            val localEnglish = words.firstOrNull {
+                                                normalizeStoryTerm(it.ar) == normalizeStoryTerm(target)
+                                            }?.en
+                                            val arabicIndex = highlightedTerms(story.ar).indexOfFirst {
+                                                normalizeStoryTerm(it) == normalizeStoryTerm(target)
+                                            }
+                                            val parallelEnglish = highlightedTerms(story.en).getOrNull(arabicIndex)
+                                            val english = mappedEnglish ?: localEnglish ?: parallelEnglish ?: target
+                                            selectedStoryWord = StoryWordPopup(english, target)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                     Text("الكلمات المستخدمة · اضغط لسماعها", fontSize = 13.sp, color = Muted, fontWeight = FontWeight.SemiBold)
@@ -455,6 +564,29 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
             }
         }
 
+        selectedStoryWord?.let { info ->
+            AlertDialog(
+                onDismissRequest = { selectedStoryWord = null },
+                title = {
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Text(info.english, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(info.arabic, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Night)
+                        Text("اضغط على زر الصوت لسماع نطق الكلمة بالإنجليزية.", fontSize = 13.sp, color = Muted)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedStoryWord = null }) { Text("إغلاق", color = Night) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { speak(info.english) }) { Text("اسمع النطق 🔊", color = TealDark) }
+                }
+            )
+        }
+
         if (saved.isNotEmpty()) {
             Surface(shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.dp, Line), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -469,6 +601,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         saved.forEach { oldStory ->
                             Surface(shape = RoundedCornerShape(13.dp), color = Tint, modifier = Modifier.fillMaxWidth().clickable {
                                 current = oldStory
+                                selectedStoryWord = null
                                 showAr = false
                                 quiz = false
                                 fb = null

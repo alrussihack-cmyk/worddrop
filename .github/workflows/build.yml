@@ -2,9 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master, fix/android-36-keystore-inexact-alarms, feature/centralized-ai-api-settings, restore/wordpop-1.9-secure]
+    branches: [main, master, fix/android-36-keystore-inexact-alarms, feature/centralized-ai-api-settings, restore/wordpop-1.9-secure, feature/wordpop-1.9-story-vocab-ux]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, restore/wordpop-1.9-secure, feature/wordpop-1.9-story-vocab-ux]
   workflow_dispatch:
 
 concurrency:
