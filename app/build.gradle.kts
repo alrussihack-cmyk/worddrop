@@ -17,7 +17,8 @@ android {
         applicationId = "com.wordpop.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
+        // Keep the 1.9 product identity while allowing upgrades from the 2.0 build.
+        versionCode = 12
         versionName = "1.9"
     }
 
