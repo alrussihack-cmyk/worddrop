@@ -1548,24 +1548,12 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClickLabel = "رجوع", onClick = onClose),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(painterResource(R.drawable.ic_back), contentDescription = "رجوع", tint = Night)
+        if (step == 0) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StepBtn("‹", "رجوع", onClose)
+                Text("تعلّم كلمة", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+                Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 12.sp, color = Muted)
             }
-            Text(
-                "تعلّم كلمة",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Night,
-                modifier = Modifier.weight(1f)
-            )
-            Text("حفظت $learnedCount من ${WordRepo.all.size}", fontSize = 12.sp, color = Muted)
         }
 
         if (step == 0) {
@@ -1644,7 +1632,8 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 first = word,
                 speak = speak,
                 onLearnedChanged = { learnedCount = store.learned.size },
-                onNewWord = { next() }
+                onNewWord = { next() },
+                onClose = onClose
             )
         }
 
@@ -1774,7 +1763,8 @@ private fun QuizSession(
     first: Word,
     speak: (String) -> Unit,
     onLearnedChanged: () -> Unit,
-    onNewWord: () -> Unit
+    onNewWord: () -> Unit,
+    onClose: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val answerFeedback = rememberAnswerFeedback(store)
@@ -1789,6 +1779,7 @@ private fun QuizSession(
     var streak by remember(round) { mutableIntStateOf(0) }
     var best by remember(round) { mutableIntStateOf(0) }
     val wrong = remember(round) { mutableStateListOf<Word>() }
+    val answers = remember(round) { mutableStateListOf<Boolean>() }
     val total = questions.size
 
     if (index >= total) {
@@ -1812,39 +1803,45 @@ private fun QuizSession(
         if (q.type == QType.Listen) speak(q.word.en)
     }
 
-    // progress
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("سؤال ${index + 1} من $total", fontSize = 15.sp, color = Muted, modifier = Modifier.weight(1f))
-            if (streak >= 2) {
+    // Quiz header: close control, per-question progress segments, and live score.
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        StepBtn("×", "إغلاق الاختبار", onClose)
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(total) { i ->
+                val segmentColor = when {
+                    i < answers.size && answers[i] -> Teal
+                    i < answers.size -> Coral
+                    else -> Line
+                }
                 Box(
-                    Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(SunTint)
-                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                    Modifier.weight(1f).height(12.dp).clip(RoundedCornerShape(6.dp)).background(Line)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                    if (i < answers.size) {
+                        Box(Modifier.fillMaxSize().background(segmentColor))
+                    } else if (i == index) {
+                        Box(Modifier.fillMaxWidth(0.35f).height(12.dp).background(Night))
+                    }
                 }
             }
         }
-        LinearProgressIndicator(
-            progress = { (index + if (answered) 1 else 0).toFloat() / total },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .border(2.dp, Night, RoundedCornerShape(6.dp)),
-            color = Teal,
-            trackColor = Line
-        )
+        Surface(shape = RoundedCornerShape(23.dp), color = Color.White, border = BorderStroke(2.dp, Night)) {
+            Row(Modifier.height(46.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("★", fontSize = 20.sp, color = Spark)
+                Text(score.toString(), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            }
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("السؤال ${index + 1} من $total", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Muted, modifier = Modifier.weight(1f))
+        if (streak >= 2) Text("🔥 $streak ورا بعض", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TealDark)
     }
 
     // question card
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color.White, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(26.dp), 5.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(horizontal = 18.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -1853,10 +1850,10 @@ private fun QuizSession(
                     Text("إيه معنى الكلمة دي؟", fontSize = 16.sp, color = Muted)
                     En(
                         q.word.en,
-                        if (q.word.en.length > 14) 28.sp else 36.sp,
+                        when { q.word.en.length > 18 -> 28.sp; q.word.en.length > 13 -> 34.sp; else -> 44.sp },
                         Night, FontWeight.ExtraBold, TextAlign.Center, Modifier.fillMaxWidth()
                     )
-                    SpeakButton(48.dp) { speak(q.word.en) }
+                    SpeakButton(56.dp) { speak(q.word.en) }
                 }
                 QType.Reverse -> {
                     Text("إيه الكلمة الإنجليزي اللي معناها؟", fontSize = 16.sp, color = Muted)
@@ -1872,7 +1869,7 @@ private fun QuizSession(
                 }
                 QType.Listen -> {
                     Text("اسمع واختار الكلمة الصح", fontSize = 16.sp, color = Muted)
-                    SpeakButton(72.dp) { speak(q.word.en) }
+                    SpeakButton(56.dp) { speak(q.word.en) }
                     Text("دوس لو عايز تسمعها تاني", fontSize = 13.sp, color = Muted)
                 }
             }
@@ -1908,32 +1905,36 @@ private fun QuizSession(
             when {
                 !answered -> Color.White
                 isCorrect -> Teal
-                isPicked -> MissTint
+                isPicked -> Color(0xFFFFB9AE)
                 else -> Color.White
             },
             tween(if (store.feedbackAnimations) 220 else 0), label = "optBg"
         )
         val borderColor by animateColorAsState(
             when {
-                !answered -> Line
+                !answered -> Night
                 isCorrect -> Night
                 isPicked -> Danger
                 else -> Night
             },
             tween(if (store.feedbackAnimations) 220 else 0), label = "optBorder"
         )
-        val shape = RoundedCornerShape(14.dp)
+        val shape = RoundedCornerShape(18.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 60.dp)
+                .heightIn(min = 56.dp)
                 .hardShadow(shape, 4.dp)
                 .clip(shape)
                 .background(bg)
                 .border(2.5.dp, borderColor, shape)
-                .graphicsLayer { translationX = shakeX.value }
+                .graphicsLayer {
+                    translationX = shakeX.value
+                    alpha = if (answered && !isCorrect && !isPicked) 0.5f else 1f
+                }
                 .clickable(enabled = !answered, role = Role.Button) {
                     picked = opt
+                    answers.add(isCorrect)
                     answerFeedback(isCorrect)
                     if (isCorrect) {
                         score++
@@ -1999,8 +2000,8 @@ private fun QuizSession(
     ) {
         val ok = picked == q.correct
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = if (ok) Tint else MissTint,
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+            color = if (ok) Color(0xFFDDF7F0) else Color(0xFFFFEAE6),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
