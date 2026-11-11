@@ -486,7 +486,7 @@ fun AiVocabularyTab(
             }
         }
     }
-
+}
 
 @Composable
 private fun VocabularyPreviewCard(
