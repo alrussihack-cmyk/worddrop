@@ -472,7 +472,7 @@ private object AnswerFeedbackAudio {
 }
 
 @Composable
-private fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit =
+fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit =
     remember(store) {
         { correct ->
             if (store.feedbackSound) {
@@ -481,6 +481,54 @@ private fun rememberAnswerFeedback(store: SettingsStore): (Boolean) -> Unit =
             }
         }
     }
+
+/** Shared, settings-aware motion for correct and incorrect answers across every exercise. */
+@Composable
+fun AnswerFeedbackMotion(
+    correct: Boolean,
+    trigger: Int,
+    enabled: Boolean,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    val shake = remember { Animatable(0f) }
+    val scale = remember { Animatable(1f) }
+
+    LaunchedEffect(trigger, correct, enabled) {
+        if (trigger <= 0 || !enabled) {
+            shake.snapTo(0f)
+            scale.snapTo(1f)
+            return@LaunchedEffect
+        }
+        if (correct) {
+            scale.snapTo(0.97f)
+            scale.animateTo(1.055f, tween(110))
+            scale.animateTo(1f, tween(190))
+        } else {
+            val distance = with(density) { 10.dp.toPx() }
+            shake.snapTo(0f)
+            shake.animateTo(
+                0f,
+                keyframes {
+                    durationMillis = 320
+                    -distance at 55
+                    distance * 0.72f at 115
+                    -distance * 0.42f at 180
+                    distance * 0.2f at 245
+                    0f at 320
+                }
+            )
+        }
+    }
+
+    Box(Modifier.graphicsLayer {
+        translationX = shake.value
+        scaleX = scale.value
+        scaleY = scale.value
+    }) {
+        content()
+    }
+}
 
 // ---------- app root ----------
 
@@ -1892,7 +1940,7 @@ private fun QuizSession(
 }
 
 @Composable
-private fun CelebrationBurst() {
+fun CelebrationBurst() {
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { started = true }
     val progress by animateFloatAsState(
