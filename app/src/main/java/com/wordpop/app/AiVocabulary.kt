@@ -2,7 +2,18 @@
 
 package com.wordpop.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,14 +51,17 @@ object AiVocabularyApi {
         topic: String,
         request: String,
         count: Int,
-        level: String
+        level: String,
+        avoid: List<String> = emptyList()
     ): List<Word> {
+        val avoidLine = if (avoid.isEmpty()) "" else
+            "Do NOT include any of these words again: " + avoid.takeLast(150).joinToString(", ") + "\n"
         val prompt = """
 You are an expert English vocabulary teacher creating a useful vocabulary pack for an Egyptian Arabic speaker.
 Topic: $topic
 Learner's exact request and intended meanings: $request
 English level: $level
-Generate exactly $count useful English words or short expressions that fit the topic and the requested meanings.
+${avoidLine}Generate exactly $count useful English words or short expressions that fit the topic and the requested meanings.
 Avoid duplicates, overly basic filler, obscure words, and words unrelated to the learner's request.
 For every item provide:
 - en: the English word or short expression.
@@ -65,7 +79,7 @@ Rules:
 {"words":[{"en":"...","ipa":"/.../","ar":"...","kind":"اسم","example":"...","exampleAr":"..."}]}
 """.trimIndent()
 
-        val root = StoryApi.chatJson(workerUrl, prompt, (900 + count * 220).coerceAtMost(8000))
+        val root = StoryApi.chatJson(workerUrl, prompt, (900 + count * 220).coerceAtMost(7500))
         val array = root.optJSONArray("words")
             ?: throw Exception("الذكاء الاصطناعي رجّع صيغة غير مفهومة. جرّب مرة تانية.")
         val seen = mutableSetOf<String>()
@@ -103,7 +117,43 @@ Rules:
         if (result.isEmpty()) throw Exception("ملقتش كلمات مكتملة في الرد. جرّب وصفًا أوضح.")
         return result.take(count)
     }
+
+    /** Large lists are requested in batches of 25 so each reply stays small and fast. */
+    fun generateBatched(
+        workerUrl: String,
+        topic: String,
+        request: String,
+        count: Int,
+        level: String,
+        onProgress: (List<Word>) -> Unit
+    ): List<Word> {
+        val all = mutableListOf<Word>()
+        val seen = mutableSetOf<String>()
+        var failedRounds = 0
+        while (all.size < count && failedRounds < 2) {
+            val need = minOf(25, count - all.size)
+            val batch = try {
+                generate(workerUrl, topic, request, need, level, all.map { it.en })
+            } catch (e: Exception) {
+                if (all.isEmpty()) throw e
+                failedRounds++
+                continue
+            }
+            val fresh = batch.filter { seen.add(it.en.trim().lowercase()) }
+            if (fresh.isEmpty()) failedRounds++ else {
+                failedRounds = 0
+                all += fresh
+                onProgress(all.toList())
+            }
+        }
+        return all.take(count)
+    }
 }
+
+/** One row of the review list. */
+private data class PreviewItem(val key: Int, val word: Word, val selected: Boolean = true)
+
+private fun isKnown(word: Word) = WordRepo.all.any { it.en.trim().equals(word.en.trim(), ignoreCase = true) }
 
 @Composable
 fun AiVocabularyTab(
@@ -120,9 +170,14 @@ fun AiVocabularyTab(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var notice by remember { mutableStateOf("") }
-    var preview by remember { mutableStateOf<List<Word>>(emptyList()) }
-    var editingIndex by remember { mutableIntStateOf(-1) }
+    var items by remember { mutableStateOf<List<PreviewItem>>(emptyList()) }
+    var progress by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableIntStateOf(0) }
+    var expandedKey by remember { mutableIntStateOf(-1) }
+    var editingKey by remember { mutableIntStateOf(-1) }
     var draft by remember { mutableStateOf<Word?>(null) }
+    var limit by remember { mutableIntStateOf(20) }
 
     Section("مولّد الكلمات بالذكاء الاصطناعي") {
         Text(
@@ -151,7 +206,7 @@ fun AiVocabularyTab(
 
         Text("عدد الكلمات", fontSize = 14.sp, color = Muted, fontWeight = FontWeight.Bold)
         ChipRow {
-            listOf(10, 20, 30).forEach { n ->
+            listOf(10, 20, 30, 50, 100).forEach { n ->
                 Chip("$n كلمة", count == n) { count = n }
             }
         }
@@ -169,7 +224,7 @@ fun AiVocabularyTab(
         if (notice.isNotBlank()) Text(notice, color = TealDark, fontSize = 13.sp)
 
         PrimaryButton(
-            if (loading) "جاري تجهيز الكلمات..." else "ولّد قائمة الكلمات",
+            if (loading) (if (progress.isBlank()) "جاري تجهيز الكلمات..." else progress) else "ولّد قائمة الكلمات",
             Modifier.fillMaxWidth()
         ) {
             if (loading) return@PrimaryButton
@@ -191,160 +246,165 @@ fun AiVocabularyTab(
             loading = true
             scope.launch {
                 try {
+                    progress = "جاري تجهيز الكلمات..."
                     val generated = withContext(Dispatchers.IO) {
-                        AiVocabularyApi.generate(
+                        AiVocabularyApi.generateBatched(
                             workerUrl = AiConfigSync.workerUrl,
                             topic = topic.trim(),
                             request = request.trim(),
                             count = count,
                             level = level
-                        )
+                        ) { partial -> progress = "جاهز ${partial.size} من $count..." }
                     }
-                    preview = generated
-                    editingIndex = -1
-                    draft = null
+                    items = generated.mapIndexed { i, w -> PreviewItem(i, w, selected = !isKnown(w)) }
+                    query = ""; filter = 0; expandedKey = -1; editingKey = -1; draft = null; limit = 20
                     notice = "اتولدت ${generated.size} كلمة. راجعها وعدّلها قبل ما تضيفها."
                 } catch (exception: Exception) {
                     error = exception.message ?: "حصل خطأ أثناء التوليد. جرّب تاني."
                 } finally {
                     loading = false
+                    progress = ""
                 }
             }
         }
     }
 
-    if (preview.isNotEmpty()) {
+    if (items.isNotEmpty()) {
         Spacer(Modifier.height(12.dp))
         Section("معاينة الكلمات قبل الإضافة") {
-            val duplicateCount = preview.count { candidate ->
-                WordRepo.all.any { it.en.trim().equals(candidate.en.trim(), ignoreCase = true) }
+            val knownCount = items.count { isKnown(it.word) }
+            val selectedCount = items.count { it.selected }
+            Text(
+                "${items.size} كلمة • ${items.size - knownCount} جديدة • $knownCount موجودة بالفعل • $selectedCount محددة للإضافة",
+                fontSize = 13.sp, color = Muted
+            )
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it; limit = 20 },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("ابحث في الكلمات") }
+            )
+            ChipRow {
+                Chip("الكل", filter == 0) { filter = 0; limit = 20 }
+                Chip("جديدة", filter == 1) { filter = 1; limit = 20 }
+                Chip("موجودة بالفعل", filter == 2) { filter = 2; limit = 20 }
             }
-            Text(
-                "${preview.size} كلمة في المعاينة • $duplicateCount مكررة وموجودة بالفعل",
-                fontSize = 13.sp,
-                color = Muted
-            )
-            Text(
-                "اضغط تعديل لمراجعة أي كلمة. الكلمات لن تُضاف إلا بعد ضغط زر اعتماد وإضافة.",
-                fontSize = 13.sp,
-                color = Muted
-            )
-
-            preview.forEachIndexed { index, word ->
-                val isDuplicate = WordRepo.all.any {
-                    it.en.trim().equals(word.en.trim(), ignoreCase = true)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton("حدّد الجديدة", Modifier.weight(1f)) {
+                    items = items.map { it.copy(selected = !isKnown(it.word)) }
                 }
+                SecondaryButton("إلغاء التحديد", Modifier.weight(1f)) {
+                    items = items.map { it.copy(selected = false) }
+                }
+            }
+            if (knownCount > 0) {
+                SecondaryButton("احذف الموجودة بالفعل ($knownCount)", Modifier.fillMaxWidth()) {
+                    items = items.filterNot { isKnown(it.word) }
+                    expandedKey = -1; editingKey = -1; draft = null
+                }
+            }
+
+            val q = query.trim().lowercase()
+            val shown = items.filter { item ->
+                val known = isKnown(item.word)
+                (filter == 0 || (filter == 1 && !known) || (filter == 2 && known)) &&
+                    (q.isEmpty() || item.word.en.lowercase().contains(q) || item.word.ar.contains(q))
+            }
+            if (shown.isEmpty()) Text("مفيش كلمات مطابقة.", fontSize = 14.sp, color = Muted)
+
+            shown.take(limit).forEach { item ->
+                val word = item.word
+                val known = isKnown(word)
+                val open = expandedKey == item.key
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(15.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Line)
+                    color = if (known) Color(0xFFF6F7F9) else Color.White,
+                    border = BorderStroke(if (open) 2.dp else 1.dp, if (open) Night else Line)
                 ) {
-                    Column(
-                        Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth().clickable {
+                                expandedKey = if (open) -1 else item.key
+                                if (editingKey != item.key) { editingKey = -1; draft = null }
+                            },
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            val box = RoundedCornerShape(8.dp)
+                            Box(
+                                Modifier.size(28.dp).clip(box)
+                                    .background(if (item.selected) Teal else Color.White)
+                                    .border(2.dp, Night, box)
+                                    .clickable { items = items.map { if (it.key == item.key) it.copy(selected = !it.selected) else it } },
+                                contentAlignment = Alignment.Center
+                            ) { if (item.selected) Text("✓", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Night) }
                             Column(Modifier.weight(1f)) {
-                                En(word.en, 20.sp, Night, FontWeight.Bold)
+                                En(word.en, 17.sp, Night, FontWeight.Bold)
                                 Text(
-                                    if (isDuplicate) "موجودة بالفعل — لن تُضاف مرة ثانية" else word.kind,
-                                    fontSize = 12.sp,
-                                    color = if (isDuplicate) Danger else TealDark
+                                    if (known) "${word.ar} • موجودة بالفعل" else word.ar,
+                                    fontSize = 14.sp, maxLines = 1,
+                                    color = if (known) Danger else Muted
                                 )
                             }
-                            SecondaryButton("حذف") {
-                                preview = preview.filterIndexed { itemIndex, _ -> itemIndex != index }
-                                if (editingIndex == index) {
-                                    editingIndex = -1
-                                    draft = null
-                                } else if (editingIndex > index) {
-                                    editingIndex--
-                                }
-                            }
+                            Text(if (open) "▲" else "▼", fontSize = 12.sp, color = Muted)
                         }
+                        AnimatedVisibility(visible = open, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Ltr { Text(word.ipa.ifBlank { "—" }, fontSize = 14.sp, color = Muted) }
+                                Text(word.kind, fontSize = 12.sp, color = TealDark, fontWeight = FontWeight.Bold)
+                                if (word.example.isNotBlank()) Ltr { Text(word.example, fontSize = 14.sp, color = Night) }
+                                if (word.exampleAr.isNotBlank()) Text(word.exampleAr, fontSize = 13.sp, color = Muted)
 
-                        Ltr { Text(word.ipa.ifBlank { "النطق الصوتي متاح من زر الصوت بعد الإضافة" }, fontSize = 14.sp, color = Muted) }
-                        Text(word.ar, fontSize = 16.sp, color = Night, fontWeight = FontWeight.Medium)
-                        if (word.example.isNotBlank()) {
-                            Ltr { Text(word.example, fontSize = 14.sp, color = Night) }
-                        }
-                        if (word.exampleAr.isNotBlank()) {
-                            Text(word.exampleAr, fontSize = 13.sp, color = Muted)
-                        }
-
-                        if (editingIndex == index && draft != null) {
-                            OutlinedTextField(
-                                value = draft!!.en,
-                                onValueChange = { draft = draft!!.copy(en = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("الكلمة بالإنجليزية") }
-                            )
-                            OutlinedTextField(
-                                value = draft!!.ipa,
-                                onValueChange = { draft = draft!!.copy(ipa = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("النطق IPA") }
-                            )
-                            OutlinedTextField(
-                                value = draft!!.ar,
-                                onValueChange = { draft = draft!!.copy(ar = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("المعنى بالعربي") }
-                            )
-                            OutlinedTextField(
-                                value = draft!!.example,
-                                onValueChange = { draft = draft!!.copy(example = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("مثال بالإنجليزية") }
-                            )
-                            OutlinedTextField(
-                                value = draft!!.exampleAr,
-                                onValueChange = { draft = draft!!.copy(exampleAr = it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("ترجمة المثال") }
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PrimaryButton("حفظ التعديل") {
-                                    val updated = preview.toMutableList()
-                                    updated[index] = draft!!
-                                    preview = updated
-                                    editingIndex = -1
-                                    draft = null
+                                if (editingKey == item.key && draft != null) {
+                                    OutlinedTextField(value = draft!!.en, onValueChange = { draft = draft!!.copy(en = it) }, modifier = Modifier.fillMaxWidth(), label = { Text("الكلمة بالإنجليزية") })
+                                    OutlinedTextField(value = draft!!.ipa, onValueChange = { draft = draft!!.copy(ipa = it) }, modifier = Modifier.fillMaxWidth(), label = { Text("النطق IPA") })
+                                    OutlinedTextField(value = draft!!.ar, onValueChange = { draft = draft!!.copy(ar = it) }, modifier = Modifier.fillMaxWidth(), label = { Text("المعنى بالعربي") })
+                                    OutlinedTextField(value = draft!!.example, onValueChange = { draft = draft!!.copy(example = it) }, modifier = Modifier.fillMaxWidth(), label = { Text("مثال بالإنجليزية") })
+                                    OutlinedTextField(value = draft!!.exampleAr, onValueChange = { draft = draft!!.copy(exampleAr = it) }, modifier = Modifier.fillMaxWidth(), label = { Text("ترجمة المثال") })
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        PrimaryButton("حفظ التعديل") {
+                                            val edited = draft!!
+                                            items = items.map { if (it.key == item.key) it.copy(word = edited, selected = !isKnown(edited)) else it }
+                                            editingKey = -1; draft = null
+                                        }
+                                        SecondaryButton("إلغاء") { editingKey = -1; draft = null }
+                                    }
+                                } else {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        SecondaryButton("تعديل", Modifier.weight(1f)) { editingKey = item.key; draft = word }
+                                        SecondaryButton("حذف", Modifier.weight(1f)) {
+                                            items = items.filterNot { it.key == item.key }
+                                            expandedKey = -1
+                                        }
+                                    }
                                 }
-                                SecondaryButton("إلغاء") {
-                                    editingIndex = -1
-                                    draft = null
-                                }
-                            }
-                        } else {
-                            SecondaryButton("تعديل الكلمة", Modifier.fillMaxWidth()) {
-                                editingIndex = index
-                                draft = word
                             }
                         }
                     }
                 }
             }
+            if (shown.size > limit) {
+                SecondaryButton("اعرض المزيد (${shown.size - limit} كلمة)", Modifier.fillMaxWidth()) { limit += 20 }
+            }
 
-            PrimaryButton("اعتماد وإضافة (${preview.size})", Modifier.fillMaxWidth()) {
-                val result = WordRepo.addCustomWords(context, preview)
-                preview = emptyList()
-                editingIndex = -1
-                draft = null
+            PrimaryButton("اعتماد وإضافة المحدد ($selectedCount)", Modifier.fillMaxWidth()) {
+                val chosen = items.filter { it.selected }.map { it.word }
+                if (chosen.isEmpty()) {
+                    error = "حدّد كلمة واحدة على الأقل."
+                    return@PrimaryButton
+                }
+                val result = WordRepo.addCustomWords(context, chosen)
+                items = emptyList(); editingKey = -1; expandedKey = -1; draft = null
                 onAdded(result)
+                error = ""
                 notice = "تمت إضافة ${result.added} كلمة إلى مكتبتك."
                 if (result.duplicates > 0) notice += " تم تجاهل ${result.duplicates} مكررة."
                 if (result.skipped > 0) notice += " تم تجاهل ${result.skipped} غير مكتملة."
             }
             SecondaryButton("إلغاء القائمة", Modifier.fillMaxWidth()) {
-                preview = emptyList()
-                editingIndex = -1
-                draft = null
+                items = emptyList(); editingKey = -1; expandedKey = -1; draft = null
                 notice = "تم إلغاء المعاينة من غير إضافة كلمات."
             }
         }

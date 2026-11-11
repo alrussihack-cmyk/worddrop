@@ -170,14 +170,6 @@ Reply with JSON only: {"corrected":"...","tips":"..."}"""
     }
 }
 
-private fun highlight(text: String): AnnotatedString = buildAnnotatedString {
-    text.split("**").forEachIndexed { i, part ->
-        if (i % 2 == 1) {
-            withStyle(SpanStyle(color = TealDark, background = Tint, fontWeight = FontWeight.Bold)) { append(part) }
-        } else append(part)
-    }
-}
-
 private fun plain(text: String) = text.replace("**", "")
 
 /** One fill-in-the-blank question built from a story. */
@@ -297,6 +289,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     var picked by remember(words.size) { mutableStateOf(words.take(6).map { it.id }.toSet()) }
     var genre by remember { mutableIntStateOf(0) }
+    var tappedWord by remember { mutableStateOf<TappedWord?>(null) }
     var level by remember { mutableIntStateOf(1) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
@@ -388,6 +381,9 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         }
 
         current?.let { story ->
+            tappedWord?.let { t ->
+                StoryWordDialog(t, resolveStoryWord(story, words, t), speak) { tappedWord = null }
+            }
             val labels = listOf("اقرأ", "ترجمة", "كلمات", "اختبر", "اكتب")
             val progress by animateFloatAsState((step + 1) / labels.size.toFloat(), tween(420), label = "storyProgress")
             val cardShape = RoundedCornerShape(24.dp)
@@ -423,11 +419,11 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             when (s) {
                                 0 -> CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                                    Text(highlight(story.en), fontSize = 17.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                                    Text(clickableHighlight(story.en, false) { tappedWord = it }, fontSize = 17.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
                                 }
                                 1 -> if (story.ar.isNotEmpty()) {
                                     Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
-                                        Text(highlight(story.ar), fontSize = 16.sp, lineHeight = 27.sp, color = Night, modifier = Modifier.padding(14.dp).fillMaxWidth())
+                                        Text(clickableHighlight(story.ar, true) { tappedWord = it }, fontSize = 16.sp, lineHeight = 27.sp, color = Night, modifier = Modifier.padding(14.dp).fillMaxWidth())
                                     }
                                 } else {
                                     Text("مفيش ترجمة للقصة دي.", fontSize = 14.sp, color = Muted)
