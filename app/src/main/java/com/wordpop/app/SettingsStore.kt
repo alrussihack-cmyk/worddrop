@@ -2,8 +2,41 @@ package com.wordpop.app
 
 import android.content.Context
 
+private const val LEGACY_MIGRATION_MARKER = "__legacy_settings_migrated"
+
 class SettingsStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("wordpop_settings", Context.MODE_PRIVATE)
+    private val legacyPrefs = appContext.getSharedPreferences("wordpop", Context.MODE_PRIVATE)
+
+    init {
+        migrateLegacySettings()
+        // Keep any old encrypted key until the central Control configuration is confirmed.
+        // AiConfigSync clears legacy local credentials after a server-side key is available.
+    }
+
+    /**
+     * Preserve existing preferences while moving them out of the legacy file that may
+     * contain a plaintext API key. The new preferences file contains no secrets and can
+     * safely participate in Android Auto Backup.
+     */
+    private fun migrateLegacySettings() {
+        if (prefs.getBoolean(LEGACY_MIGRATION_MARKER, false)) return
+
+        val editor = prefs.edit()
+        legacyPrefs.all.forEach { (key, value) ->
+            if (key == "orKey" || key == "orModel" || key == "ttsWorkerUrl") return@forEach
+            when (value) {
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                is Long -> editor.putLong(key, value)
+                is Float -> editor.putFloat(key, value)
+                is String -> editor.putString(key, value)
+                is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
+            }
+        }
+        editor.putBoolean(LEGACY_MIGRATION_MARKER, true).commit()
+    }
 
     var enabled: Boolean
         get() = prefs.getBoolean("enabled", false)
@@ -41,6 +74,19 @@ class SettingsStore(context: Context) {
     var sound: Boolean
         get() = prefs.getBoolean("sound", true)
         set(v) = prefs.edit().putBoolean("sound", v).apply()
+
+    /** Sound and motion preferences for in-app learning feedback. */
+    var feedbackSound: Boolean
+        get() = prefs.getBoolean("feedbackSound", true)
+        set(v) = prefs.edit().putBoolean("feedbackSound", v).apply()
+
+    var feedbackAnimations: Boolean
+        get() = prefs.getBoolean("feedbackAnimations", true)
+        set(v) = prefs.edit().putBoolean("feedbackAnimations", v).apply()
+
+    var feedbackHaptics: Boolean
+        get() = prefs.getBoolean("feedbackHaptics", true)
+        set(v) = prefs.edit().putBoolean("feedbackHaptics", v).apply()
 
     /** Banner position set by dragging. Y = -1 means the default spot under the status bar. */
     var bannerX: Int
@@ -102,6 +148,27 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("autoSpeak", false)
         set(v) = prefs.edit().putBoolean("autoSpeak", v).apply()
 
+    /** English pronunciation accent: en-US, en-GB, or en-AU. */
+    var speechAccent: String
+        get() = prefs.getString("speechAccent", SpeechAccents.AMERICAN)
+            ?.takeIf { it in setOf(SpeechAccents.AMERICAN, SpeechAccents.BRITISH, SpeechAccents.AUSTRALIAN) }
+            ?: SpeechAccents.AMERICAN
+        set(v) = prefs.edit().putString(
+            "speechAccent",
+            v.takeIf { it in setOf(SpeechAccents.AMERICAN, SpeechAccents.BRITISH, SpeechAccents.AUSTRALIAN) }
+                ?: SpeechAccents.AMERICAN
+        ).apply()
+
+    /** EasyVoice voice ID; free-tier English voices only by default. */
+    var speechVoice: String
+        get() = prefs.getString("speechVoice", "af_nova")
+            ?.takeIf { it in setOf("af_nova", "af_heart", "af_bella", "af_sky", "af_aoede", "am_adam", "am_eric", "am_michael", "bf_emma", "bm_daniel") }
+            ?: "af_nova"
+        set(v) = prefs.edit().putString(
+            "speechVoice",
+            v.takeIf { it in setOf("af_nova", "af_heart", "af_bella", "af_sky", "af_aoede", "am_adam", "am_eric", "am_michael", "bf_emma", "bm_daniel") } ?: "af_nova"
+        ).apply()
+
     var lastWordId: Int
         get() = prefs.getInt("lastWordId", -1)
         set(v) = prefs.edit().putInt("lastWordId", v).apply()
@@ -109,6 +176,37 @@ class SettingsStore(context: Context) {
     var learned: Set<Int>
         get() = (prefs.getStringSet("learned", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
         set(v) = prefs.edit().putStringSet("learned", v.map { it.toString() }.toSet()).apply()
+
+    /** Persistent spaced-repetition schedule; included in normal app backups. */
+    var reviewCardsJson: String
+        get() = prefs.getString("reviewCards", "{}") ?: "{}"
+        set(v) = prefs.edit().putString("reviewCards", v).apply()
+
+    fun reviewStates(): Map<Int, ReviewState> = ReviewScheduler.decode(reviewCardsJson)
+
+    fun newReviewCardsRemaining(now: Long = System.currentTimeMillis()): Int {
+        val used = if (prefs.getString("reviewNewDate", "") == ReviewScheduler.dayKey(now)) {
+            prefs.getInt("reviewNewCount", 0)
+        } else 0
+        return (ReviewScheduler.NEW_CARDS_PER_DAY - used).coerceAtLeast(0)
+    }
+
+    /** Records one self-assessed review and consumes a daily-new slot only for a first review. */
+    fun recordReview(id: Int, rating: ReviewRating, now: Long = System.currentTimeMillis()) {
+        val cards = reviewStates()
+        val previous = cards[id]
+        val updated = cards + (id to ReviewScheduler.next(previous, rating, now))
+        val today = ReviewScheduler.dayKey(now)
+        val usedToday = if (prefs.getString("reviewNewDate", "") == today) {
+            prefs.getInt("reviewNewCount", 0)
+        } else 0
+        val newCount = if (previous == null) usedToday + 1 else usedToday
+        prefs.edit()
+            .putString("reviewCards", ReviewScheduler.encode(updated))
+            .putString("reviewNewDate", today)
+            .putInt("reviewNewCount", newCount)
+            .apply()
+    }
 
     /** Favorite words (by word id) and favorite example sentences (by the id of the word they belong to). */
     var favWords: Set<Int>
@@ -143,14 +241,6 @@ class SettingsStore(context: Context) {
         prefs.edit().putStringSet(key, (intSet(key) - id).map { it.toString() }.toSet()).apply()
     }
 
-    var orKey: String
-        get() = prefs.getString("orKey", "") ?: ""
-        set(v) = prefs.edit().putString("orKey", v.trim()).apply()
-
-    var orModel: String
-        get() = prefs.getString("orModel", null) ?: "openai/gpt-4o-mini"
-        set(v) = prefs.edit().putString("orModel", v.trim()).apply()
-
     var storiesJson: String
         get() = prefs.getString("stories", "[]") ?: "[]"
         set(v) = prefs.edit().putString("stories", v).apply()
@@ -165,7 +255,8 @@ class SettingsStore(context: Context) {
     /** All settings and learning data as JSON text, for backup. */
     fun exportAll(): String {
         val o = org.json.JSONObject()
-        prefs.all.forEach { (k, v) ->
+        // Never export the legacy API-key field, even if an old install has not migrated yet.
+        prefs.all.filterKeys { it !in setOf("orKey", "orModel", "ttsWorkerUrl", LEGACY_MIGRATION_MARKER) }.forEach { (k, v) ->
             val item = org.json.JSONObject()
             when (v) {
                 is Boolean -> item.put("t", "b").put("v", v)
@@ -186,6 +277,8 @@ class SettingsStore(context: Context) {
         val e = prefs.edit()
         e.clear()
         o.keys().forEach { k ->
+            // Ignore keys from older or hand-crafted backups; secrets are device-local.
+            if (k in setOf("orKey", "orModel", "ttsWorkerUrl")) return@forEach
             val item = o.getJSONObject(k)
             when (item.getString("t")) {
                 "b" -> e.putBoolean(k, item.getBoolean("v"))
@@ -198,6 +291,7 @@ class SettingsStore(context: Context) {
                 }
             }
         }
+        e.putBoolean(LEGACY_MIGRATION_MARKER, true)
         e.apply()
         true
     } catch (ex: Exception) {

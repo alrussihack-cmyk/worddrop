@@ -17,12 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// ---------- WordPop identity v2: fonts, hard shadow, mascot ----------
+// ---------- WordPop identity v3: clean mint palette, rounded typography, mascot ----------
 
-/** Rounded display face for the word and headings. */
-val Display = FontFamily(Font(R.font.lalezar, FontWeight.Normal))
-
-/** Body face. */
+/** Arabic/English UI face used throughout the refreshed identity. */
 val Readex = FontFamily(
     Font(R.font.readex_regular, FontWeight.Normal),
     Font(R.font.readex_medium, FontWeight.Medium),
@@ -30,6 +27,10 @@ val Readex = FontFamily(
     Font(R.font.readex_bold, FontWeight.Bold),
     Font(R.font.readex_bold, FontWeight.ExtraBold)
 )
+
+/** Headings use the same clear rounded family; keep Lalezar for the expressive wordmark only. */
+val Display = FontFamily(Font(R.font.lalezar, FontWeight.Normal))
+val Wordmark = FontFamily(Font(R.font.lalezar, FontWeight.Normal))
 
 fun brandTypography(): Typography {
     val t = Typography()

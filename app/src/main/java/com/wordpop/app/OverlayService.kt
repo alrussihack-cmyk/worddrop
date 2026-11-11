@@ -64,7 +64,7 @@ class OverlayService : Service() {
         startAsForeground()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
+                tts?.let { applyEnglishAccent(it, SettingsStore(this).speechAccent) }
                 ttsReady = true
             }
         }
@@ -195,8 +195,11 @@ class OverlayService : Service() {
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         lp.y = statusBarHeight() + rawDp(8)
 
-        // Hidden until it has been measured and moved to the chosen spot, so it never jumps.
+        // Start slightly lower and smaller, then pop into place like the WordPop sticker identity.
         view.alpha = 0f
+        view.scaleX = 0.9f
+        view.scaleY = 0.9f
+        view.translationY = dp(14).toFloat()
         try {
             wm.addView(view, lp)
         } catch (e: Exception) {
@@ -206,7 +209,23 @@ class OverlayService : Service() {
         bannerParams = lp
         view.post {
             placeBanner(view, lp, s)
-            view.alpha = s.opacity / 100f
+            val targetAlpha = s.opacity / 100f
+            if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                view.animate()
+                    .alpha(targetAlpha)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .translationY(0f)
+                    .setDuration(280L)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
+                    .start()
+            } else {
+                // Respect the system's Reduce motion setting: no scale or travel.
+                view.scaleX = 1f
+                view.scaleY = 1f
+                view.translationY = 0f
+                view.animate().alpha(targetAlpha).setDuration(120L).start()
+            }
         }
 
         resetTimer()
@@ -406,6 +425,7 @@ class OverlayService : Service() {
                 text = w.example
                 textSize = 15f * scale
                 setTextColor(t.text)
+                typeface = font(R.font.readex_regular, Typeface.DEFAULT)
                 textDirection = View.TEXT_DIRECTION_LTR
                 gravity = Gravity.START
                 setOnClickListener {
@@ -418,6 +438,7 @@ class OverlayService : Service() {
                     text = w.exampleAr
                     textSize = 13f * scale
                     setTextColor(t.sub)
+                    typeface = font(R.font.readex_regular, Typeface.DEFAULT)
                     gravity = Gravity.START
                 })
             }
@@ -600,7 +621,20 @@ class OverlayService : Service() {
     }
 
     private fun speak(text: String) {
-        if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+        val settings = SettingsStore(this)
+        val fallback = {
+            if (ttsReady) {
+                tts?.let { engine ->
+                    applyEnglishAccent(engine, settings.speechAccent)
+                    engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop")
+                }
+            }
+        }
+        if (AiConfigSync.workerUrl.isNotBlank()) {
+            EasyVoiceClient.speak(this, AiConfigSync.workerUrl, text, settings.speechVoice, fallback)
+        } else {
+            fallback()
+        }
     }
 
     private fun removeBanner() {

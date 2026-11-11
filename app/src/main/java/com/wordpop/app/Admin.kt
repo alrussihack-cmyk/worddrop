@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.wordpop.app
 
 import android.content.Context
@@ -114,8 +115,10 @@ private fun Field(value: String, onChange: (String) -> Unit, label: String, secr
 fun AdminScreen(
     store: SettingsStore,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onClose: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -137,7 +140,7 @@ fun AdminScreen(
         if (!unlocked) {
             AdminLogin(onOk = { unlocked = true })
         } else {
-            AdminPanel(store, overlayGranted, onRequestOverlay, onRequestNotif, onLock = { unlocked = false })
+            AdminPanel(store, overlayGranted, exactAlarmGranted, onRequestOverlay, onRequestNotif, onRequestExactAlarm, onLock = { unlocked = false })
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -186,8 +189,10 @@ private fun AdminLogin(onOk: () -> Unit) {
 private fun AdminPanel(
     store: SettingsStore,
     overlayGranted: Boolean,
+    exactAlarmGranted: Boolean,
     onRequestOverlay: () -> Unit,
     onRequestNotif: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onLock: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -264,6 +269,7 @@ private fun AdminPanel(
         SwitchRow("ظهور الكلمات", enabled) { on ->
             if (on) {
                 if (!overlayGranted) { onRequestOverlay(); return@SwitchRow }
+                if (!exactAlarmGranted) { store.enabled = true; enabled = true; onRequestExactAlarm(); return@SwitchRow }
                 onRequestNotif()
                 store.enabled = true; enabled = true
                 sendToService(ctx, OverlayService.ACTION_START)
@@ -272,6 +278,10 @@ private fun AdminPanel(
                 Scheduler.cancel(ctx)
                 ctx.stopService(Intent(ctx, OverlayService::class.java))
             }
+        }
+        if (!exactAlarmGranted) {
+            Text("التنبيهات الدقيقة مطلوبة لتشغيل الكلمات تلقائيًا في الخلفية.", fontSize = 14.sp, color = Danger)
+            SecondaryButton("افتح إعدادات التنبيهات الدقيقة", Modifier.fillMaxWidth()) { onRequestExactAlarm() }
         }
         Text("كل قد إيه", fontSize = 15.sp, color = Muted)
         ChipRow { listOf(5, 15, 30, 60, 120, 180, 360).forEach { m -> Chip(intervalLabel(m), interval == m) { interval = m; store.intervalMin = m; refresh() } } }
@@ -282,7 +292,7 @@ private fun AdminPanel(
             Chip("أوقف 3 ساعات", false) { store.pausedUntil = System.currentTimeMillis() + 3 * 3600_000L; paused = true; refresh() }
             Chip("كمّل", false) { store.pausedUntil = 0L; paused = false; refresh() }
         }
-        if (paused) Text("الظهور موقوف مؤقتًا.", fontSize = 14.sp, color = Gold)
+        if (paused) Text("الظهور موقوف مؤقتًا.", fontSize = 14.sp, color = Muted)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("اعرض كلمة دلوقتي", false) { sendToService(ctx, OverlayService.ACTION_SHOW_NOW) }
         }
@@ -332,12 +342,12 @@ private fun AdminPanel(
             }
         }
         SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) { ask("تمسح كل الكلمات اللي استوردتها؟") { WordRepo.clearCustom(ctx); tick++ } }
-        SecondaryButton("امسح مفتاح OpenRouter", Modifier.fillMaxWidth()) { ask("تمسح المفتاح المحفوظ؟") { store.orKey = ""; tick++ } }
+        Text("مفاتيح OpenRouter وEasyVoice تُدار بأمان من تطبيق WordPop Control، ولا تُحفظ داخل هذا الجهاز.", fontSize = 13.sp, color = Muted)
     }
 
     // ---- backup ----
     Section("نسخة احتياطية") {
-        Text("احفظ كل إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. المفتاح السري للوحة مش بيتحفظ فيه.", fontSize = 14.sp, color = Muted)
+        Text("احفظ إعداداتك وتقدمك وكلماتك في ملف، وارجعه بعدين أو على موبايل تاني. مفاتيح API تُدار من WordPop Control ولا يتم تضمينها في النسخة الاحتياطية.", fontSize = 14.sp, color = Muted)
         PrimaryButton("احفظ نسخة", Modifier.fillMaxWidth()) { exportLauncher.launch("wordpop-backup.json") }
         SecondaryButton("استرجع من ملف", Modifier.fillMaxWidth()) {
             confirm = "الاسترجاع هيستبدل كل بياناتك الحالية. متأكد؟" to { importLauncher.launch(arrayOf("*/*")) }

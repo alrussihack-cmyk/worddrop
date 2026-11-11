@@ -1,6 +1,30 @@
 package com.wordpop.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -13,22 +37,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,8 +74,6 @@ import java.net.URL
 data class Story(val title: String, val en: String, val ar: String, val words: List<String>)
 
 object StoryApi {
-    private const val URL_CHAT = "https://openrouter.ai/api/v1/chat/completions"
-
     val genres = listOf("مغامرة" to "an adventure", "كوميدي" to "a funny comedy", "غموض" to "a light mystery",
         "يوم عادي" to "an everyday-life situation", "سفر" to "a travel story", "شغل" to "a workplace story")
     val levels = listOf("بسيط" to "simple A2-level", "متوسط" to "B1-level", "متقدم" to "B2-level")
@@ -68,37 +91,35 @@ $list
 Reply with JSON only, no other text: {"title":"...","story":"...","translation":"..."}"""
     }
 
-    private fun friendly(code: Int, text: String): String {
-        val msg = try { JSONObject(text).getJSONObject("error").getString("message") } catch (e: Exception) { text.take(120) }
-        return when (code) {
-            401, 403 -> "المفتاح مش مقبول. تأكد منه."
-            402 -> "الرصيد خلص في حساب OpenRouter."
-            429 -> "طلبات كتير، جرب بعد شوية."
-            else -> "خطأ $code: $msg"
-        }
-    }
-
-    /** Blocking chat call returning the JSON object inside the reply. Run off the main thread. */
-    private fun chatJson(key: String, model: String, prompt: String, maxTokens: Int): JSONObject {
+    /** Calls the shared Worker; the OpenRouter credential never enters the learner app. */
+    internal fun chatJson(workerUrl: String, prompt: String, maxTokens: Int): JSONObject {
+        val endpoint = workerUrl.trim().trimEnd('/') + "/ai/chat"
         val body = JSONObject()
-            .put("model", model)
-            .put("temperature", 0.8)
-            .put("max_tokens", maxTokens)
-            .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", prompt)))
-        val conn = URL(URL_CHAT).openConnection() as HttpURLConnection
+            .put("prompt", prompt)
+            .put("maxTokens", maxTokens)
+        val conn = URL(endpoint).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 20000
             conn.readTimeout = 90000
             conn.doOutput = true
-            conn.setRequestProperty("Authorization", "Bearer $key")
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("X-Title", "WordPop")
+            conn.setRequestProperty("X-Firebase-AppCheck", AppCheckTokens.currentToken())
             conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            if (code !in 200..299) throw Exception(friendly(code, text))
+            if (code !in 200..299) {
+                val message = try { JSONObject(text).optString("error") } catch (_: Exception) { "" }
+                val fallback = when (code) {
+                    401, 403 -> "تعذر التحقق من إعدادات الخدمة."
+                    402 -> "رصيد OpenRouter غير كافٍ."
+                    429 -> "طلبات كتير في وقت قصير. حاول بعد شوية."
+                    503 -> "خدمة الذكاء الاصطناعي غير مفعّلة من WordPop Control."
+                    else -> "حصل خطأ أثناء الاتصال بخدمة الذكاء الاصطناعي ($code)."
+                }
+                throw Exception(message.ifBlank { fallback })
+            }
             val content = JSONObject(text).getJSONArray("choices").getJSONObject(0)
                 .getJSONObject("message").getString("content")
             val start = content.indexOf('{')
@@ -114,8 +135,8 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
         }
     }
 
-    fun generate(key: String, model: String, words: List<Word>, genre: String, level: String): Story {
-        val o = chatJson(key, model, storyPrompt(words, genre, level), 1200)
+    fun generate(workerUrl: String, words: List<Word>, genre: String, level: String): Story {
+        val o = chatJson(workerUrl, storyPrompt(words, genre, level), 1200)
         return Story(
             title = o.optString("title", "قصتي"),
             en = o.getString("story").trim(),
@@ -125,13 +146,13 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
     }
 
     /** Returns the corrected text and short Arabic tips. */
-    fun feedback(key: String, model: String, story: Story, text: String): Pair<String, String> {
+    fun feedback(workerUrl: String, story: Story, text: String): Pair<String, String> {
         val prompt = """A learner (Arabic speaker, B1) read this story and then wrote their own short text about it.
 Story: ${story.en.replace("**", "")}
 Learner text: $text
 Correct the learner's text keeping their meaning and simple wording. Then give at most 3 short tips in Egyptian Arabic about the mistakes (grammar, spelling, word choice), each with a tiny example.
 Reply with JSON only: {"corrected":"...","tips":"..."}"""
-        val o = chatJson(key, model, prompt, 700)
+        val o = chatJson(workerUrl, prompt, 700)
         return o.optString("corrected", text) to o.optString("tips")
     }
 
@@ -194,11 +215,13 @@ private fun buildCloze(story: Story): List<Cloze> {
 }
 
 @Composable
-private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
+private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String>) -> Unit) {
+    val answerFeedback = rememberAnswerFeedback(store)
     val qs = remember(story) { buildCloze(story) }
     var idx by remember(story) { mutableIntStateOf(0) }
     var picked by remember(story) { mutableStateOf<String?>(null) }
     var score by remember(story) { mutableIntStateOf(0) }
+    val answers = remember(story) { mutableStateListOf<Boolean>() }
     val missed = remember(story) { mutableListOf<String>() }
 
     if (qs.isEmpty()) {
@@ -207,6 +230,7 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
     }
     if (idx >= qs.size) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (score == qs.size && store.feedbackAnimations) CelebrationBurst()
             Text("نتيجتك: $score من ${qs.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
             Text(
                 if (missed.isEmpty()) "ممتاز! كل الكلمات ثبتت."
@@ -219,40 +243,69 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
     }
     val q = qs[idx]
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("سؤال ${idx + 1} من ${qs.size}: اختار الكلمة الناقصة", fontSize = 14.sp, color = Muted)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                repeat(qs.size) { i ->
+                    val segment = when {
+                        i < answers.size && answers[i] -> Teal
+                        i < answers.size -> Coral
+                        else -> Line
+                    }
+                    Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(segment))
+                }
+            }
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.dp, Night)) {
+                Text("★ " + score, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+        }
+        Text("السؤال " + (idx + 1) + " من " + qs.size + ": اختار الكلمة الناقصة", fontSize = 14.sp, color = Muted, fontWeight = FontWeight.Bold)
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Text(q.sentence, fontSize = 19.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium, color = Night, modifier = Modifier.fillMaxWidth())
+            Surface(shape = RoundedCornerShape(24.dp), color = Tint, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth()) {
+                Text(q.sentence, fontSize = 19.sp, lineHeight = 29.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(16.dp).fillMaxWidth())
+            }
             q.options.forEach { o ->
                 val done = picked != null
                 val right = o == q.answer
                 val bg = when {
                     done && right -> Teal
-                    done && o == picked -> MissTint
-                    else -> Cloud
+                    done && o == picked -> Color(0xFFFFB9AE)
+                    else -> Color.White
                 }
                 val line = when {
                     done && right -> Night
                     done && o == picked -> Danger
                     else -> Night
                 }
-                Surface(
-                    shape = RoundedCornerShape(14.dp), color = bg,
-                    border = BorderStroke(1.5.dp, line),
-                    modifier = Modifier.fillMaxWidth().clickable(enabled = !done) {
-                        picked = o
-                        if (right) score++ else missed += q.answer
-                    }
+                val shape = RoundedCornerShape(18.dp)
+                AnswerFeedbackMotion(
+                    correct = right,
+                    trigger = if (done && o == picked) 1 else 0,
+                    enabled = store.feedbackAnimations
                 ) {
-                    Text(o, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+                    Surface(
+                        shape = shape, color = bg,
+                        border = BorderStroke(2.dp, line),
+                        modifier = Modifier.fillMaxWidth().hardShadow(shape, 3.dp).clickable(enabled = !done) {
+                            picked = o
+                            answers.add(right)
+                            answerFeedback(right)
+                            if (right) score++ else missed += q.answer
+                        }
+                    ) {
+                        Text(o, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp))
+                    }
                 }
             }
         }
         if (picked != null) {
-            Text(
-                if (picked == q.answer) "تمام!" else "الصح: ${q.answer}. هنراجعها تاني.",
-                fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                color = if (picked == q.answer) TealDark else Danger
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (picked == q.answer && store.feedbackAnimations) CelebrationBurst()
+                Text(
+                    if (picked == q.answer) "تمام!" else "الصح: ${q.answer}. هنراجعها تاني.",
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    color = if (picked == q.answer) TealDark else Danger
+                )
+            }
             PrimaryButton(if (idx + 1 >= qs.size) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) {
                 idx++; picked = null
             }
@@ -260,13 +313,32 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
     }
 }
 
+@Composable
+private fun StoryBoby(size: Dp) {
+    val motion = rememberInfiniteTransition(label = "storyMascotMotion")
+    val bob by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = -4f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "storyMascotBob"
+    )
+    val tilt by motion.animateFloat(
+        initialValue = -1.5f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "storyMascotTilt"
+    )
+    val density = LocalDensity.current
+    Boby(Mood.Happy, size, Modifier.graphicsLayer {
+        translationY = bob * density.density
+        rotationZ = tilt
+    })
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     val scope = rememberCoroutineScope()
-    var key by remember { mutableStateOf(store.orKey) }
-    var model by remember { mutableStateOf(store.orModel) }
-    var editKey by remember { mutableStateOf(store.orKey.isEmpty()) }
     var picked by remember(words.size) { mutableStateOf(words.take(6).map { it.id }.toSet()) }
     var genre by remember { mutableIntStateOf(0) }
     var level by remember { mutableIntStateOf(1) }
@@ -274,209 +346,359 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     var error by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(StoryApi.load(store)) }
     var current by remember { mutableStateOf<Story?>(saved.firstOrNull()) }
-    var showAr by remember { mutableStateOf(false) }
+    var builderExpanded by remember { mutableStateOf(saved.isEmpty()) }
+    var historyExpanded by remember { mutableStateOf(false) }
     var quiz by remember { mutableStateOf(false) }
     var myText by remember { mutableStateOf("") }
     var fbLoading by remember { mutableStateOf(false) }
     var fb by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var step by remember { mutableIntStateOf(0) }
+    var selectedStoryWord by remember { mutableStateOf<String?>(null) }
+    var writeError by remember { mutableStateOf("") }
 
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Tint) {
-            Text(
-                "اختار كلماتك المفضلة وأعمل منها قصة قصيرة. بعد القصة اتختبر في الكلمات واكتب بكلماتك وهنصحح لك.",
-                fontSize = 15.sp, color = TealDark, modifier = Modifier.padding(14.dp)
-            )
-        }
+    val labels = listOf("اقرأ", "ترجمة", "كلمات", "اختبر", "اكتب")
+    val story = current
 
-        if (words.size < 2) {
-            EmptyFav("ضيف كلمتين مفضلين على الأقل (النجمة في شاشة التعلّم) وبعدها اعمل قصة.")
-        } else {
-            Text("الكلمات (${picked.size} من 8)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                words.forEach { w ->
-                    Chip(w.en, w.id in picked) {
-                        picked = if (w.id in picked) picked - w.id else if (picked.size < 8) picked + w.id else picked
-                    }
+    if (story == null) {
+        Surface(shape = RoundedCornerShape(24.dp), color = Tint, border = BorderStroke(1.5.dp, Line)) {
+            Row(Modifier.padding(15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("قصتك من كلماتك", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("اختار كلماتك، واعمل قصة، وبعدها اختبر نفسك واكتب ملخصك.", fontSize = 13.sp, lineHeight = 20.sp, color = TealDark)
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("الصعبة أولًا", false) {
-                    val hard = store.hard
-                    picked = (words.filter { it.id in hard } + words.shuffled()).distinctBy { it.id }.take(6).map { it.id }.toSet()
-                }
-                Chip("عشوائي", false) { picked = words.shuffled().take(6).map { it.id }.toSet() }
-            }
-
-            Text("نوع القصة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-            ChipRow { StoryApi.genres.forEachIndexed { i, g -> Chip(g.first, genre == i) { genre = i } } }
-            Text("المستوى", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-            ChipRow { StoryApi.levels.forEachIndexed { i, l -> Chip(l.first, level == i) { level = i } } }
-
-            if (editKey) {
-                Text("مفتاح OpenRouter", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
-                OutlinedTextField(
-                    value = key, onValueChange = { key = it }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    placeholder = { Text("sk-or-...") }
-                )
-                OutlinedTextField(
-                    value = model, onValueChange = { model = it }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("الموديل") }
-                )
-                PrimaryButton("حفظ المفتاح", Modifier.fillMaxWidth()) {
-                    store.orKey = key; store.orModel = model.ifBlank { "openai/gpt-4o-mini" }
-                    model = store.orModel
-                    editKey = key.isBlank()
-                }
-            } else {
-                Text(
-                    "تعديل المفتاح والموديل", fontSize = 14.sp, color = TealDark,
-                    modifier = Modifier.clickable { editKey = true }.padding(vertical = 8.dp)
-                )
-            }
-
-            if (error.isNotEmpty()) Text(error, fontSize = 15.sp, color = Danger)
-
-            PrimaryButton(if (loading) "بنكتب القصة..." else "اعمل قصة", Modifier.fillMaxWidth()) {
-                if (loading) return@PrimaryButton
-                if (store.orKey.isBlank()) { editKey = true; error = "ضيف مفتاح OpenRouter الأول."; return@PrimaryButton }
-                if (picked.size < 2) { error = "اختار كلمتين على الأقل."; return@PrimaryButton }
-                error = ""; loading = true
-                val chosen = words.filter { it.id in picked }
-                val g = StoryApi.genres[genre].second
-                val l = StoryApi.levels[level].second
-                scope.launch {
-                    try {
-                        val story = withContext(Dispatchers.IO) { StoryApi.generate(store.orKey, store.orModel, chosen, g, l) }
-                        saved = listOf(story) + saved
-                        StoryApi.save(store, saved)
-                        current = story; showAr = false; quiz = false; fb = null; myText = ""
-                    } catch (e: Exception) {
-                        error = e.message ?: "حصل خطأ، جرب تاني."
-                    }
-                    loading = false
-                }
+                Boby(Mood.Happy, 48.dp)
             }
         }
-
-        current?.let { st ->
-            Surface(
-                shape = RoundedCornerShape(16.dp), color = Cloud,
-                border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(st.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
+    } else {
+        Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StoryBoby(46.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("قصتك", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(highlight(st.en), fontSize = 18.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                        Text(story.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark, maxLines = 1)
+                    }
+                }
+                StepBtn("⚙", "إعداد القصة") { builderExpanded = !builderExpanded }
+                StepBtn("☷", "قصصك السابقة") { historyExpanded = !historyExpanded }
+            }
+        }
+        val animatedStoryProgress by animateFloatAsState(
+            targetValue = (step + 1) / 5f,
+            animationSpec = tween(450, easing = FastOutSlowInEasing),
+            label = "storyProgress"
+        )
+        LinearProgressIndicator(
+            progress = { animatedStoryProgress },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = Teal,
+            trackColor = Line
+        )
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0xFFEEF4F5))
+                .border(1.5.dp, Line, RoundedCornerShape(18.dp)).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            labels.forEachIndexed { index, label ->
+                val selected = step == index
+                val chipColor by animateColorAsState(
+                    targetValue = if (selected) Teal else Color.Transparent,
+                    animationSpec = tween(220),
+                    label = "storyStepColor$index"
+                )
+                val labelColor by animateColorAsState(
+                    targetValue = if (selected) Night else Muted,
+                    animationSpec = tween(220),
+                    label = "storyStepText$index"
+                )
+                Box(
+                    Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(14.dp))
+                        .background(chipColor)
+                        .then(if (selected) Modifier.border(2.dp, Night, RoundedCornerShape(14.dp)) else Modifier)
+                        .clickable { step = index; quiz = false; selectedStoryWord = null }
+                        .padding(horizontal = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, fontSize = 12.sp, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold, color = labelColor)
+                }
+            }
+        }
+    }
+
+    if (builderExpanded || story == null) {
+        val builderShape = RoundedCornerShape(24.dp)
+        Surface(
+            shape = builderShape,
+            color = Color.White,
+            border = BorderStroke(1.5.dp, Line),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("إعداد القصة", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                        Text(if (picked.isEmpty()) "اختار من كلماتك المفضلة" else picked.size.toString() + " كلمات مختارة", fontSize = 12.sp, color = Muted)
+                    }
+                    if (story != null) SecondaryButton("إغلاق") { builderExpanded = false }
+                }
+
+                if (words.size < 2) {
+                    EmptyFav("ضيف كلمتين مفضلين على الأقل من شاشة التعلّم، وبعدها تقدر تعمل قصة.")
+                } else {
+                    Text("1 · اختار الكلمات", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        words.forEach { w ->
+                            Chip(w.en, w.id in picked) {
+                                picked = if (w.id in picked) picked - w.id else if (picked.size < 8) picked + w.id else picked
+                            }
+                        }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Chip("اسمع القصة", false) { speak(plain(st.en)) }
-                        Chip(if (showAr) "اخفي الترجمة" else "الترجمة", showAr) { showAr = !showAr }
-                    }
-                    if (showAr && st.ar.isNotEmpty()) {
-                        Surface(shape = RoundedCornerShape(12.dp), color = Beige) {
-                            Text(highlight(st.ar), fontSize = 16.sp, lineHeight = 26.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                        SecondaryButton("الصعبة أولًا", Modifier.weight(1f)) {
+                            val hard = store.hard
+                            picked = (words.filter { it.id in hard } + words.shuffled()).distinctBy { it.id }.take(6).map { it.id }.toSet()
                         }
+                        SecondaryButton("اختيار عشوائي", Modifier.weight(1f)) { picked = words.shuffled().take(6).map { it.id }.toSet() }
                     }
-                    Text("الكلمات (دوس تسمع)", fontSize = 14.sp, color = Muted)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        st.words.forEach { w ->
-                            val ar = words.firstOrNull { it.en == w }?.ar ?: ""
-                            Surface(
-                                shape = RoundedCornerShape(12.dp), color = Tint,
-                                modifier = Modifier.clickable { speak(w) }
-                            ) {
-                                Text(if (ar.isEmpty()) w else "$w: $ar", fontSize = 14.sp, color = TealDark, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-                            }
-                        }
-                    }
-                }
-            }
 
-            // Step 2: retrieval practice
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("اختبار القصة", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
-                    if (!quiz) {
-                        Text("الاسترجاع من الذاكرة بيثبّت الكلمة أكتر من القراءة. كمّل الجمل الناقصة.", fontSize = 14.sp, color = Muted)
-                        PrimaryButton("ابدأ الاختبار", Modifier.fillMaxWidth()) { quiz = true }
-                    } else {
-                        ClozeQuiz(st) { missedAnswers ->
-                            val ids = missedAnswers.flatMap { a ->
-                                words.filter { w ->
-                                    val stem = w.en.lowercase().let { it.take(maxOf(3, it.length - 3)) }
-                                    a.contains(stem)
-                                }.map { it.id }
-                            }
-                            if (ids.isNotEmpty()) store.hard = store.hard + ids
-                            quiz = false
-                        }
+                    Text("2 · اختار نوع القصة", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        StoryApi.genres.forEachIndexed { i, g -> Chip(g.first, genre == i) { genre = i } }
                     }
-                }
-            }
 
-            // Step 3: production + AI feedback
-            Surface(shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("اكتب بكلماتك", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night)
-                    Text("لخّص القصة في جملتين أو تلاتة بالإنجليزي، وهنصحح لك.", fontSize = 14.sp, color = Muted)
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        OutlinedTextField(
-                            value = myText, onValueChange = { myText = it },
-                            modifier = Modifier.fillMaxWidth(), minLines = 3,
-                            placeholder = { Text("Write here...") }
-                        )
+                    Text("3 · اختار المستوى", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        StoryApi.levels.forEachIndexed { i, l -> Chip(l.first, level == i) { level = i } }
                     }
-                    PrimaryButton(if (fbLoading) "بنراجع..." else "راجع كتابتي", Modifier.fillMaxWidth()) {
-                        if (fbLoading) return@PrimaryButton
-                        if (myText.trim().length < 10) { error = "اكتب جملة كاملة الأول."; return@PrimaryButton }
-                        error = ""; fbLoading = true
+
+                    Text(
+                        if (AiConfigSync.isReady) "إعدادات OpenRouter تتم إدارتها مركزيًا من WordPop Control."
+                        else "خدمة الذكاء الاصطناعي غير مفعّلة. اطلب من المسؤول ضبطها في WordPop Control.",
+                        fontSize = 13.sp, color = if (AiConfigSync.isReady) TealDark else Muted
+                    )
+                    if (error.isNotEmpty()) Text(error, fontSize = 13.sp, color = Danger)
+                    PrimaryButton(if (loading) "بنكتب القصة..." else "اعمل قصتي", Modifier.fillMaxWidth()) {
+                        if (loading) return@PrimaryButton
+                        if (!AiConfigSync.isReady) { error = "خدمة الذكاء الاصطناعي غير مفعّلة من WordPop Control."; return@PrimaryButton }
+                        if (picked.size < 2) { error = "اختار كلمتين على الأقل."; return@PrimaryButton }
+                        error = ""
+                        loading = true
+                        val chosen = words.filter { it.id in picked }
+                        val g = StoryApi.genres[genre].second
+                        val l = StoryApi.levels[level].second
                         scope.launch {
                             try {
-                                fb = withContext(Dispatchers.IO) { StoryApi.feedback(store.orKey, store.orModel, st, myText.trim()) }
+                                val generated = withContext(Dispatchers.IO) { StoryApi.generate(AiConfigSync.workerUrl, chosen, g, l) }
+                                saved = listOf(generated) + saved
+                                StoryApi.save(store, saved)
+                                current = generated
+                                step = 0
+                                selectedStoryWord = null
+                                quiz = false
+                                fb = null
+                                myText = ""
+                                builderExpanded = false
+                                historyExpanded = false
                             } catch (e: Exception) {
                                 error = e.message ?: "حصل خطأ، جرب تاني."
                             }
-                            fbLoading = false
+                            loading = false
                         }
                     }
-                    fb?.let { (fixed, tips) ->
-                        Text("النسخة الصح", fontSize = 14.sp, color = Muted)
+                }
+            }
+        }
+    }
+
+    if (historyExpanded && saved.isNotEmpty()) {
+        Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("قصصك السابقة", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                        Text(saved.size.toString() + " قصة محفوظة", fontSize = 12.sp, color = Muted)
+                    }
+                    SecondaryButton("إخفاء") { historyExpanded = false }
+                }
+                saved.forEach { oldStory ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp), color = Tint, border = BorderStroke(1.dp, Line),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            current = oldStory
+                            step = 0
+                            selectedStoryWord = null
+                            quiz = false
+                            fb = null
+                            myText = ""
+                            builderExpanded = false
+                            historyExpanded = false
+                        }
+                    ) {
+                        Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(oldStory.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                            Text(oldStory.words.joinToString(", "), fontSize = 12.sp, color = Muted)
+                        }
+                    }
+                }
+                Text("مسح كل القصص", fontSize = 13.sp, color = Danger, modifier = Modifier.clickable {
+                    saved = emptyList()
+                    StoryApi.save(store, saved)
+                    current = null
+                    builderExpanded = true
+                    historyExpanded = false
+                }.padding(vertical = 5.dp))
+            }
+        }
+    }
+
+    story?.let { activeStory ->
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                (slideInHorizontally(initialOffsetX = { it / 7 }) + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(targetOffsetX = { -it / 7 }) + fadeOut(tween(160)))
+            },
+            label = "storyStepPanel"
+        ) { visibleStep ->
+        when (visibleStep) {
+            0 -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("اضغط على الكلمة الملوّنة لمعناها", fontSize = 12.sp, color = Muted, fontWeight = FontWeight.SemiBold)
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Surface(shape = RoundedCornerShape(12.dp), color = Tint) {
-                                Text(fixed, fontSize = 17.sp, lineHeight = 26.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                            Text(highlight(activeStory.en), fontSize = 17.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            activeStory.words.forEach { target ->
+                                val isSelected = selectedStoryWord == target
+                                Chip(target, isSelected) {
+                                    selectedStoryWord = if (isSelected) null else target
+                                }
                             }
                         }
-                        if (tips.isNotBlank()) {
-                            Text("ملاحظات", fontSize = 14.sp, color = Muted)
-                            Text(tips, fontSize = 15.sp, lineHeight = 24.sp, color = Night)
+                        AnimatedVisibility(
+                            visible = selectedStoryWord != null,
+                            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f, animationSpec = tween(220)),
+                            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f, animationSpec = tween(120))
+                        ) {
+                            selectedStoryWord?.let { selected ->
+                                val meaning = words.firstOrNull { it.en.equals(selected, ignoreCase = true) }?.ar.orEmpty()
+                                Surface(shape = RoundedCornerShape(18.dp), color = Night, modifier = Modifier.fillMaxWidth()) {
+                                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            En(selected, 16.sp, Color.White, FontWeight.ExtraBold)
+                                            Text(meaning, fontSize = 14.sp, color = Color(0xFF8FF0DA))
+                                        }
+                                        SpeakButton(44.dp) { speak(selected) }
+                                    }
+                                }
+                            }
+                        }
+                        PrimaryButton("اسمع القصة", Modifier.fillMaxWidth()) { speak(plain(activeStory.en)) }
+                    }
+                }
+            }
+            1 -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Tint, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Text(highlight(activeStory.ar), fontSize = 16.sp, lineHeight = 31.sp, color = Night, modifier = Modifier.padding(16.dp).fillMaxWidth())
+                }
+            }
+            2 -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("الكلمات المستخدمة · اضغط لسماعها", fontSize = 13.sp, color = Muted, fontWeight = FontWeight.Bold)
+                        activeStory.words.forEach { target ->
+                            val ar = words.firstOrNull { it.en.equals(target, ignoreCase = true) }?.ar.orEmpty()
+                            Surface(shape = RoundedCornerShape(18.dp), color = Tint, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        En(target, 17.sp, TealDark, FontWeight.ExtraBold)
+                                        Text(ar, fontSize = 14.sp, color = Night)
+                                    }
+                                    SpeakButton(44.dp) { speak(target) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            3 -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("اختبر فهمك", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                        if (!quiz) {
+                            Text("كمّل الجمل الناقصة من ذاكرتك عشان تثبّت الكلمات.", fontSize = 13.sp, lineHeight = 20.sp, color = Muted)
+                            PrimaryButton("ابدأ الاختبار", Modifier.fillMaxWidth()) { quiz = true }
+                        } else {
+                            ClozeQuiz(activeStory, store) { missedAnswers ->
+                                val ids = missedAnswers.flatMap { answer ->
+                                    words.filter { w ->
+                                        val stem = w.en.lowercase().let { it.take(maxOf(3, it.length - 3)) }
+                                        answer.contains(stem)
+                                    }.map { it.id }
+                                }
+                                if (ids.isNotEmpty()) store.hard = store.hard + ids
+                                quiz = false
+                                step = 4
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("استخدم الكلمات بنفسك", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                        Text("اكتب ملخص القصة في جملتين أو تلاتة بالإنجليزي.", fontSize = 13.sp, color = Muted)
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            OutlinedTextField(value = myText, onValueChange = { myText = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Write here...") })
+                        }
+                        PrimaryButton(if (fbLoading) "بنراجع كتابتك..." else "راجع كتابتي", Modifier.fillMaxWidth()) {
+                            if (fbLoading) return@PrimaryButton
+                            if (myText.trim().length < 10) { writeError = "اكتب جملة كاملة الأول."; return@PrimaryButton }
+                            writeError = ""
+                            fbLoading = true
+                            scope.launch {
+                                try {
+                                    fb = withContext(Dispatchers.IO) { StoryApi.feedback(AiConfigSync.workerUrl, activeStory, myText.trim()) }
+                                } catch (e: Exception) {
+                                    writeError = e.message ?: "حصل خطأ، جرب تاني."
+                                }
+                                fbLoading = false
+                            }
+                        }
+                        if (writeError.isNotEmpty()) Text(writeError, fontSize = 13.sp, color = Danger)
+                        fb?.let { (fixed, tips) ->
+                            Text("النسخة المصححة", fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.ExtraBold)
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Surface(shape = RoundedCornerShape(16.dp), color = Tint) {
+                                    Text(fixed, fontSize = 16.sp, lineHeight = 25.sp, color = Night, modifier = Modifier.padding(12.dp).fillMaxWidth())
+                                }
+                            }
+                            if (tips.isNotBlank()) {
+                                Text("ملاحظات للتطوير", fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.ExtraBold)
+                                Text(tips, fontSize = 14.sp, lineHeight = 22.sp, color = Night)
+                            }
                         }
                     }
                 }
             }
         }
+        }
 
-        if (saved.size > 1) {
-            Text("قصصك اللي فاتت", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-            saved.forEach { st ->
-                Surface(
-                    shape = RoundedCornerShape(14.dp), color = Beige,
-                    modifier = Modifier.fillMaxWidth().clickable { current = st; showAr = false; quiz = false; fb = null }
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(st.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
-                        Text(st.words.joinToString(", "), fontSize = 13.sp, color = Muted)
-                    }
+        if (step != 3 || !quiz) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (step > 0) SecondaryButton("السابق", Modifier.weight(1f)) {
+                    step--
+                    quiz = false
+                }
+                PrimaryButton(if (step == 4) "من الأول" else "التالي", Modifier.weight(1.2f)) {
+                    if (step < 4) step++ else step = 0
+                    selectedStoryWord = null
+                    quiz = false
                 }
             }
-            Text(
-                "مسح كل القصص", fontSize = 14.sp, color = Danger,
-                modifier = Modifier.clickable { saved = emptyList(); StoryApi.save(store, saved); current = null }.padding(vertical = 8.dp)
-            )
         }
-        Spacer(Modifier.height(8.dp))
     }
+    Spacer(Modifier.height(8.dp))
 }
