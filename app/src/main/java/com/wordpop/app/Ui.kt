@@ -1179,38 +1179,25 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-            AiVocabularyTab(store = store) { result ->
-                wordsVersion++
-                importMsg = buildString {
-                    append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
-                    if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
-                    if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Section("إضافة كلمات من ملف") {
-                Text(
-                    "تقدر كمان تستورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية).",
-                    fontSize = 15.sp,
-                    color = Muted
-                )
-                Ltr {
-                    Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
-                }
-                SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
-                    importLauncher.launch(arrayOf("*/*"))
-                }
-                importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
-                if (customCount > 0) {
-                    Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 15.sp, color = Muted)
-                    SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
-                        WordRepo.clearCustom(ctx)
-                        wordsVersion++
-                        importMsg = "اتمسحت الكلمات الخاصة."
+            MyWordsScreen(
+                store = store,
+                importMessage = importMsg,
+                customCount = customCount,
+                onImportFile = { importLauncher.launch(arrayOf("*/*")) },
+                onClearCustom = {
+                    WordRepo.clearCustom(ctx)
+                    wordsVersion++
+                    importMsg = "اتمسحت الكلمات الخاصة."
+                },
+                onAdded = { result ->
+                    wordsVersion++
+                    importMsg = buildString {
+                        append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
+                        if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
+                        if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
                     }
                 }
-            }
+            )
         }
 
         if (page == Page.Settings) {
