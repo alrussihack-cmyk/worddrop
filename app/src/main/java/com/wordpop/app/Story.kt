@@ -188,7 +188,8 @@ private fun buildCloze(story: Story): List<Cloze> {
 }
 
 @Composable
-private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
+private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String>) -> Unit) {
+    val answerFeedback = rememberAnswerFeedback(store)
     val qs = remember(story) { buildCloze(story) }
     var idx by remember(story) { mutableIntStateOf(0) }
     var picked by remember(story) { mutableStateOf<String?>(null) }
@@ -229,24 +230,34 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
                     done && o == picked -> Danger
                     else -> Night
                 }
-                Surface(
-                    shape = RoundedCornerShape(14.dp), color = bg,
-                    border = BorderStroke(1.5.dp, line),
-                    modifier = Modifier.fillMaxWidth().clickable(enabled = !done) {
-                        picked = o
-                        if (right) score++ else missed += q.answer
-                    }
+                AnswerFeedbackMotion(
+                    correct = right,
+                    trigger = if (done && o == picked) 1 else 0,
+                    enabled = store.feedbackAnimations
                 ) {
-                    Text(o, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp), color = bg,
+                        border = BorderStroke(1.5.dp, line),
+                        modifier = Modifier.fillMaxWidth().clickable(enabled = !done) {
+                            picked = o
+                            answerFeedback(right)
+                            if (right) score++ else missed += q.answer
+                        }
+                    ) {
+                        Text(o, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+                    }
                 }
             }
         }
         if (picked != null) {
-            Text(
-                if (picked == q.answer) "تمام!" else "الصح: ${q.answer}. هنراجعها تاني.",
-                fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                color = if (picked == q.answer) TealDark else Danger
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (picked == q.answer && store.feedbackAnimations) CelebrationBurst()
+                Text(
+                    if (picked == q.answer) "تمام!" else "الصح: ${q.answer}. هنراجعها تاني.",
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    color = if (picked == q.answer) TealDark else Danger
+                )
+            }
             PrimaryButton(if (idx + 1 >= qs.size) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) {
                 idx++; picked = null
             }
@@ -405,7 +416,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         Text("كمّل الجمل الناقصة من ذاكرتك عشان تثبّت الكلمات.", fontSize = 13.sp, color = Muted)
                         PrimaryButton("ابدأ الاختبار", Modifier.fillMaxWidth()) { quiz = true }
                     } else {
-                        ClozeQuiz(story) { missedAnswers ->
+                        ClozeQuiz(story, store) { missedAnswers ->
                             val ids = missedAnswers.flatMap { answer ->
                                 words.filter { w ->
                                     val stem = w.en.lowercase().let { it.take(maxOf(3, it.length - 3)) }
