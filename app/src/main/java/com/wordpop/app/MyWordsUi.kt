@@ -193,10 +193,10 @@ fun MyWordsScreen(
                         }
                     }
                     WordsPrimaryButton(if (loading) "جاري تجهيز الكلمات..." else "ولّد $count كلمة", Modifier.fillMaxWidth()) {
-                        if (loading) return@PrimaryButton
-                        if (topic.isBlank()) { error = "اكتب الموضوع الأول."; return@PrimaryButton }
-                        if (request.isBlank()) { error = "اشرح المعاني أو المواقف اللي محتاج الكلمات فيها."; return@PrimaryButton }
-                        if (!AiConfigSync.isReady) { error = AiConfigSync.status; return@PrimaryButton }
+                        if (loading) return@WordsPrimaryButton
+                        if (topic.isBlank()) { error = "اكتب الموضوع الأول."; return@WordsPrimaryButton }
+                        if (request.isBlank()) { error = "اشرح المعاني أو المواقف اللي محتاج الكلمات فيها."; return@WordsPrimaryButton }
+                        if (!AiConfigSync.isReady) { error = AiConfigSync.status; return@WordsPrimaryButton }
                         error = ""; generated = 0; progress = 0f; batch = 1; batches = (count + 24) / 25; loading = true
                         scope.launch {
                             try {
