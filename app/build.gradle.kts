@@ -22,6 +22,19 @@ android {
         versionName = "1.9"
     }
 
+    // CI creates a brand-new debug keystore on every run, so each APK had a different
+    // signature: Android refused to update, the app had to be uninstalled, and the new
+    // install got a new App Check debug token that was not registered. A fixed debug
+    // keystore (public password, debug builds only) keeps updates installable in place.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

@@ -54,3 +54,25 @@ object AppCheckTokens {
         }
     }
 }
+
+/**
+ * Reads the App Check debug token that Firebase's debug provider generated for this install,
+ * so it can be registered in Firebase Console without Logcat. Returns null on release builds.
+ */
+object AppCheckDebugToken {
+    private const val PREFS_PREFIX = "com.google.firebase.appcheck.debug.store."
+    private const val KEY = "com.google.firebase.appcheck.debug.DEBUG_SECRET"
+
+    fun read(context: android.content.Context): String? {
+        return try {
+            val dir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            dir.listFiles { f -> f.name.startsWith(PREFS_PREFIX) && f.name.endsWith(".xml") }
+                ?.firstNotNullOfOrNull { f ->
+                    context.getSharedPreferences(f.name.removeSuffix(".xml"), android.content.Context.MODE_PRIVATE)
+                        .getString(KEY, null)?.takeIf { it.isNotBlank() }
+                }
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
