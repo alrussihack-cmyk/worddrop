@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -521,6 +522,10 @@ private fun VocabularyEditList(words: List<Word>, onBack: () -> Unit, onChange: 
 
 @Composable
 private fun MyWordsComplete(result: MyWordsReviewResult, onLibrary: () -> Unit, onNew: () -> Unit) {
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(tween(360)) + scaleIn(initialScale = 0.92f, animationSpec = tween(360))
+    ) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Spacer(Modifier.height(24.dp))
         Boby(Mood.Cheer, 112.dp)
@@ -532,6 +537,7 @@ private fun MyWordsComplete(result: MyWordsReviewResult, onLibrary: () -> Unit, 
         }
         WordsPrimaryButton("روح كلماتي", Modifier.fillMaxWidth()) { onLibrary() }
         WordsSecondaryButton("ولّد قائمة جديدة", Modifier.fillMaxWidth()) { onNew() }
+    }
     }
 }
 
