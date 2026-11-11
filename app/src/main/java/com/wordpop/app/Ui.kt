@@ -1707,6 +1707,7 @@ private fun QuizSession(
             best = best,
             wrong = wrong.toList(),
             speak = speak,
+            animationsEnabled = store.feedbackAnimations,
             onAgain = { round++ },
             onNewWord = onNewWord
         )
@@ -1992,6 +1993,7 @@ private fun QuizResult(
     best: Int,
     wrong: List<Word>,
     speak: (String) -> Unit,
+    animationsEnabled: Boolean,
     onAgain: () -> Unit,
     onNewWord: () -> Unit
 ) {
@@ -2004,7 +2006,7 @@ private fun QuizResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (pct >= 80) CelebrationBurst()
+            if (pct >= 80 && animationsEnabled) CelebrationBurst()
             Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
@@ -2167,6 +2169,7 @@ fun ReviewScreen(store: SettingsStore) {
             index >= queue.size -> {
                 Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (completed > 0 && remembered == completed && store.feedbackAnimations) CelebrationBurst()
                         Boby(Mood.Cheer, 76.dp)
                         Text("خلصت جلسة المراجعة!", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
                         Text("راجعت $completed كلمة، وتذكرت $remembered منها بشكل جيد أو سهل.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
