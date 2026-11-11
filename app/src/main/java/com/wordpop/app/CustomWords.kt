@@ -1,23 +1,8 @@
 package com.wordpop.app
 
-import android.app.Application
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-
-/** Loads the user's imported words once per process, before any screen or service needs them. */
-class WordPopApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        WordRepo.init(this)
-        // API credentials are managed centrally by WordPop Control; the learner stores no key.
-        SettingsStore(this)
-        // Keep public runtime settings and cloud vocabulary cached for offline use.
-        AiConfigSync.start(this)
-        WordCloudSync.start(this)
-        SettingsCardsSync.start(this)
-    }
-}
 
 /** Result of reading an import file. */
 data class ImportResult(val added: Int, val duplicates: Int, val skipped: Int)
