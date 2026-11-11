@@ -43,8 +43,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -1179,35 +1184,57 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-            AiVocabularyTab(store = store) { result ->
-                wordsVersion++
-                importMsg = buildString {
-                    append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
-                    if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
-                    if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Section("إضافة كلمات من ملف") {
-                Text(
-                    "تقدر كمان تستورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية).",
-                    fontSize = 15.sp,
-                    color = Muted
-                )
-                Ltr {
-                    Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
-                }
-                SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
-                    importLauncher.launch(arrayOf("*/*"))
-                }
-                importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
-                if (customCount > 0) {
-                    Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 15.sp, color = Muted)
-                    SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
-                        WordRepo.clearCustom(ctx)
-                        wordsVersion++
-                        importMsg = "اتمسحت الكلمات الخاصة."
+            // One switch instead of two long stacked cards: generate with AI, or import a file.
+            var wordsMode by remember { mutableIntStateOf(0) }
+            StepTabs(listOf("ولّد بالذكاء الاصطناعي", "استيراد من ملف"), wordsMode) { wordsMode = it }
+            AnimatedContent(
+                targetState = wordsMode,
+                transitionSpec = {
+                    val dir = if (targetState > initialState) -1 else 1
+                    (slideInHorizontally(tween(320)) { dir * it / 4 } + fadeIn(tween(240))) togetherWith
+                        (slideOutHorizontally(tween(200)) { -dir * it / 4 } + fadeOut(tween(120)))
+                },
+                label = "myWordsMode"
+            ) { mode ->
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (mode == 0) {
+                        AiVocabularyTab(store = store) { result ->
+                            wordsVersion++
+                            importMsg = buildString {
+                                append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
+                                if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
+                                if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
+                            }
+                        }
+                    } else {
+                        Section("إضافة كلمات من ملف") {
+                            Text(
+                                "تقدر تستورد قايمة من ملف txt أو csv، وكل سطر فيه الكلمة والترجمة، وممكن تضيف مثال وترجمته.",
+                                fontSize = 14.sp,
+                                color = Muted
+                            )
+                            Surface(shape = RoundedCornerShape(14.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("شكل كل سطر", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TealDark)
+                                    Text("الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية)", fontSize = 14.sp, color = Night)
+                                    Ltr {
+                                        Text("lifeguard, منقذ", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
+                                    }
+                                }
+                            }
+                            PrimaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
+                                importLauncher.launch(arrayOf("*/*"))
+                            }
+                            importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
+                            if (customCount > 0) {
+                                Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 15.sp, color = Muted)
+                                SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
+                                    WordRepo.clearCustom(ctx)
+                                    wordsVersion++
+                                    importMsg = "اتمسحت الكلمات الخاصة."
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1519,6 +1546,7 @@ private fun QuizSession(
     var streak by remember(round) { mutableIntStateOf(0) }
     var best by remember(round) { mutableIntStateOf(0) }
     val wrong = remember(round) { mutableStateListOf<Word>() }
+    val results = remember(round) { mutableStateListOf<Boolean>() }
     val total = questions.size
 
     if (index >= total) {
@@ -1555,16 +1583,26 @@ private fun QuizSession(
                 }
             }
         }
-        LinearProgressIndicator(
-            progress = { (index + if (answered) 1 else 0).toFloat() / total },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .border(2.dp, Night, RoundedCornerShape(6.dp)),
-            color = Teal,
-            trackColor = Line
-        )
+        // one segment per question: mint when right, coral when wrong, ink for the current one
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            for (i in 0 until total) {
+                val segment by animateColorAsState(
+                    when {
+                        i < results.size -> if (results[i]) Teal else Coral
+                        i == index -> Night
+                        else -> Line
+                    },
+                    tween(300), label = "quizSegment"
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(segment)
+                )
+            }
+        }
     }
 
     // question card
@@ -1572,9 +1610,9 @@ private fun QuizSession(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             when (q.type) {
                 QType.Meaning -> {
@@ -1634,13 +1672,14 @@ private fun QuizSession(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 60.dp)
+                .heightIn(min = 54.dp)
                 .hardShadow(shape, 4.dp)
                 .clip(shape)
                 .background(bg)
                 .border(2.5.dp, borderColor, shape)
                 .clickable(enabled = !answered, role = Role.Button) {
                     picked = opt
+                    results.add(isCorrect)
                     if (isCorrect) {
                         score++
                         streak++
@@ -1699,36 +1738,40 @@ private fun QuizSession(
     // feedback
     AnimatedVisibility(visible = answered, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
         val ok = picked == q.correct
+        // feedback and the next button live in one compact card instead of two stacked blocks
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = if (ok) Tint else MissTint,
+            border = BorderStroke(2.dp, Night),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Boby(if (ok) Mood.Happy else Mood.Think, 48.dp)
-                Text(
-                    if (ok) {
-                        if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
-                    } else "مش مشكلة، هنراجعها تاني",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (ok) TealDark else Danger
-                )
-                if (!ok) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("الإجابة الصح:", fontSize = 16.sp, color = Muted)
-                        if (q.toArabic) Text(q.correct, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
-                        else En(q.correct, 17.sp, Night, FontWeight.Bold)
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Boby(if (ok) Mood.Happy else Mood.Think, 48.dp, Modifier.bob())
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            if (ok) {
+                                if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
+                            } else "مش مشكلة، هنراجعها تاني",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (ok) TealDark else Danger
+                        )
+                        if (!ok) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("الإجابة الصح:", fontSize = 15.sp, color = Muted)
+                                if (q.toArabic) Text(q.correct, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
+                                else En(q.correct, 16.sp, Night, FontWeight.Bold)
+                            }
+                        }
+                        if (q.word.example.isNotEmpty()) {
+                            En(q.word.example, 14.sp, Muted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
+                        }
                     }
                 }
-                if (q.word.example.isNotEmpty()) {
-                    En(q.word.example, 15.sp, Muted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
-                }
+                PrimaryButton(if (index == total - 1) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) { index++ }
             }
         }
-    }
-    if (answered) {
-        PrimaryButton(if (index == total - 1) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) { index++ }
     }
 }
 
