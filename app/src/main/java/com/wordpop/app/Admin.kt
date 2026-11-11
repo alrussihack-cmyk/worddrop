@@ -342,7 +342,7 @@ private fun AdminPanel(
             }
         }
         SecondaryButton("امسح الكلمات المستوردة", Modifier.fillMaxWidth()) { ask("تمسح كل الكلمات اللي استوردتها؟") { WordRepo.clearCustom(ctx); tick++ } }
-        SecondaryButton("امسح مفتاح OpenRouter", Modifier.fillMaxWidth()) { ask("تمسح المفتاح المحفوظ؟") { store.orKey = ""; tick++ } }
+        SecondaryButton("امسح مفتاح OpenRouter القديم من الجهاز", Modifier.fillMaxWidth()) { ask("تمسح المفتاح القديم المحفوظ محليًا على الجهاز؟") { store.orKey = ""; tick++ } }
     }
 
     // ---- backup ----
