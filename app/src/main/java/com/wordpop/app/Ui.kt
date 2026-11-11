@@ -633,10 +633,11 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
             Page.values().forEach { p ->
                 val selected = p == page
-                val tint = Night
+                val tint = if (selected) Night else Muted
                 Column(
                     Modifier
                         .weight(1f)
+                        .heightIn(min = 60.dp)
                         .clickable(role = Role.Tab, onClick = { onSelect(p) })
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -658,8 +659,8 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        p.title, fontSize = 12.sp, color = tint,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        p.title, fontSize = 12.sp, color = if (selected) TealDark else tint,
+                        fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium
                     )
                 }
             }
@@ -938,10 +939,10 @@ fun HomeScreen(
                 HomeStat(store.favWords.size.toString(), "المفضلة", Tint, Modifier.weight(1f))
             }
 
-            val dashboardCardShape = RoundedCornerShape(22.dp)
+            val smartReviewCardShape = RoundedCornerShape(22.dp)
             Surface(
-                modifier = Modifier.fillMaxWidth().hardShadow(dashboardCardShape, 3.dp),
-                shape = dashboardCardShape, color = Color.White, border = BorderStroke(1.5.dp, Night)
+                modifier = Modifier.fillMaxWidth().hardShadow(smartReviewCardShape, 3.dp),
+                shape = smartReviewCardShape, color = Color.White, border = BorderStroke(1.5.dp, Night)
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(16.dp),
