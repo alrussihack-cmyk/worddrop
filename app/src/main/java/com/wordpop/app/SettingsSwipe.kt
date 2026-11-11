@@ -69,14 +69,14 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-private val SettingsInk = Color(0xFF12201C)
-private val SettingsPaper = Color(0xFFFFF8EC)
-private val SettingsMuted = Color(0xFF4A5C55)
-private val SettingsLilac = Color(0xFFB9A3FF)
-private val SettingsMint = Color(0xFF35D9B0)
-private val SettingsSun = Color(0xFFFFC93C)
-private val SettingsCoral = Color(0xFFFF7A66)
-private val SettingsSky = Color(0xFF62BDFF)
+private val SettingsInk = Color(0xFF12303A)
+private val SettingsPaper = Color(0xFFFFFFFF)
+private val SettingsMuted = Color(0xFF4C676E)
+private val SettingsLilac = Color(0xFFD4F6EC)
+private val SettingsMint = Color(0xFF45DDBE)
+private val SettingsSun = Color(0xFFF59E0B)
+private val SettingsCoral = Color(0xFFF28C78)
+private val SettingsSky = Color(0xFF8FDACB)
 
 @Composable
 fun SettingsSwipeScreen(
@@ -164,8 +164,8 @@ fun SettingsSwipeScreen(
                     var x = 4.dp.toPx()
                     while (x < size.width) {
                         drawCircle(
-                            color = SettingsInk.copy(alpha = 0.075f),
-                            radius = 1.15.dp.toPx(),
+                            color = SettingsInk.copy(alpha = 0.045f),
+                            radius = 0.9.dp.toPx(),
                             center = Offset(x, y)
                         )
                         x += step
@@ -247,7 +247,7 @@ fun SettingsSwipeScreen(
                                 SettingsChoice("لحد الصبح", false, SettingsLilac) { choosePause(null) }
                             }
                             Surface(
-                                color = Color(0xFFEFE9FF),
+                                color = Color(0xFFD4F6EC),
                                 shape = RoundedCornerShape(16.dp),
                                 border = BorderStroke(2.dp, SettingsInk)
                             ) {
@@ -457,7 +457,7 @@ fun SettingsSwipeScreen(
                             Text("مكان ظهور النافذة العائمة.", fontSize = 14.sp, color = SettingsMuted)
                             Column(
                                 Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFFE9E2D2)).border(2.dp, SettingsInk, RoundedCornerShape(16.dp))
+                                    .background(Color(0xFFD4F6EC)).border(2.dp, SettingsInk, RoundedCornerShape(16.dp))
                                     .padding(10.dp),
                                 verticalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -531,7 +531,7 @@ fun SettingsSwipeScreen(
                                 onValueChangeFinished = { store.opacity = opacity.toInt() },
                                 valueRange = 40f..100f,
                                 steps = 11,
-                                colors = SliderDefaults.colors(thumbColor = SettingsInk, activeTrackColor = SettingsInk, inactiveTrackColor = Color(0xFFE7E1D4))
+                                colors = SliderDefaults.colors(thumbColor = SettingsInk, activeTrackColor = SettingsInk, inactiveTrackColor = Color(0xFFD3DEE1))
                             )
                             Text("اللون", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SettingsInk)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -588,8 +588,8 @@ fun SettingsSwipeScreen(
                                 Text("حالة مزامنة الكلمات", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
                                 val syncStatus = WordCloudSync.status
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Box(Modifier.size(12.dp).clip(CircleShape).background(if (syncStatus.startsWith("تم تحميل")) Color(0xFF1FAE7F) else SettingsMuted))
-                                    Text(syncStatus, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (syncStatus.startsWith("تم تحميل")) Color(0xFF16866C) else SettingsMuted)
+                                    Box(Modifier.size(12.dp).clip(CircleShape).background(if (syncStatus.startsWith("تم تحميل")) Color(0xFF0A6E5B) else SettingsMuted))
+                                    Text(syncStatus, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (syncStatus.startsWith("تم تحميل")) Color(0xFF0A6E5B) else SettingsMuted)
                                 }
                             }
                             SettingsDivider()
@@ -750,7 +750,7 @@ private fun SettingsSwitch(
                 checkedTrackColor = accent,
                 checkedBorderColor = SettingsInk,
                 uncheckedThumbColor = SettingsInk,
-                uncheckedTrackColor = Color(0xFFE7E1D4),
+                uncheckedTrackColor = Color(0xFFD3DEE1),
                 uncheckedBorderColor = SettingsInk
             )
         )
