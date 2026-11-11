@@ -202,6 +202,7 @@ private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String
     }
     if (idx >= qs.size) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (score == qs.size && store.feedbackAnimations) CelebrationBurst()
             Text("نتيجتك: $score من ${qs.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Night)
             Text(
                 if (missed.isEmpty()) "ممتاز! كل الكلمات ثبتت."
