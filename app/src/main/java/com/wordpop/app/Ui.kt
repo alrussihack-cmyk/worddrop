@@ -71,6 +71,7 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -2082,6 +2083,10 @@ fun ReviewScreen(store: SettingsStore) {
     var revealed by remember { mutableStateOf(false) }
     var completed by remember { mutableIntStateOf(0) }
     var remembered by remember { mutableIntStateOf(0) }
+    var ratingPending by remember { mutableStateOf(false) }
+    var ratingFeedbackId by remember { mutableIntStateOf(0) }
+    var ratingFeedbackCorrect by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
     fun reloadQueue() {
         queue = WordRepo.reviewQueue(store)
@@ -2089,6 +2094,8 @@ fun ReviewScreen(store: SettingsStore) {
         revealed = false
         completed = 0
         remembered = 0
+        ratingPending = false
+        ratingFeedbackId = 0
     }
 
     val dueNow = WordRepo.reviewDueCount(store)
@@ -2186,6 +2193,11 @@ fun ReviewScreen(store: SettingsStore) {
                     )
                 }
 
+                AnswerFeedbackMotion(
+                    correct = ratingFeedbackCorrect,
+                    trigger = ratingFeedbackId,
+                    enabled = store.feedbackAnimations
+                ) {
                 Surface(
                     shape = RoundedCornerShape(24.dp), color = Color.White,
                     border = BorderStroke(1.5.dp, Line),
@@ -2202,6 +2214,7 @@ fun ReviewScreen(store: SettingsStore) {
                         SpeakButton(50.dp) { speak(word.en) }
 
                         if (revealed) {
+                            if (ratingFeedbackId > 0 && ratingFeedbackCorrect && store.feedbackAnimations) CelebrationBurst()
                             Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                     Text(word.ar, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TealDark, textAlign = TextAlign.Center)
@@ -2214,33 +2227,51 @@ fun ReviewScreen(store: SettingsStore) {
                         }
                     }
                 }
+                }
+
+                fun rate(rating: ReviewRating) {
+                    if (ratingPending) return
+                    ratingPending = true
+                    ratingFeedbackCorrect = rating != ReviewRating.Again
+                    ratingFeedbackId++
+                    when (rating) {
+                        ReviewRating.Again -> {
+                            answerFeedback(false)
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            store.recordReview(word.id, rating)
+                        }
+                        ReviewRating.Hard -> {
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            store.recordReview(word.id, rating)
+                        }
+                        ReviewRating.Good, ReviewRating.Easy -> {
+                            answerFeedback(true)
+                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            store.recordReview(word.id, rating)
+                            remembered++
+                        }
+                    }
+                    completed++
+                    scope.launch {
+                        if (store.feedbackAnimations) delay(320)
+                        index++
+                        revealed = false
+                        ratingPending = false
+                        ratingFeedbackId = 0
+                    }
+                }
 
                 if (!revealed) {
                     PrimaryButton("اكشف المعنى", Modifier.fillMaxWidth()) { revealed = true }
                 } else {
                     Text("قيّم مدى سهولة تذكرك للكلمة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Night)
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) {
-                            answerFeedback(false)
-                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            store.recordReview(word.id, ReviewRating.Again); completed++; index++; revealed = false
-                        }
-                        PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) {
-                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            store.recordReview(word.id, ReviewRating.Hard); completed++; index++; revealed = false
-                        }
+                        PrimaryButton("نسيتها", Modifier.weight(1f), container = MissTint) { rate(ReviewRating.Again) }
+                        PrimaryButton("صعبة", Modifier.weight(1f), container = Sun) { rate(ReviewRating.Hard) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) {
-                            answerFeedback(true)
-                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            store.recordReview(word.id, ReviewRating.Good); completed++; remembered++; index++; revealed = false
-                        }
-                        PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) {
-                            answerFeedback(true)
-                            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            store.recordReview(word.id, ReviewRating.Easy); completed++; remembered++; index++; revealed = false
-                        }
+                        PrimaryButton("كويسة", Modifier.weight(1f), container = Teal) { rate(ReviewRating.Good) }
+                        PrimaryButton("سهلة", Modifier.weight(1f), container = SkyTint) { rate(ReviewRating.Easy) }
                     }
                     Text("تقييمك بيحدد ميعاد المراجعة الجاية تلقائيًا.", fontSize = 12.sp, color = Muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
