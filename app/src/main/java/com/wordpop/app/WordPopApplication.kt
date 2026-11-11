@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
 import java.util.concurrent.TimeUnit
 
 /**
