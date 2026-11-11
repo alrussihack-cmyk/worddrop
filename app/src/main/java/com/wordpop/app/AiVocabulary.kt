@@ -36,8 +36,7 @@ import kotlinx.coroutines.withContext
 /** Generates structured vocabulary using the OpenRouter settings already used by StoryTab. */
 object AiVocabularyApi {
     fun generate(
-        key: String,
-        model: String,
+        workerUrl: String,
         topic: String,
         request: String,
         count: Int,
@@ -66,7 +65,7 @@ Rules:
 {"words":[{"en":"...","ipa":"/.../","ar":"...","kind":"اسم","example":"...","exampleAr":"..."}]}
 """.trimIndent()
 
-        val root = StoryApi.chatJson(key, model, prompt, (900 + count * 220).coerceAtMost(8000))
+        val root = StoryApi.chatJson(workerUrl, prompt, (900 + count * 220).coerceAtMost(8000))
         val array = root.optJSONArray("words")
             ?: throw Exception("الذكاء الاصطناعي رجّع صيغة غير مفهومة. جرّب مرة تانية.")
         val seen = mutableSetOf<String>()
@@ -118,9 +117,6 @@ fun AiVocabularyTab(
     var request by remember { mutableStateOf("") }
     var count by remember { mutableIntStateOf(20) }
     var level by remember { mutableStateOf("B1") }
-    var apiKey by remember { mutableStateOf(store.orKey) }
-    var model by remember { mutableStateOf(store.orModel) }
-    var showApiSettings by remember { mutableStateOf(store.orKey.isBlank()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var notice by remember { mutableStateOf("") }
@@ -167,48 +163,7 @@ fun AiVocabularyTab(
             }
         }
 
-        if (showApiSettings) {
-            Text(
-                "استخدم نفس مفتاح OpenRouter الخاص بميزة القصص. المفتاح محفوظ مشفّرًا على الجهاز.",
-                fontSize = 13.sp,
-                color = Muted
-            )
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                label = { Text("مفتاح OpenRouter") },
-                placeholder = { Text("sk-or-...") }
-            )
-            OutlinedTextField(
-                value = model,
-                onValueChange = { model = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("موديل الذكاء الاصطناعي") }
-            )
-            SecondaryButton("حفظ إعدادات الذكاء الاصطناعي", Modifier.fillMaxWidth()) {
-                if (apiKey.isBlank()) {
-                    error = "أدخل مفتاح OpenRouter الأول."
-                } else {
-                    store.orKey = apiKey.trim()
-                    store.orModel = model.trim().ifBlank { "openai/gpt-4o-mini" }
-                    model = store.orModel
-                    showApiSettings = false
-                    error = ""
-                    notice = "تم حفظ الإعدادات."
-                }
-            }
-        } else {
-            Text("مفتاح OpenRouter محفوظ على الجهاز.", fontSize = 13.sp, color = TealDark)
-            SecondaryButton("إعدادات الذكاء الاصطناعي", Modifier.fillMaxWidth()) {
-                showApiSettings = true
-                error = ""
-                notice = ""
-            }
-        }
+        Text(AiConfigSync.status, fontSize = 13.sp, color = Muted)
 
         if (error.isNotBlank()) Text(error, color = Danger, fontSize = 13.sp)
         if (notice.isNotBlank()) Text(notice, color = TealDark, fontSize = 13.sp)
@@ -226,9 +181,8 @@ fun AiVocabularyTab(
                 error = "اشرح للذكاء الاصطناعي المعاني أو المواقف اللي محتاج الكلمات فيها."
                 return@PrimaryButton
             }
-            if (store.orKey.isBlank()) {
-                showApiSettings = true
-                error = "احفظ مفتاح OpenRouter الأول عشان نقدر نولّد الكلمات."
+            if (!AiConfigSync.isReady) {
+                error = AiConfigSync.status
                 return@PrimaryButton
             }
 
@@ -239,8 +193,7 @@ fun AiVocabularyTab(
                 try {
                     val generated = withContext(Dispatchers.IO) {
                         AiVocabularyApi.generate(
-                            key = store.orKey,
-                            model = store.orModel,
+                            workerUrl = AiConfigSync.workerUrl,
                             topic = topic.trim(),
                             request = request.trim(),
                             count = count,
