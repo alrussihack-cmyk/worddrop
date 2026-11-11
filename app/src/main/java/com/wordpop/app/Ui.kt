@@ -629,7 +629,7 @@ enum class Page(val title: String, val icon: Int) {
 @Composable
 fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
     Column(Modifier.fillMaxWidth().background(Color.White)) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Night))
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
             Page.values().forEach { p ->
                 val selected = p == page
