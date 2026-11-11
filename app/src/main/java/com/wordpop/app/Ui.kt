@@ -1633,7 +1633,7 @@ fun LearnScreen(store: SettingsStore, startWord: Word, onClose: () -> Unit) {
                 speak = speak,
                 onLearnedChanged = { learnedCount = store.learned.size },
                 onNewWord = { next() },
-                onClose = onClose
+                onClose = { step = 0 }
             )
         }
 
