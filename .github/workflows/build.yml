@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master, fix/android-36-keystore-inexact-alarms]
+    branches: [main, master, fix/android-36-keystore-inexact-alarms, restore/wordpop-1.9-secure]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
