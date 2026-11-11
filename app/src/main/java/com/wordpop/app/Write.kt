@@ -66,7 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val WrongBg = Color(0xFFFDE7E8)
+private val WrongBg = MissTint
 
 // ---------- entry screen ----------
 
