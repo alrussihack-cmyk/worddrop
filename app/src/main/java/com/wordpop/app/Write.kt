@@ -224,12 +224,21 @@ private fun PromptCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun FeedbackPanel(ok: Boolean, title: String, content: @Composable ColumnScope.() -> Unit) {
-    AnimatedVisibility(visible = true, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
-        Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (ok) TealDark else Danger)
-                content()
+private fun FeedbackPanel(
+    ok: Boolean,
+    title: String,
+    trigger: Int,
+    animationsEnabled: Boolean,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    AnswerFeedbackMotion(correct = ok, trigger = trigger, enabled = animationsEnabled) {
+        AnimatedVisibility(visible = true, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
+            Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (ok && animationsEnabled) CelebrationBurst()
+                    Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (ok) TealDark else Danger)
+                    content()
+                }
             }
         }
     }
@@ -370,6 +379,7 @@ private fun spellable(w: Word): Boolean =
 @Composable
 private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
     val haptic = LocalHapticFeedback.current
+    val answerFeedback = rememberAnswerFeedback(store)
     var round by remember { mutableIntStateOf(0) }
     val items = remember(round) { WordRepo.writingWords(store, "spell", 10) { spellable(it) } }
     var index by remember(round) { mutableIntStateOf(0) }
@@ -416,6 +426,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
         attempts++
         if (typed.equals(w.en, ignoreCase = true)) {
             status = 2
+            answerFeedback(true)
             if (attempts == 1 && hints == 0) {
                 perfect++
                 streak++
@@ -430,6 +441,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         } else if (attempts >= 2) {
             status = 3
+            answerFeedback(false)
             missed++
             streak = 0
             missedWords.add(w)
@@ -438,6 +450,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         } else {
             status = 1
+            answerFeedback(false)
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
@@ -518,18 +531,18 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
     }
 
     when (status) {
-        1 -> FeedbackPanel(false, "قريب! فيه حروف غلط") {
+        1 -> FeedbackPanel(false, "قريب! فيه حروف غلط", status, store.feedbackAnimations) {
             LetterBoxes(text.trim(), w.en, showTarget = false)
             Text("عدّل الحروف الحمرا وجرّب تاني. عندك محاولة كمان.", fontSize = 15.sp, color = Muted)
         }
-        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! كتبتها صح من أول مرة ✓" else "صح! بمساعدة بسيطة ✓") {
+        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! كتبتها صح من أول مرة ✓" else "صح! بمساعدة بسيطة ✓", status, store.feedbackAnimations) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.en, 24.sp, Night, FontWeight.ExtraBold, TextAlign.Start, Modifier.weight(1f))
                 SpeakButton(44.dp) { speak(w.en) }
             }
             if (w.example.isNotEmpty()) En(w.example, 15.sp, Muted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
         }
-        3 -> FeedbackPanel(false, "الكتابة الصح") {
+        3 -> FeedbackPanel(false, "الكتابة الصح", status, store.feedbackAnimations) {
             LetterBoxes(text.trim(), w.en, showTarget = true)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.en, 24.sp, Night, FontWeight.ExtraBold, TextAlign.Start, Modifier.weight(1f))
@@ -607,6 +620,7 @@ private fun WordChip(text: String, state: Int, onClick: () -> Unit) {
 @Composable
 private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
     val haptic = LocalHapticFeedback.current
+    val answerFeedback = rememberAnswerFeedback(store)
     var round by remember { mutableIntStateOf(0) }
     val questions = remember(round) {
         WordRepo.writingWords(store, "build", 8) { buildable(it) }.mapIndexed { i, w -> makeBuildQ(w, i) }
@@ -649,6 +663,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
     }
 
     fun finish(ok: Boolean, clean: Boolean) {
+        answerFeedback(ok)
         if (ok && clean) {
             perfect++
             streak++
@@ -683,6 +698,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
             finish(ok = false, clean = false)
         } else {
             status = 1
+            answerFeedback(false)
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
@@ -745,7 +761,12 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                 }, tween(220), label = "borderC"
             )
             val shape = RoundedCornerShape(14.dp)
-            Row(
+            AnswerFeedbackMotion(
+                correct = isCorrect,
+                trigger = if (answered && isPicked) 1 else 0,
+                enabled = store.feedbackAnimations
+            ) {
+                Row(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 58.dp)
@@ -785,6 +806,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                     }
                 }
                 En(opt, 20.sp, Night, FontWeight.SemiBold, TextAlign.Start, Modifier.weight(1f))
+                }
             }
         }
     } else {
@@ -858,17 +880,17 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
 
     // ----- feedback -----
     when (status) {
-        1 -> FeedbackPanel(false, "الترتيب مش مظبوط") {
+        1 -> FeedbackPanel(false, "الترتيب مش مظبوط", status, store.feedbackAnimations) {
             Text("الكلمات الحمرا في مكان غلط. دوس عليها لتشيلها وجرّب تاني. عندك محاولة كمان.", fontSize = 15.sp, color = Muted)
         }
-        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! جملة صح ✓" else "صح! بمساعدة بسيطة ✓") {
+        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! جملة صح ✓" else "صح! بمساعدة بسيطة ✓", status, store.feedbackAnimations) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.example, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.weight(1f))
                 SpeakButton(44.dp) { speak(w.example) }
             }
             if (w.exampleAr.isNotEmpty()) Text(w.exampleAr, fontSize = 15.sp, color = Muted)
         }
-        3 -> FeedbackPanel(false, "الجملة الصح") {
+        3 -> FeedbackPanel(false, "الجملة الصح", status, store.feedbackAnimations) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.example, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.weight(1f))
                 SpeakButton(44.dp) { speak(w.example) }
