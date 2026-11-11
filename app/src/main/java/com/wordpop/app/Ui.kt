@@ -2293,16 +2293,21 @@ fun ReviewScreen(store: SettingsStore) {
             }
             else -> {
                 val word = queue[index]
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
-                        Text("أنجزت $completed", fontSize = 12.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                        Text("بطاقة ${index + 1} من ${queue.size}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.weight(1f))
+                        Surface(shape = RoundedCornerShape(18.dp), color = SunTint, border = BorderStroke(1.dp, Night)) {
+                            Text("★ $remembered", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Night, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        }
                     }
-                    LinearProgressIndicator(
-                        progress = { (index.toFloat() / queue.size.coerceAtLeast(1)).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(50)),
-                        color = Teal, trackColor = Line
-                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        repeat(queue.size) { segment ->
+                            Box(
+                                Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp))
+                                    .background(if (segment < index) Teal else if (segment == index) Night else Line)
+                            )
+                        }
+                    }
                 }
 
                 AnswerFeedbackMotion(
