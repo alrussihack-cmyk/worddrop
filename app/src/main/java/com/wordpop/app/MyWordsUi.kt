@@ -1,19 +1,29 @@
 package com.wordpop.app
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -25,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +50,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private val WordsMint = Color(0xFF2FE0B5)
+private val WordsInk = Color(0xFF12182B)
+private val WordsDarkMint = Color(0xFF0B6B58)
+private val WordsBg = Color(0xFFF7F8FC)
+private val WordsMuted = Color(0xFF5E667A)
+private val WordsLine = Color(0xFFE8E9EB)
+private val WordsSoftMint = Color(0xFFDEF9F2)
+private val WordsCoral = Color(0xFFFF5C5C)
+private val WordsYellow = Color(0xFFFFC93C)
+private val WordsDanger = Color(0xFFC23A3A)
+private val WordsMissTint = Color(0xFFFFE3E3)
 
 private data class MyWordsReviewResult(val added: Int, val skipped: Int)
 
@@ -92,7 +115,12 @@ fun MyWordsScreen(
         if (editMode) {
             VocabularyEditList(preview, onBack = { editMode = false }, onChange = { preview = it })
         } else {
-            VocabularySwipeReview(preview, onEdit = { editMode = true }, onComplete = ::finishReview)
+            VocabularySwipeReview(
+                preview,
+                onBack = { preview = emptyList(); editMode = false },
+                onEdit = { editMode = true },
+                onComplete = ::finishReview
+            )
         }
         return
     }
@@ -100,7 +128,7 @@ fun MyWordsScreen(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
-                .background(Color(0xFFEFF2F6)).padding(6.dp),
+                .background(Color(0xFFEEF2F5)).border(1.5.dp, WordsLine, RoundedCornerShape(26.dp)).padding(6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MyWordsTab("ولّد بالذكاء الاصطناعي", mode == 0, Modifier.weight(1f)) { mode = 0 }
@@ -111,59 +139,59 @@ fun MyWordsScreen(
             Surface(
                 Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(28.dp), 5.dp),
                 shape = RoundedCornerShape(28.dp), color = Color.White,
-                border = BorderStroke(3.dp, Night)
+                border = BorderStroke(3.dp, WordsInk)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Boby(Mood.Think, 54.dp)
                         Column(Modifier.weight(1f)) {
-                            Text("مولّد الكلمات بالذكاء الاصطناعي", fontSize = 21.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = Night)
-                            Text("جهّز قائمة على مقاس احتياجك", fontSize = 13.sp, color = Muted)
+                            Text("مولّد الكلمات بالذكاء الاصطناعي", fontSize = 21.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk)
+                            Text("جهّز قائمة على مقاس احتياجك", fontSize = 13.sp, color = WordsMuted)
                         }
                     }
                     Text(
                         "اختار موضوع، واشرح المعاني والمواقف اللي محتاجها. WordPop هيجهّز الكلمات والترجمة والنطق والأمثلة.",
-                        fontSize = 14.sp, color = Muted, lineHeight = 22.sp
+                        fontSize = 14.sp, color = WordsMuted, lineHeight = 22.sp
                     )
-                    Text("الموضوع", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Muted)
+                    Text("الموضوع", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WordsMuted)
                     OutlinedTextField(
                         topic, { topic = it }, Modifier.fillMaxWidth(), singleLine = true,
                         placeholder = { Text("مثال: الإسلام والتعريف به") }, shape = RoundedCornerShape(18.dp)
                     )
-                    Text("عايز الكلمات تعبّر عن إيه بالضبط؟", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Muted)
+                    Text("عايز الكلمات تعبّر عن إيه بالضبط؟", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WordsMuted)
                     OutlinedTextField(
                         request, { request = it }, Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
                         placeholder = { Text("اكتب المواقف والمعاني اللي محتاج كلمات تعبّر عنها...") },
                         shape = RoundedCornerShape(18.dp)
                     )
-                    Text("عدد الكلمات", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Muted)
+                    Text("عدد الكلمات", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WordsMuted)
                     ChipRow {
-                        listOf(10, 20, 30, 50, 100).forEach { n -> Chip("$n كلمة", count == n) { count = n } }
+                        listOf(10, 20, 30, 50, 100).forEach { n -> WordsChip("$n كلمة", count == n) { count = n } }
                     }
-                    Text("مستوى اللغة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Muted)
+                    Text("مستوى اللغة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WordsMuted)
                     ChipRow {
                         listOf("A" to "أساسي", "B1" to "متوسط", "B2" to "متقدم").forEach { (code, label) ->
-                            Chip("$label $code", level == code) { level = code }
+                            WordsChip("$label $code", level == code) { level = code }
                         }
                     }
                     Surface(
-                        Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = Tint,
+                        Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = WordsSoftMint,
                         border = BorderStroke(1.dp, Color(0xFFC9F1E8))
                     ) {
                         Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Text("➜", fontSize = 22.sp, color = TealDark)
-                            Text("هتراجعهم كروت: اسحب يمين للإضافة، وشمال للتخطي. وتقدر ترجع عن آخر اختيار.", fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                            Text("➜", fontSize = 22.sp, color = WordsDarkMint)
+                            Text("هتراجعهم كروت: اسحب يمين للإضافة، وشمال للتخطي. وتقدر ترجع عن آخر اختيار.", fontSize = 13.sp, color = WordsDarkMint, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    if (AiConfigSync.status.isNotBlank()) Text(AiConfigSync.status, fontSize = 12.sp, color = Muted)
-                    if (error.isNotBlank()) Text(error, fontSize = 13.sp, color = Danger)
+                    if (AiConfigSync.status.isNotBlank()) Text(AiConfigSync.status, fontSize = 12.sp, color = WordsMuted)
+                    if (error.isNotBlank()) Text(error, fontSize = 13.sp, color = WordsDanger)
                     if (loading) {
                         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Text("جاري تجهيز الدفعة $batch من $batches • تم تجهيز $generated من $count كلمة", fontSize = 13.sp, color = TealDark)
-                            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(), color = Teal, trackColor = Line)
+                            Text("جاري تجهيز الدفعة $batch من $batches • تم تجهيز $generated من $count كلمة", fontSize = 13.sp, color = WordsDarkMint)
+                            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(), color = WordsMint, trackColor = WordsLine)
                         }
                     }
-                    PrimaryButton(if (loading) "جاري تجهيز الكلمات..." else "ولّد $count كلمة", Modifier.fillMaxWidth()) {
+                    WordsPrimaryButton(if (loading) "جاري تجهيز الكلمات..." else "ولّد $count كلمة", Modifier.fillMaxWidth()) {
                         if (loading) return@PrimaryButton
                         if (topic.isBlank()) { error = "اكتب الموضوع الأول."; return@PrimaryButton }
                         if (request.isBlank()) { error = "اشرح المعاني أو المواقف اللي محتاج الكلمات فيها."; return@PrimaryButton }
@@ -195,33 +223,33 @@ fun MyWordsScreen(
             Surface(
                 Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(28.dp), 5.dp),
                 shape = RoundedCornerShape(28.dp), color = Color.White,
-                border = BorderStroke(3.dp, Night)
+                border = BorderStroke(3.dp, WordsInk)
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Text("استيراد قائمة كلمات", fontSize = 23.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = Night)
+                    Text("استيراد قائمة كلمات", fontSize = 23.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk)
                     Text(
                         "استورد كلماتك من ملف TXT أو CSV. كل سطر يحتوي على الكلمة الإنجليزية ثم معناها بالعربي، ويمكنك إضافة مثال وترجمته.",
-                        fontSize = 14.sp, color = Muted, lineHeight = 22.sp
+                        fontSize = 14.sp, color = WordsMuted, lineHeight = 22.sp
                     )
-                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Cloud, border = BorderStroke(1.dp, Line)) {
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = WordsBg, border = BorderStroke(1.dp, WordsLine)) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("مثال على تنسيق الملف", fontSize = 13.sp, color = Muted, fontWeight = FontWeight.Bold)
-                            En("lifeguard, منقذ", 16.sp, Night, FontWeight.SemiBold)
-                            Text("الكلمة، الترجمة، المثال (اختياري)، ترجمة المثال (اختياري)", fontSize = 12.sp, color = Muted)
+                            Text("مثال على تنسيق الملف", fontSize = 13.sp, color = WordsMuted, fontWeight = FontWeight.Bold)
+                            En("lifeguard, منقذ", 16.sp, WordsInk, FontWeight.SemiBold)
+                            Text("الكلمة، الترجمة، المثال (اختياري)، ترجمة المثال (اختياري)", fontSize = 12.sp, color = WordsMuted)
                         }
                     }
-                    PrimaryButton("اختار ملف للاستيراد", Modifier.fillMaxWidth()) { onImportFile() }
-                    importMessage?.let { Text(it, fontSize = 13.sp, color = TealDark) }
-                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = Tint, border = BorderStroke(1.dp, Color(0xFFC9F1E8))) {
+                    WordsPrimaryButton("اختار ملف للاستيراد", Modifier.fillMaxWidth()) { onImportFile() }
+                    importMessage?.let { Text(it, fontSize = 13.sp, color = WordsDarkMint) }
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = WordsSoftMint, border = BorderStroke(1.dp, Color(0xFFC9F1E8))) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("كلماتك الخاصة", fontSize = 15.sp, color = TealDark, fontWeight = FontWeight.Bold)
-                                Text("$customCount كلمة محفوظة على جهازك", fontSize = 13.sp, color = Muted)
+                                Text("كلماتك الخاصة", fontSize = 15.sp, color = WordsDarkMint, fontWeight = FontWeight.Bold)
+                                Text("$customCount كلمة محفوظة على جهازك", fontSize = 13.sp, color = WordsMuted)
                             }
-                            Text("✦", fontSize = 24.sp, color = TealDark)
+                            Text("✦", fontSize = 24.sp, color = WordsDarkMint)
                         }
                     }
-                    if (customCount > 0) SecondaryButton("مسح الكلمات الخاصة", Modifier.fillMaxWidth()) { onClearCustom() }
+                    if (customCount > 0) WordsSecondaryButton("مسح الكلمات الخاصة", Modifier.fillMaxWidth()) { onClearCustom() }
                 }
             }
         }
@@ -233,18 +261,19 @@ private fun MyWordsTab(text: String, selected: Boolean, modifier: Modifier = Mod
     val shape = RoundedCornerShape(22.dp)
     Box(
         modifier.heightIn(min = 44.dp).hardShadow(shape, if (selected) 2.dp else 0.dp)
-            .clip(shape).background(if (selected) Teal else Color.Transparent)
-            .then(if (selected) Modifier.border(2.5.dp, Night, shape) else Modifier)
+            .clip(shape).background(if (selected) WordsMint else Color.Transparent)
+            .then(if (selected) Modifier.border(2.5.dp, WordsInk, shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 9.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = Night, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center)
+        Text(text, color = WordsInk, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 private fun VocabularySwipeReview(
     words: List<Word>,
+    onBack: () -> Unit,
     onEdit: () -> Unit,
     onComplete: (List<Word>, List<Word>) -> Unit
 ) {
@@ -277,28 +306,30 @@ private fun VocabularySwipeReview(
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(30.dp), color = Night) {
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(30.dp), color = WordsInk) {
                 Text(
                     "${(index + 1).coerceAtMost(words.size)} / ${words.size}",
                     Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
-                    color = Teal, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+                    color = WordsMint, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
                 )
             }
-            Text("راجع الكلمات", fontSize = 22.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = Night)
+            Text("راجع الكلمات", fontSize = 22.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk)
             Box(
                 Modifier.size(46.dp).hardShadow(CircleShape, 3.dp).clip(CircleShape)
-                    .background(Color.White).border(3.dp, Night, CircleShape)
-                    .clickable(role = Role.Button, onClick = ::finish),
+                    .background(Color.White).border(3.dp, WordsInk, CircleShape)
+                    .clickable(role = Role.Button, onClick = onBack),
                 contentAlignment = Alignment.Center
-            ) { Text("›", fontSize = 31.sp, color = Night, fontWeight = FontWeight.Bold) }
+            ) { Text("›", fontSize = 31.sp, color = WordsInk, fontWeight = FontWeight.Bold) }
         }
-        Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(Color.White).border(2.5.dp, Night, CircleShape)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(if (words.isEmpty()) 0f else index.toFloat() / words.size).clip(CircleShape).background(Teal))
+        Box(Modifier.fillMaxWidth().height(16.dp).clip(CircleShape).background(Color.White).border(3.dp, WordsInk, CircleShape)) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth(if (words.isEmpty()) 0f else index.toFloat() / words.size).clip(CircleShape).background(WordsMint))
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("←  ${skipped.size} · تخطي", fontSize = 14.sp, color = Danger, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text("${added.size} · إضافة  →", fontSize = 14.sp, color = TealDark, fontWeight = FontWeight.Bold)
+        Ltr {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("←  ${skipped.size} · تخطي", fontSize = 14.sp, color = WordsDanger, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Text("${added.size} · إضافة  →", fontSize = 14.sp, color = WordsDarkMint, fontWeight = FontWeight.Bold)
+            }
         }
         if (current != null) {
             Box(Modifier.fillMaxWidth().height(420.dp), contentAlignment = Alignment.TopCenter) {
@@ -307,7 +338,7 @@ private fun VocabularySwipeReview(
                         Modifier.fillMaxWidth().padding(horizontal = (8 + layer * 7).dp)
                             .offset(y = (12 + layer * 10).dp).height(390.dp),
                         shape = RoundedCornerShape(28.dp), color = Color.White,
-                        border = BorderStroke(4.dp, Night)
+                        border = BorderStroke(4.dp, WordsInk)
                     ) {}
                 }
                 SwipeWordCard(current, index, onAdd = { act(true) }, onSkip = { act(false) })
@@ -316,16 +347,16 @@ private fun VocabularySwipeReview(
         Ltr {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(30.dp)) {
-                    SwipeAction("×", Coral, "تخطي", current != null) { act(false) }
-                    SwipeAction("↶", SunTint, "تراجع", history.isNotEmpty()) { undo() }
-                    SwipeAction("✓", Teal, "إضافة", current != null) { act(true) }
+                    SwipeAction("×", WordsCoral, "تخطي", current != null) { act(false) }
+                    SwipeAction("↶", WordsYellow, "تراجع", history.isNotEmpty()) { undo() }
+                    SwipeAction("✓", WordsMint, "إضافة", current != null) { act(true) }
                 }
             }
         }
-        Text("اسحب الكارت يمين للإضافة أو شمال لتخطيها", Modifier.fillMaxWidth(), color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
-        PrimaryButton("اعتمد المضاف (${added.size}) وخلص", Modifier.fillMaxWidth()) { finish() }
+        Text("اسحب الكارت يمين للإضافة أو شمال لتخطيها", Modifier.fillMaxWidth(), color = WordsMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
+        WordsPrimaryButton("اعتمد المضاف (${added.size}) وخلص", Modifier.fillMaxWidth()) { finish() }
         TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("تعديل أو حذف كلمات من القائمة", color = TealDark, fontWeight = FontWeight.Bold)
+            Text("تعديل أو حذف كلمات من القائمة", color = WordsDarkMint, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -347,7 +378,7 @@ private fun SwipeWordCard(word: Word, index: Int, onAdd: () -> Unit, onSkip: () 
             translationX = x
             rotationZ = (x / 42f).coerceIn(-12f, 12f)
         }.pointerInput(index) {
-            detectDragGestures(
+            detectHorizontalDragGestures(
                 onDragEnd = {
                     val direction = when { dragX > threshold -> 1; dragX < -threshold -> -1; else -> 0 }
                     if (direction == 0) dragX = 0f
@@ -359,44 +390,58 @@ private fun SwipeWordCard(word: Word, index: Int, onAdd: () -> Unit, onSkip: () 
                     }
                 },
                 onDragCancel = { dragX = 0f },
-                onDrag = { change, amount -> change.consume(); dragX += amount.x }
+                onHorizontalDrag = { change, amount -> change.consume(); dragX += amount }
             )
         }.hardShadow(shape, 5.dp),
-        shape = shape, color = Color.White, border = BorderStroke(3.dp, Night)
+        shape = shape, color = Color.White, border = BorderStroke(3.dp, WordsInk)
     ) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    SpeakButton(44.dp) { speak(word.en) }
-                    Spacer(Modifier.weight(1f))
-                    Surface(shape = RoundedCornerShape(30.dp), color = Tint) {
-                        Text(word.kind.ifBlank { "كلمة" }, Modifier.padding(horizontal = 17.dp, vertical = 7.dp), fontSize = 14.sp, color = TealDark, fontWeight = FontWeight.Bold)
+                Ltr {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        WordsSpeakButton(44.dp) { speak(word.en) }
+                        Spacer(Modifier.weight(1f))
+                        Surface(shape = RoundedCornerShape(30.dp), color = WordsSoftMint) {
+                            Text(word.kind.ifBlank { "كلمة" }, Modifier.padding(horizontal = 17.dp, vertical = 7.dp), fontSize = 14.sp, color = WordsDarkMint, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
                 Column(Modifier.fillMaxWidth().weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    En(word.en, 43.sp, Night, FontWeight.ExtraBold, TextAlign.Center, Modifier.fillMaxWidth())
+                    En(word.en, 52.sp, WordsInk, FontWeight.Normal, TextAlign.Center, Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    Ltr { Text(word.ipa.ifBlank { " " }, fontSize = 17.sp, color = Muted, textAlign = TextAlign.Center) }
+                    Ltr { Text(word.ipa.ifBlank { " " }, fontSize = 15.sp, color = WordsMuted, textAlign = TextAlign.Center) }
                     Spacer(Modifier.height(14.dp))
-                    Box(Modifier.fillMaxWidth().height(1.5.dp).background(Line))
+                    Box(Modifier.fillMaxWidth().height(1.5.dp).background(WordsLine))
                     Spacer(Modifier.height(13.dp))
-                    Text(word.ar, fontSize = 27.sp, color = TealDark, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 36.sp)
-                    if (duplicate) Text("موجودة بالفعل في مكتبتك", fontSize = 12.sp, color = Danger, fontWeight = FontWeight.SemiBold)
+                    Text(word.ar, fontSize = 36.sp, fontFamily = Display, color = WordsDarkMint, textAlign = TextAlign.Center, lineHeight = 43.sp)
+                    if (duplicate) Text("موجودة بالفعل في مكتبتك", fontSize = 12.sp, color = WordsDanger, fontWeight = FontWeight.SemiBold)
                 }
-                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = Cloud, border = BorderStroke(1.dp, Line)) {
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = WordsBg, border = BorderStroke(1.dp, WordsLine)) {
                     Column(Modifier.padding(horizontal = 15.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        En(word.example.ifBlank { "Add an example to make this word easier to remember." }, 16.sp, Night, FontWeight.Medium, TextAlign.Start, Modifier.fillMaxWidth())
-                        Text(word.exampleAr.ifBlank { "يمكنك تعديل المثال من قائمة التعديل." }, fontSize = 14.sp, color = Muted, textAlign = TextAlign.End)
+                        En(word.example.ifBlank { "Add an example to make this word easier to remember." }, 16.sp, WordsInk, FontWeight.Medium, TextAlign.Start, Modifier.fillMaxWidth())
+                        Text(word.exampleAr.ifBlank { "يمكنك تعديل المثال من قائمة التعديل." }, fontSize = 14.sp, color = WordsMuted, textAlign = TextAlign.End)
                     }
                 }
             }
             if (dragX > 24f) {
-                Box(Modifier.fillMaxSize().clip(shape).background(Teal.copy(alpha = (dragX / (threshold * 2.5f)).coerceIn(0.08f, 0.42f))), contentAlignment = Alignment.Center) {
-                    Text("إضافة ✓", fontSize = 27.sp, color = Night, fontWeight = FontWeight.Bold)
+                Box(
+                    Modifier.align(Alignment.TopStart).padding(18.dp)
+                        .graphicsLayer { rotationZ = -12f; alpha = (dragX / threshold).coerceIn(0f, 1f) }
+                        .clip(RoundedCornerShape(14.dp)).background(WordsMint)
+                        .border(4.dp, WordsInk, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                ) {
+                    Text("أضف ✓", fontSize = 26.sp, fontFamily = Display, color = WordsInk)
                 }
             } else if (dragX < -24f) {
-                Box(Modifier.fillMaxSize().clip(shape).background(Coral.copy(alpha = (-dragX / (threshold * 2.5f)).coerceIn(0.08f, 0.42f))), contentAlignment = Alignment.Center) {
-                    Text("تخطي ×", fontSize = 27.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(18.dp)
+                        .graphicsLayer { rotationZ = 12f; alpha = (-dragX / threshold).coerceIn(0f, 1f) }
+                        .clip(RoundedCornerShape(14.dp)).background(WordsCoral)
+                        .border(4.dp, WordsInk, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                ) {
+                    Text("تخطي ✕", fontSize = 26.sp, fontFamily = Display, color = Color.White)
                 }
             }
         }
@@ -405,14 +450,15 @@ private fun SwipeWordCard(word: Word, index: Int, onAdd: () -> Unit, onSkip: () 
 
 @Composable
 private fun SwipeAction(symbol: String, color: Color, description: String, enabled: Boolean, onClick: () -> Unit) {
+    val buttonSize = if (symbol == "↶") 48.dp else 64.dp
     Box(
-        Modifier.size(66.dp).hardShadow(CircleShape, if (enabled) 5.dp else 0.dp)
+        Modifier.size(buttonSize).hardShadow(CircleShape, if (enabled) 4.dp else 0.dp)
             .clip(CircleShape).background(if (enabled) color else color.copy(alpha = 0.55f))
-            .border(3.dp, if (enabled) Night else Muted, CircleShape)
+            .border(3.dp, if (enabled) WordsInk else WordsMuted, CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(symbol, fontSize = if (symbol == "↶") 31.sp else 38.sp, color = if (enabled) Night else Muted, fontWeight = FontWeight.Bold)
+        Text(symbol, fontSize = if (symbol == "↶") 31.sp else 38.sp, color = if (enabled) WordsInk else WordsMuted, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -422,33 +468,33 @@ private fun VocabularyEditList(words: List<Word>, onBack: () -> Unit, onChange: 
     var draft by remember { mutableStateOf<Word?>(null) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("تعديل القائمة", Modifier.weight(1f), fontSize = 22.sp, fontFamily = Display, color = Night)
-            TextButton(onClick = onBack) { Text("رجوع", color = TealDark) }
+            Text("تعديل القائمة", Modifier.weight(1f), fontSize = 22.sp, fontFamily = Display, color = WordsInk)
+            TextButton(onClick = onBack) { Text("رجوع", color = WordsDarkMint) }
         }
-        Text("${words.size} كلمة • تقدر تعدّل أو تحذف قبل المراجعة", fontSize = 13.sp, color = Muted)
+        Text("${words.size} كلمة • تقدر تعدّل أو تحذف قبل المراجعة", fontSize = 13.sp, color = WordsMuted)
         words.forEachIndexed { index, word ->
-            Surface(Modifier.fillMaxWidth().animateContentSize(), shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.5.dp, Night)) {
+            Surface(Modifier.fillMaxWidth().animateContentSize(), shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.5.dp, WordsInk)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        En(word.en, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
-                        Text(word.ar, fontSize = 14.sp, color = Muted)
+                        En(word.en, 18.sp, WordsInk, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
+                        Text(word.ar, fontSize = 14.sp, color = WordsMuted)
                     }
-                    TextButton(onClick = { editIndex = index; draft = word }) { Text("تعديل", color = TealDark) }
+                    TextButton(onClick = { editIndex = index; draft = word }) { Text("تعديل", color = WordsDarkMint) }
                     TextButton(onClick = {
                         onChange(words.filterIndexed { i, _ -> i != index })
                         if (editIndex == index) { editIndex = -1; draft = null } else if (editIndex > index) editIndex--
-                    }) { Text("حذف", color = Danger) }
+                    }) { Text("حذف", color = WordsDanger) }
                 }
             }
         }
-        PrimaryButton("ابدأ مراجعة الكلمات (${words.size})", Modifier.fillMaxWidth()) { onBack() }
-        SecondaryButton("رجوع للمولّد", Modifier.fillMaxWidth()) { onBack() }
+        WordsPrimaryButton("ابدأ مراجعة الكلمات (${words.size})", Modifier.fillMaxWidth()) { onBack() }
+        WordsSecondaryButton("رجوع للمولّد", Modifier.fillMaxWidth()) { onBack() }
     }
     val current = draft
     if (current != null && editIndex in words.indices) {
         AlertDialog(
             onDismissRequest = { draft = null; editIndex = -1 },
-            title = { Text("تعديل الكلمة", color = Night, fontFamily = Display) },
+            title = { Text("تعديل الكلمة", color = WordsInk, fontFamily = Display) },
             text = {
                 Column(Modifier.heightIn(max = 410.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(current.en, { draft = current.copy(en = it) }, Modifier.fillMaxWidth(), label = { Text("الكلمة بالإنجليزية") })
@@ -465,9 +511,9 @@ private fun VocabularyEditList(words: List<Word>, onBack: () -> Unit, onChange: 
                     onChange(updated)
                     draft = null
                     editIndex = -1
-                }) { Text("حفظ", color = TealDark, fontWeight = FontWeight.Bold) }
+                }) { Text("حفظ", color = WordsDarkMint, fontWeight = FontWeight.Bold) }
             },
-            dismissButton = { TextButton(onClick = { draft = null; editIndex = -1 }) { Text("إلغاء", color = Muted) } },
+            dismissButton = { TextButton(onClick = { draft = null; editIndex = -1 }) { Text("إلغاء", color = WordsMuted) } },
             containerColor = Color.White
         )
     }
@@ -478,20 +524,20 @@ private fun MyWordsComplete(result: MyWordsReviewResult, onLibrary: () -> Unit, 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Spacer(Modifier.height(24.dp))
         Boby(Mood.Cheer, 112.dp)
-        Text("خلصت المراجعة!", fontSize = 31.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = Night, textAlign = TextAlign.Center)
-        Text("الكلمات اللي اخترتها اتضافت لقاموسك وجاهزة للمراجعة الذكية.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center, lineHeight = 24.sp)
+        Text("خلصت المراجعة!", fontSize = 31.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk, textAlign = TextAlign.Center)
+        Text("الكلمات اللي اخترتها اتضافت لقايمتك وجاهزة للمراجعة الذكية.", fontSize = 15.sp, color = WordsMuted, textAlign = TextAlign.Center, lineHeight = 24.sp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MyWordsStat(result.skipped, "كلمة اتخطّيتها", MissTint, Danger, Modifier.weight(1f))
-            MyWordsStat(result.added, "كلمة اتضافت", Tint, TealDark, Modifier.weight(1f))
+            MyWordsStat(result.added, "كلمة اتضافت", WordsSoftMint, WordsDarkMint, Modifier.weight(1f))
+            MyWordsStat(result.skipped, "كلمة اتخطّت", WordsMissTint, WordsDanger, Modifier.weight(1f))
         }
-        PrimaryButton("روح كلماتي", Modifier.fillMaxWidth()) { onLibrary() }
-        SecondaryButton("ولّد قائمة جديدة", Modifier.fillMaxWidth()) { onNew() }
+        WordsPrimaryButton("روح كلماتي", Modifier.fillMaxWidth()) { onLibrary() }
+        WordsSecondaryButton("ولّد قائمة جديدة", Modifier.fillMaxWidth()) { onNew() }
     }
 }
 
 @Composable
 private fun MyWordsStat(value: Int, label: String, bg: Color, fg: Color, modifier: Modifier = Modifier) {
-    Surface(modifier.heightIn(min = 112.dp), shape = RoundedCornerShape(24.dp), color = bg, border = BorderStroke(3.dp, Night)) {
+    Surface(modifier.heightIn(min = 112.dp), shape = RoundedCornerShape(24.dp), color = bg, border = BorderStroke(3.dp, WordsInk)) {
         Column(Modifier.padding(vertical = 14.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value.toString(), fontSize = 36.sp, color = fg, fontWeight = FontWeight.ExtraBold)
             Text(label, fontSize = 13.sp, color = fg, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -508,26 +554,88 @@ private fun MyWordsLibrary(onBack: () -> Unit) {
     }.sortedBy { it.en.lowercase() }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("كلماتي", Modifier.weight(1f), fontSize = 25.sp, fontFamily = Display, color = Night)
-            TextButton(onClick = onBack) { Text("رجوع", color = TealDark) }
+            Text("كلماتي", Modifier.weight(1f), fontSize = 25.sp, fontFamily = Display, color = WordsInk)
+            TextButton(onClick = onBack) { Text("رجوع", color = WordsDarkMint) }
         }
-        Text("${WordRepo.customWords.size} كلمة محفوظة على جهازك", fontSize = 13.sp, color = Muted)
+        Text("${WordRepo.customWords.size} كلمة محفوظة على جهازك", fontSize = 13.sp, color = WordsMuted)
         OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("ابحث عن كلمة أو ترجمتها") }, shape = RoundedCornerShape(18.dp))
         if (words.isEmpty()) {
             Boby(Mood.Happy, 82.dp, Modifier.align(Alignment.CenterHorizontally))
-            Text(if (query.isBlank()) "لسه مفيش كلمات خاصة. ولّد قائمة أو استورد ملف." else "ملقتش كلمة مطابقة للبحث.", Modifier.fillMaxWidth(), color = Muted, textAlign = TextAlign.Center)
+            Text(if (query.isBlank()) "لسه مفيش كلمات خاصة. ولّد قائمة أو استورد ملف." else "ملقتش كلمة مطابقة للبحث.", Modifier.fillMaxWidth(), color = WordsMuted, textAlign = TextAlign.Center)
         } else words.forEach { word ->
-            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.5.dp, Night)) {
+            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = Color.White, border = BorderStroke(1.5.dp, WordsInk)) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        En(word.en, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
-                        Text(word.ar, fontSize = 14.sp, color = TealDark)
-                        if (word.example.isNotBlank()) En(word.example, 13.sp, Muted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
+                        En(word.en, 18.sp, WordsInk, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
+                        Text(word.ar, fontSize = 14.sp, color = WordsDarkMint)
+                        if (word.example.isNotBlank()) En(word.example, 13.sp, WordsMuted, FontWeight.Normal, TextAlign.Start, Modifier.fillMaxWidth())
                     }
-                    SpeakButton(42.dp) { speak(word.en) }
+                    WordsSpeakButton(42.dp) { speak(word.en) }
                 }
             }
         }
-        SecondaryButton("رجوع لقسم كلماتي", Modifier.fillMaxWidth()) { onBack() }
+        WordsSecondaryButton("رجوع لقسم كلماتي", Modifier.fillMaxWidth()) { onBack() }
+    }
+}
+
+
+@Composable
+private fun WordsPrimaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 4.dp, tween(80), label = "wordsButtonShadow")
+    val offset by animateDpAsState(if (pressed) 3.dp else 0.dp, tween(80), label = "wordsButtonPress")
+    Button(
+        onClick = onClick,
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 54.dp).graphicsLayer { translationY = offset.toPx() }.hardShadow(shape, depth),
+        shape = shape,
+        border = BorderStroke(3.dp, WordsInk),
+        colors = ButtonDefaults.buttonColors(containerColor = WordsMint, contentColor = WordsInk)
+    ) { Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+}
+
+@Composable
+private fun WordsSecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val depth by animateDpAsState(if (pressed) 0.dp else 3.dp, tween(80), label = "wordsSecondaryShadow")
+    val offset by animateDpAsState(if (pressed) 3.dp else 0.dp, tween(80), label = "wordsSecondaryPress")
+    OutlinedButton(
+        onClick = onClick,
+        interactionSource = interaction,
+        modifier = modifier.heightIn(min = 48.dp).graphicsLayer { translationY = offset.toPx() }.hardShadow(shape, depth),
+        shape = shape,
+        border = BorderStroke(3.dp, WordsInk),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = WordsInk)
+    ) { Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+}
+
+@Composable
+private fun WordsChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(999.dp)
+    Box(
+        Modifier.heightIn(min = 44.dp).hardShadow(shape, 3.dp).clip(shape)
+            .background(if (selected) WordsMint else Color.White)
+            .border(3.dp, WordsInk, shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, fontSize = 14.sp, color = WordsInk, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun WordsSpeakButton(size: Dp, onClick: () -> Unit) {
+    Box(
+        Modifier.size(size).hardShadow(CircleShape, 3.dp).clip(CircleShape)
+            .background(WordsMint).border(3.dp, WordsInk, CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "استمع للنطق", onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(painterResource(R.drawable.ic_volume), contentDescription = "استمع للنطق", tint = WordsInk, modifier = Modifier.size(size * 0.48f))
     }
 }
