@@ -1368,10 +1368,16 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-            Text("كلماتي", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("كلماتي", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text("ابني مكتبة كلماتك بطريقتك", fontSize = 13.sp, color = Muted)
+                }
+                Boby(Mood.Happy, 48.dp)
+            }
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFFEEF4F5))
-                    .border(1.5.dp, Line, RoundedCornerShape(20.dp)).padding(4.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Tint)
+                    .border(1.5.dp, Night, RoundedCornerShape(20.dp)).padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 listOf("ولّد بالذكاء الاصطناعي", "استيراد من ملف").forEachIndexed { index, label ->
