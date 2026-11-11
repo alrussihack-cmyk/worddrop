@@ -3,6 +3,13 @@
 package com.wordpop.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -224,8 +231,33 @@ fun AiVocabularyTab(
     }
 
     if (preview.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        Section("معاينة الكلمات قبل الإضافة") {
+        Dialog(
+            onDismissRequest = { preview = emptyList(); editingIndex = -1; draft = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                Modifier.fillMaxSize().background(Color(0x73000000)),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 760.dp),
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    color = Color.White,
+                    border = BorderStroke(2.dp, Night)
+                ) {
+                    Column(
+                        Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("جهّزت " + preview.size + " كلمة", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                                Text("راجعها قبل ما تضيفها. تقدر تعدّل أي كلمة.", fontSize = 13.sp, color = Muted)
+                            }
+                            Surface(shape = RoundedCornerShape(16.dp), color = Tint, border = BorderStroke(2.dp, Night)) {
+                                Text(level, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+                            }
+                        }
             val duplicateCount = preview.count { candidate ->
                 WordRepo.all.any { it.en.trim().equals(candidate.en.trim(), ignoreCase = true) }
             }
@@ -356,6 +388,8 @@ fun AiVocabularyTab(
                 editingIndex = -1
                 draft = null
                 notice = "تم إلغاء المعاينة من غير إضافة كلمات."
+                    }
+                }
             }
         }
     }
