@@ -11,3 +11,7 @@ namespace_id = "2026111010"
   [ratelimits.simple]
   limit = 12
   period = 60
+
+[vars]
+FIREBASE_PROJECT_NUMBER = "922302031640"
+FIREBASE_APP_ID = "1:922302031640:android:373289c5e99f1e19dc206d"
