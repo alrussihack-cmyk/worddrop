@@ -585,5 +585,3 @@ private fun VocabularyPreviewCard(
         }
     }
 }
-
-}
