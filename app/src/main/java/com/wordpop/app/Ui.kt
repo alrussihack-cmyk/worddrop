@@ -2241,6 +2241,7 @@ fun ReviewScreen(store: SettingsStore) {
                             store.recordReview(word.id, rating)
                         }
                         ReviewRating.Hard -> {
+                            answerFeedback(true)
                             if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             store.recordReview(word.id, rating)
                         }
