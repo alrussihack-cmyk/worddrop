@@ -743,7 +743,8 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 
 @Composable
 fun HomeStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = tint, border = BorderStroke(1.5.dp, Line)) {
+    val statShape = RoundedCornerShape(20.dp)
+    Surface(modifier = modifier.hardShadow(statShape, 3.dp), shape = statShape, color = tint, border = BorderStroke(1.5.dp, Night)) {
         Column(
             Modifier.fillMaxWidth().padding(vertical = 13.dp, horizontal = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -884,11 +885,12 @@ fun HomeScreen(
 
         if (page == Page.Home) {
             // One clear action, with supporting progress and tools kept secondary.
+            val heroShape = RoundedCornerShape(28.dp)
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth().hardShadow(heroShape, 5.dp),
+                shape = heroShape,
                 color = Tint,
-                shadowElevation = 3.dp
+                border = BorderStroke(2.dp, Night)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -911,9 +913,10 @@ fun HomeScreen(
                 }
             }
 
+            val dashboardCardShape = RoundedCornerShape(22.dp)
             Surface(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-                color = Color.White, shadowElevation = 2.dp
+                modifier = Modifier.fillMaxWidth().hardShadow(dashboardCardShape, 3.dp),
+                shape = dashboardCardShape, color = Color.White, border = BorderStroke(1.5.dp, Night)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -935,9 +938,10 @@ fun HomeScreen(
                 HomeStat(store.favWords.size.toString(), "المفضلة", Tint, Modifier.weight(1f))
             }
 
+            val dashboardCardShape = RoundedCornerShape(22.dp)
             Surface(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-                color = Color.White, shadowElevation = 2.dp
+                modifier = Modifier.fillMaxWidth().hardShadow(dashboardCardShape, 3.dp),
+                shape = dashboardCardShape, color = Color.White, border = BorderStroke(1.5.dp, Night)
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(16.dp),
@@ -957,9 +961,10 @@ fun HomeScreen(
                 }
             }
 
+            val floatingShape = RoundedCornerShape(22.dp)
             Surface(
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-                color = Color.White, shadowElevation = 2.dp
+                modifier = Modifier.fillMaxWidth().hardShadow(floatingShape, 3.dp),
+                shape = floatingShape, color = Color.White, border = BorderStroke(1.5.dp, Night)
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
