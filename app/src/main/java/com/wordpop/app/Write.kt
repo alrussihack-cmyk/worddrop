@@ -455,7 +455,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
                 streak = 0
                 store.addTo("spellMiss", w.id)
             }
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         } else if (attempts >= 2) {
             status = 3
             answerFeedback(false)
@@ -464,11 +464,11 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             missedWords.add(w)
             store.addTo("spellMiss", w.id)
             store.removeFrom("spellOk", w.id)
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         } else {
             status = 1
             answerFeedback(false)
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
@@ -698,7 +698,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
             store.addTo("buildMiss", w.id)
             store.removeFrom("buildOk", w.id)
         }
-        haptic.performHapticFeedback(if (ok) HapticFeedbackType.TextHandleMove else HapticFeedbackType.LongPress)
+        if (store.feedbackHaptics) haptic.performHapticFeedback(if (ok) HapticFeedbackType.TextHandleMove else HapticFeedbackType.LongPress)
     }
 
     fun isRight(i: Int): Boolean =
@@ -716,7 +716,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
         } else {
             status = 1
             answerFeedback(false)
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (store.feedbackHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
