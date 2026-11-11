@@ -799,6 +799,9 @@ fun HomeScreen(
     }
     var wordsVersion by remember { mutableIntStateOf(0) }
     var importMsg by remember { mutableStateOf<String?>(null) }
+    var myWordsMode by remember { mutableIntStateOf(0) }
+    var pendingImportName by remember { mutableStateOf<String?>(null) }
+    var pendingImportText by remember { mutableStateOf<String?>(null) }
     val learned = store.learned.size
     val total = wordsVersion.let { WordRepo.all.size }
     val reviewDueCount = WordRepo.reviewDueCount(store)
@@ -807,21 +810,17 @@ fun HomeScreen(
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            importMsg = try {
+            try {
                 val text = ctx.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                     ?: throw IllegalStateException("empty")
-                val r = WordRepo.importText(ctx, text)
-                wordsVersion++
-                buildString {
-                    append("تمت إضافة ${r.added} كلمة")
-                    if (r.duplicates > 0) append("، وتخطّيت ${r.duplicates} متكررة")
-                    if (r.skipped > 0) append("، و${r.skipped} سطر ناقص")
-                    append(".")
-                    if (r.added == 0 && r.duplicates == 0) append(" اتأكد إن كل سطر فيه: الكلمة، ثم الترجمة.")
-                    if ('\uFFFD' in text) append(" الحروف العربي باينة بايظة؟ احفظ الملف بصيغة UTF-8.")
-                }
-            } catch (e: Exception) {
-                "ماقدرتش أقرا الملف. جرّب ملف نصي (txt أو csv)."
+                if (text.isBlank()) throw IllegalStateException("empty")
+                pendingImportName = uri.lastPathSegment?.substringAfterLast('/') ?: "ملف الكلمات"
+                pendingImportText = text
+                importMsg = "الملف جاهز للاستيراد. راجع الاسم واضغط استيراد."
+            } catch (_: Exception) {
+                pendingImportName = null
+                pendingImportText = null
+                importMsg = "ماقدرتش أقرا الملف. جرّب ملف TXT أو CSV بترميز UTF-8."
             }
         }
     }
@@ -878,7 +877,7 @@ fun HomeScreen(
                     Text("جاهز تتعلم كلمات جديدة؟", fontSize = 13.sp, color = Muted)
                 }
                 Text("WordPop", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
-            } else {
+            } else if (page != Page.MyWords) {
                 Text(page.title, fontSize = 22.sp, fontFamily = Display, color = Night)
             }
         }
@@ -1363,35 +1362,101 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-            AiVocabularyTab(store = store) { result ->
+            AiVocabularyTab(store = store, onAdded = { result ->
                 wordsVersion++
                 importMsg = buildString {
                     append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
                     if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
                     if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
                 }
-            }
-
+            })
             Spacer(Modifier.height(12.dp))
-            Section("إضافة كلمات من ملف") {
-                Text(
-                    "تقدر كمان تستورد قايمة من ملف txt أو csv. كل سطر: الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية).",
-                    fontSize = 15.sp,
-                    color = Muted
-                )
-                Ltr {
-                    Text("lifeguard, منقذ", fontSize = 15.sp, color = Night)
-                }
-                SecondaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
-                    importLauncher.launch(arrayOf("*/*"))
-                }
-                importMsg?.let { Text(it, fontSize = 15.sp, color = TealDark) }
-                if (customCount > 0) {
-                    Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 15.sp, color = Muted)
-                    SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
-                        WordRepo.clearCustom(ctx)
-                        wordsVersion++
-                        importMsg = "اتمسحت الكلمات الخاصة."
+            if (myWordsMode == 1) {
+                val cardShape = RoundedCornerShape(26.dp)
+                Surface(
+                    shape = cardShape,
+                    color = Color.White,
+                    border = BorderStroke(2.dp, Night),
+                    modifier = Modifier.fillMaxWidth().hardShadow(cardShape, 5.dp)
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Teal).border(2.dp, Night, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                Text("⇧", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Night)
+                            }
+                            Text("إضافة كلمات من ملف", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                        }
+                        Text("تقدر تستورد قايمة من ملف TXT أو CSV. كل سطر فيه الكلمة والترجمة، وممكن تضيف مثال وترجمته.", fontSize = 14.sp, lineHeight = 25.sp, color = Muted)
+                        Surface(shape = RoundedCornerShape(16.dp), color = Tint) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("شكل كل سطر", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
+                                Text("الكلمة، الترجمة، (مثال اختياري)، (ترجمة المثال اختيارية)", fontSize = 14.sp, lineHeight = 23.sp, color = Night)
+                                Ltr { Text("lifeguard, منقذ", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Night) }
+                            }
+                        }
+                        if (pendingImportName == null) {
+                            Column(
+                                Modifier.fillMaxWidth().heightIn(min = 132.dp).clip(RoundedCornerShape(20.dp))
+                                    .border(2.5.dp, Night, RoundedCornerShape(20.dp))
+                                    .clickable { importLauncher.launch(arrayOf("text/plain", "text/csv", "application/csv", "application/vnd.ms-excel", "*/*")) }
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text("⇧", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Night)
+                                Text("اختار ملف TXT أو CSV", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                            }
+                        } else {
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = 96.dp).clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFFEAF9F5)).border(2.dp, Night, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Teal).border(2.dp, Night, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                    Text("✓", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(pendingImportName ?: "", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Night, maxLines = 1)
+                                    Text("الملف جاهز للاستيراد", fontSize = 13.sp, color = Muted)
+                                }
+                                Text("×", fontSize = 26.sp, color = Night, modifier = Modifier.clickable {
+                                    pendingImportName = null
+                                    pendingImportText = null
+                                }.padding(8.dp))
+                            }
+                        }
+                        importMsg?.let { Text(it, fontSize = 13.sp, color = if (it.startsWith("ماقدرتش")) Danger else TealDark) }
+                        PrimaryButton("استيراد قايمة من ملف", Modifier.fillMaxWidth()) {
+                            val raw = pendingImportText
+                            if (raw == null) {
+                                importLauncher.launch(arrayOf("text/plain", "text/csv", "application/csv", "application/vnd.ms-excel", "*/*"))
+                            } else {
+                                try {
+                                    val result = WordRepo.importText(ctx, raw)
+                                    wordsVersion++
+                                    pendingImportName = null
+                                    pendingImportText = null
+                                    importMsg = buildString {
+                                        append("تمت إضافة ${result.added} كلمة")
+                                        if (result.duplicates > 0) append("، وتخطّيت ${result.duplicates} مكررة")
+                                        if (result.skipped > 0) append("، و${result.skipped} سطر ناقص")
+                                        append(".")
+                                        if (result.added == 0) append(" راجع تنسيق السطور.")
+                                    }
+                                } catch (_: Exception) {
+                                    importMsg = "ماقدرتش أستورد الملف. راجع تنسيق السطور وترميز UTF-8."
+                                }
+                            }
+                        }
+                        if (customCount > 0) {
+                            Text("عندك $customCount كلمة مضافة يدويًا أو بالذكاء الاصطناعي.", fontSize = 14.sp, color = Muted)
+                            SecondaryButton("امسح الكلمات الخاصة", Modifier.fillMaxWidth()) {
+                                WordRepo.clearCustom(ctx)
+                                wordsVersion++
+                                importMsg = "اتمسحت الكلمات الخاصة."
+                            }
+                        }
                     }
                 }
             }
