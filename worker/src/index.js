@@ -59,7 +59,7 @@ async function verifyAppCheckRequest(request, env) {
   const token = request.headers.get("X-Firebase-AppCheck")?.trim() || "";
   const projectNumber = String(env.FIREBASE_PROJECT_NUMBER || "").trim();
   const expectedAppId = String(env.FIREBASE_APP_ID || "").trim();
-  if (!token || !/^\\d+$/.test(projectNumber) || !expectedAppId) return false;
+  if (!token || !/^\d+$/.test(projectNumber) || !expectedAppId) return false;
 
   try {
     const parts = token.split(".");
