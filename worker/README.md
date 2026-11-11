@@ -84,7 +84,7 @@ The learner app sends an App Check token with every AI and TTS request. The Work
 
 - The project number and learner App ID are configured as non-secret Worker variables in `wrangler.toml`.
 - Debug APKs use Firebase's debug provider. After installing a debug APK, copy the token printed by `DebugAppCheckProvider` in Logcat and register it under Firebase Console → Security → App Check → Apps → `com.wordpop.app` → Manage debug tokens.
-- Never put a debug token in source control or distribute a debug build to end users.
+- The sideloaded debug APK installs one fixed debug secret (see `app/src/debug/.../AppCheckProviderInstaller.kt`). Register that single value once under Manage debug tokens; it survives reinstalls and updates. It is not real protection for a public distribution: for that, ship release builds through Google Play with Play Integrity.
 - Release APKs use Play Integrity. Register the Android app with Play Integrity in Firebase App Check and complete the Play Console / signing-certificate setup required for the app's distribution channel.
 - The Worker now returns HTTP 401 for AI and TTS calls that omit or fail App Check verification. Deploy the updated app and register its debug token before deploying this Worker change, otherwise older app builds will no longer be able to use AI/TTS.
 - App Check is enforced by the custom Worker itself; no Firebase Firestore or other Firebase product enforcement toggle is required for these two Worker endpoints.

@@ -580,19 +580,6 @@ fun SettingsSwipeScreen(
                                     Text(syncStatus, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (syncStatus.startsWith("تم تحميل")) Color(0xFF16866C) else SettingsMuted)
                                 }
                             }
-                            val debugToken = remember(WordCloudSync.status) { AppCheckDebugToken.read(ctx) }
-                            if (debugToken != null) {
-                                SettingsDivider()
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("رمز App Check للتجربة", fontSize = 16.sp, fontFamily = Display, color = SettingsInk)
-                                    Text("لو الذكاء الاصطناعي وقف بعد تثبيت جديد: انسخ الرمز وسجّله في Firebase ← App Check ← Apps ← com.wordpop.app ← Manage debug tokens.", fontSize = 12.sp, color = SettingsMuted)
-                                    Text(debugToken, fontSize = 12.sp, color = SettingsInk)
-                                    SettingsAction("انسخ الرمز", false) {
-                                        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                        cm.setPrimaryClip(android.content.ClipData.newPlainText("App Check debug token", debugToken))
-                                    }
-                                }
-                            }
                             SettingsDivider()
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("حالة بطاقات الإعدادات", fontSize = 16.sp, fontFamily = Display, color = SettingsInk)
