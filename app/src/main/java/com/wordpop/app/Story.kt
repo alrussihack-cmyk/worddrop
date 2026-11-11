@@ -1,6 +1,26 @@
 package com.wordpop.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.border
@@ -290,6 +310,28 @@ private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String
             }
         }
     }
+}
+
+@Composable
+private fun StoryBoby(size: Dp) {
+    val motion = rememberInfiniteTransition(label = "storyMascotMotion")
+    val bob by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = -4f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "storyMascotBob"
+    )
+    val tilt by motion.animateFloat(
+        initialValue = -1.5f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "storyMascotTilt"
+    )
+    val density = LocalDensity.current
+    Boby(Mood.Happy, size, Modifier.graphicsLayer {
+        translationY = bob * density.density
+        rotationZ = tilt
+    })
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -658,6 +700,4 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         }
     }
     Spacer(Modifier.height(8.dp))
-    }
-    }
 }
