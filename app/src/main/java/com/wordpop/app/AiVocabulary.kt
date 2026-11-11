@@ -128,17 +128,17 @@ Rules:
 
                 onProgress(result.size, targetCount, batchNumber, totalBatches)
                 if (result.size == before && attempts == MAX_ATTEMPTS_PER_BATCH) {
-                    throw Exception("تم تجهيز \${result.size} من \${targetCount} كلمة فقط. جرّب توليد الباقي مرة تانية.")
+                    throw Exception("تم تجهيز ${result.size} من ${targetCount} كلمة فقط. جرّب توليد الباقي مرة تانية.")
                 }
             }
 
             if (result.size < batchTarget) {
-                throw Exception("تم تجهيز \${result.size} من \${targetCount} كلمة فقط. جرّب مرة تانية.")
+                throw Exception("تم تجهيز ${result.size} من ${targetCount} كلمة فقط. جرّب مرة تانية.")
             }
         }
 
         if (result.size != targetCount) {
-            throw Exception("تم تجهيز \${result.size} من \${targetCount} كلمة فقط. جرّب مرة تانية.")
+            throw Exception("تم تجهيز ${result.size} من ${targetCount} كلمة فقط. جرّب مرة تانية.")
         }
         return result
     }
@@ -304,9 +304,9 @@ fun AiVocabularyTab(
                 editingIndex = -1
                 draft = null
                 onAdded(result)
-                notice = "تمت إضافة \${result.added} كلمة إلى مكتبتك."
-                if (result.duplicates > 0) notice += " تم تجاهل \${result.duplicates} مكررة."
-                if (result.skipped > 0) notice += " تم تجاهل \${result.skipped} غير مكتملة."
+                notice = "تمت إضافة ${result.added} كلمة إلى مكتبتك."
+                if (result.duplicates > 0) notice += " تم تجاهل ${result.duplicates} مكررة."
+                if (result.skipped > 0) notice += " تم تجاهل ${result.skipped} غير مكتملة."
             }
 
             fun cancelPreview() {
@@ -317,7 +317,7 @@ fun AiVocabularyTab(
             }
 
             Text(
-                "\${preview.size} كلمة في المعاينة • $duplicateCount مكررة وموجودة بالفعل",
+                "${preview.size} كلمة في المعاينة • $duplicateCount مكررة وموجودة بالفعل",
                 fontSize = 13.sp,
                 color = Muted
             )
@@ -327,7 +327,7 @@ fun AiVocabularyTab(
                 color = Muted
             )
 
-            PrimaryButton("اعتماد وإضافة (\${preview.size})", Modifier.fillMaxWidth()) {
+            PrimaryButton("اعتماد وإضافة (${preview.size})", Modifier.fillMaxWidth()) {
                 addPreviewWords()
             }
 
@@ -417,12 +417,12 @@ fun AiVocabularyTab(
                         ) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    "المجموعة \${groupIndex + 1} · الكلمات $firstNumber–$lastNumber",
+                                    "المجموعة ${groupIndex + 1} · الكلمات $firstNumber–$lastNumber",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Night
                                 )
-                                Text("\${group.size} كلمات", fontSize = 12.sp, color = Muted)
+                                Text("${group.size} كلمات", fontSize = 12.sp, color = Muted)
                             }
                             Text(
                                 if (expanded) "طي ▲" else "عرض ▼",
@@ -478,7 +478,7 @@ fun AiVocabularyTab(
                 }
             }
 
-            PrimaryButton("اعتماد وإضافة (\${preview.size})", Modifier.fillMaxWidth()) {
+            PrimaryButton("اعتماد وإضافة (${preview.size})", Modifier.fillMaxWidth()) {
                 addPreviewWords()
             }
             SecondaryButton("إلغاء القائمة", Modifier.fillMaxWidth()) {
