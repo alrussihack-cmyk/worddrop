@@ -40,6 +40,7 @@ object EasyVoiceClient {
                     readTimeout = 45000
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("X-Firebase-AppCheck", AppCheckTokens.currentToken())
                 }
                 val payload = org.json.JSONObject()
                     .put("input", text.take(5000))
