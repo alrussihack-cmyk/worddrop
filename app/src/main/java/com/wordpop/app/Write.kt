@@ -132,8 +132,9 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
     )
     ModeCard("✍️", "تهجئة الكلمات", "اسمع الكلمة أو شوف معناها واكتبها صح. بتتصحح حرف حرف.", stats("spell")) { onPick(0) }
     ModeCard("🧩", "بناء الجمل", "رتّب الكلمات المتلخبطة، أو اختار الكلمة الناقصة في الجملة.", stats("build")) { onPick(1) }
-    Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val tipShape = RoundedCornerShape(22.dp)
+    Surface(shape = tipShape, color = Tint, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(tipShape, 3.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("إزاي بنختار الأسئلة؟", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
             Text(
                 "الكلمات اللي غلطت فيها بتيجي الأول، وبعدها الكلمات اللي ماتدرّبتش عليها. وبتتحترم المستوى اللي اخترته في الإعدادات.",
@@ -197,15 +198,20 @@ private fun WriteProgress(index: Int, total: Int, answered: Boolean, streak: Int
                 }
             }
         }
-        LinearProgressIndicator(
-            progress = { (index + if (answered) 1 else 0).toFloat() / total },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = Teal,
-            trackColor = Line
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(total) { segment ->
+                Box(
+                    Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp))
+                        .background(
+                            when {
+                                segment < index || (segment == index && answered) -> Teal
+                                segment == index -> Night
+                                else -> Line
+                            }
+                        )
+                )
+            }
+        }
     }
 }
 
@@ -237,7 +243,13 @@ private fun FeedbackPanel(
             enter = fadeIn(tween(if (animationsEnabled) 200 else 0)) +
                 expandVertically(tween(if (animationsEnabled) 250 else 0))
         ) {
-            Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.fillMaxWidth()) {
+            val feedbackShape = RoundedCornerShape(20.dp)
+            Surface(
+                shape = feedbackShape,
+                color = if (ok) Tint else WrongBg,
+                border = BorderStroke(1.5.dp, if (ok) Night else Danger),
+                modifier = Modifier.fillMaxWidth().hardShadow(feedbackShape, 3.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (ok && animationsEnabled) CelebrationBurst()
                     Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (ok) TealDark else Danger)
