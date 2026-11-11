@@ -66,6 +66,7 @@ private val WordsMissTint = Color(0xFFFFE3E3)
 
 private data class MyWordsReviewResult(val added: Int, val skipped: Int)
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun MyWordsScreen(
     store: SettingsStore,
