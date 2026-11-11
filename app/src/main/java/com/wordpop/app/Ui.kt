@@ -123,22 +123,22 @@ import kotlin.math.sin
 
 // ---------- brand ----------
 
-val Teal = Color(0xFF49E5C4)       // WordPop mint
-val TealDark = Color(0xFF078B78)   // Deep mint for readable accents
-val Night = Color(0xFF14243D)      // Ink navy
-val Mint = Color(0xFF49E5C4)
-val Cloud = Color(0xFFF6F8FC)      // Paper background
-val Muted = Color(0xFF68778F)
-val Line = Color(0xFFE3EAF2)
-val SunTint = Color(0xFFFFF6D9)
-val Spark = Color(0xFFFFE066)      // Sunny yellow
-val Sun = Color(0xFFFFE066)
-val Coral = Color(0xFFFF5C5C)
-val Sky = Color(0xFF59B8FF)
-val SkyTint = Color(0xFFDDF1FF)
-val Tint = Color(0xFFDDF9F1)       // Soft mint surface
-val Danger = Color(0xFFC62F3A)
-val MissTint = Color(0xFFFFE3E3)
+val Teal = Color(0xFF45DDBE)       // WordPop mint
+val TealDark = Color(0xFF0A6E5B)   // Readable deep mint
+val Night = Color(0xFF12303A)      // Brand ink
+val Mint = Color(0xFF45DDBE)
+val Cloud = Color(0xFFFFFFFF)      // Clean white canvas
+val Muted = Color(0xFF4C676E)      // Secondary copy
+val Line = Color(0xFFD3DEE1)       // Soft outline
+val SunTint = Color(0xFFFFF5DE)
+val Spark = Color(0xFFF59E0B)      // Warm highlight
+val Sun = Color(0xFFF59E0B)
+val Coral = Color(0xFFF28C78)
+val Sky = Color(0xFF8FDACB)
+val SkyTint = Color(0xFFEAF5F2)
+val Tint = Color(0xFFD4F6EC)       // Soft mint surface
+val Danger = Color(0xFFB42318)
+val MissTint = Color(0xFFFFE0DA)
 
 @Composable
 fun WordPopTheme(content: @Composable () -> Unit) {
@@ -146,9 +146,14 @@ fun WordPopTheme(content: @Composable () -> Unit) {
         colorScheme = lightColorScheme(
             primary = Teal,
             onPrimary = Night,
+            secondary = TealDark,
+            onSecondary = Color.White,
+            tertiary = Spark,
             background = Cloud,
             surface = Color.White,
-            onSurface = Night
+            onSurface = Night,
+            outline = Line,
+            error = Danger
         ),
         typography = brandTypography()
     ) {
@@ -201,7 +206,7 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
-        border = BorderStroke(2.5.dp, Night),
+        border = BorderStroke(2.dp, Night),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
         Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -222,7 +227,7 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
             .graphicsLayer { translationY = offset.toPx() }
             .hardShadow(shape, depth),
         shape = shape,
-        border = BorderStroke(2.5.dp, Night),
+        border = BorderStroke(2.dp, Night),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
         Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -231,16 +236,16 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
 
 @Composable
 fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(23.dp)
     Box(
         modifier = Modifier
-            .heightIn(min = 38.dp)
-            .hardShadow(shape, 2.dp)
+            .heightIn(min = 46.dp)
+            .hardShadow(shape, 3.dp)
             .clip(shape)
             .background(if (selected) Teal else Color.White)
             .border(2.dp, Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 2.dp),
+            .padding(horizontal = 17.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -265,7 +270,7 @@ fun ChipRow(content: @Composable FlowRowScope.() -> Unit) {
 
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 3.dp)) {
+    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, fontSize = 18.sp, fontFamily = Display, color = Night)
             content()
@@ -281,7 +286,7 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
             .hardShadow(CircleShape, 3.dp)
             .clip(CircleShape)
             .background(Teal)
-            .border(2.5.dp, Night, CircleShape)
+            .border(2.dp, Night, CircleShape)
             .clickable(role = Role.Button, onClickLabel = "نطق الكلمة", onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -298,10 +303,11 @@ fun SpeakButton(size: Dp, onClick: () -> Unit) {
 fun StepBtn(symbol: String, desc: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(Cloud)
-            .border(2.dp, Night, CircleShape)
+            .size(44.dp)
+            .hardShadow(RoundedCornerShape(14.dp), 3.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .border(2.dp, Night, RoundedCornerShape(14.dp))
             .semantics { contentDescription = desc }
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -623,7 +629,7 @@ enum class Page(val title: String, val icon: Int) {
 @Composable
 fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
     Column(Modifier.fillMaxWidth().background(Color.White)) {
-        Box(Modifier.fillMaxWidth().height(2.5.dp).background(Night))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 6.dp)) {
             Page.values().forEach { p ->
                 val selected = p == page
@@ -635,11 +641,11 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val pill = RoundedCornerShape(12.dp)
+                    val pill = RoundedCornerShape(18.dp)
                     Box(
                         Modifier
-                            .width(52.dp)
-                            .height(32.dp)
+                            .width(if (selected) 64.dp else 48.dp)
+                            .height(36.dp)
                             .then(if (selected) Modifier.clip(pill).background(Teal).border(2.dp, Night, pill) else Modifier),
                         contentAlignment = Alignment.Center
                     ) {
@@ -737,7 +743,7 @@ fun requestBatteryExemption(ctx: android.content.Context): Boolean {
 
 @Composable
 fun HomeStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = tint, shadowElevation = 1.dp) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = tint, border = BorderStroke(1.5.dp, Line)) {
         Column(
             Modifier.fillMaxWidth().padding(vertical = 13.dp, horizontal = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
