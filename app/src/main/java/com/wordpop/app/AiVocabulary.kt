@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -155,8 +156,14 @@ fun AiVocabularyTab(
             onValueChange = { topic = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            shape = RoundedCornerShape(14.dp),
             label = { Text("الموضوع") },
-            placeholder = { Text("مثال: خدمة النزلاء في الفنادق") }
+            placeholder = { Text("مثال: خدمة النزلاء في الفنادق") },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Night, unfocusedBorderColor = Muted.copy(alpha = 0.65f),
+                focusedLabelColor = Night, unfocusedLabelColor = Muted,
+                focusedTextColor = Night, unfocusedTextColor = Night, cursorColor = Night
+            )
         )
         OutlinedTextField(
             value = request,
@@ -164,8 +171,14 @@ fun AiVocabularyTab(
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
             maxLines = 5,
+            shape = RoundedCornerShape(14.dp),
             label = { Text("عايز الكلمات تعبر عن إيه بالضبط؟") },
-            placeholder = { Text("مثال: كلمات للتعامل مع شكاوى النزلاء، الاعتذار، حل المشكلات، وشرح الخدمات بطريقة احترافية.") }
+            placeholder = { Text("مثال: كلمات للتعامل مع شكاوى النزلاء، الاعتذار، حل المشكلات، وشرح الخدمات بطريقة احترافية.") },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Night, unfocusedBorderColor = Muted.copy(alpha = 0.65f),
+                focusedLabelColor = Night, unfocusedLabelColor = Muted,
+                focusedTextColor = Night, unfocusedTextColor = Night, cursorColor = Night
+            )
         )
 
         Text("عدد الكلمات", fontSize = 14.sp, color = Muted, fontWeight = FontWeight.Bold)
