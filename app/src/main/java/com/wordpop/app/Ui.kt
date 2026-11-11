@@ -2090,7 +2090,9 @@ private fun QuizResult(
     onNewWord: () -> Unit
 ) {
     val pct = if (total == 0) 0 else score * 100 / total
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
+    val stars = when { pct >= 85 -> 3; pct >= 60 -> 2; pct >= 35 -> 1; else -> 0 }
+    val resultShape = RoundedCornerShape(26.dp)
+    Surface(shape = resultShape, color = Color.White, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(resultShape, 5.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -2100,6 +2102,11 @@ private fun QuizResult(
         ) {
             if (pct >= 80 && animationsEnabled) CelebrationBurst()
             Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                repeat(3) { index ->
+                    Text("★", fontSize = 30.sp, color = if (index < stars) Spark else Line)
+                }
+            }
             Box(
                 Modifier
                     .size(110.dp)
