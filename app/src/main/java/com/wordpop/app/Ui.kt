@@ -1362,16 +1362,36 @@ fun HomeScreen(
         }
 
         if (page == Page.MyWords) {
-            AiVocabularyTab(store = store, onAdded = { result ->
-                wordsVersion++
-                importMsg = buildString {
-                    append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
-                    if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
-                    if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
+            Text("كلماتي", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFFEEF4F5))
+                    .border(1.5.dp, Line, RoundedCornerShape(20.dp)).padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("ولّد بالذكاء الاصطناعي", "استيراد من ملف").forEachIndexed { index, label ->
+                    val selected = myWordsMode == index
+                    Box(
+                        Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
+                            .background(if (selected) Teal else Color.Transparent)
+                            .then(if (selected) Modifier.border(2.dp, Night, RoundedCornerShape(16.dp)) else Modifier)
+                            .clickable { myWordsMode = index }.padding(horizontal = 6.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(label, fontSize = 14.sp, color = Night, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    }
                 }
-            })
-            Spacer(Modifier.height(12.dp))
-            if (myWordsMode == 1) {
+            }
+            if (myWordsMode == 0) {
+                AiVocabularyTab(store = store, onAdded = { result ->
+                    wordsVersion++
+                    importMsg = buildString {
+                        append("تمت إضافة ${result.added} كلمة إلى كلماتك.")
+                        if (result.duplicates > 0) append(" تم تجاهل ${result.duplicates} مكررة.")
+                        if (result.skipped > 0) append(" تم تجاهل ${result.skipped} غير مكتملة.")
+                    }
+                })
+            } else {
+                Spacer(Modifier.height(4.dp))
                 val cardShape = RoundedCornerShape(26.dp)
                 Surface(
                     shape = cardShape,
