@@ -1668,8 +1668,12 @@ fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("المفضلة", fontSize = 24.sp, fontFamily = Display, color = Night)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("المفضلة", fontSize = 24.sp, fontFamily = Display, color = Night)
+                Text("كلمات وجمل وقصص عايز ترجع لها", fontSize = 13.sp, color = Muted)
+            }
+            Boby(Mood.Happy, 48.dp)
         }
         ChipRow {
             Chip("كلمات (${words.size})", tab == 0) { tab = 0 }
@@ -1706,9 +1710,15 @@ fun FavoritesScreen(store: SettingsStore, onOpenWord: (Int) -> Unit) {
 
 @Composable
 fun EmptyFav(text: String) {
-    Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Boby(Mood.Happy, 72.dp)
-        Text(text, fontSize = 16.sp, color = Muted, modifier = Modifier.weight(1f))
+    val emptyShape = RoundedCornerShape(22.dp)
+    Surface(
+        shape = emptyShape, color = Tint, border = BorderStroke(1.5.dp, Night),
+        modifier = Modifier.fillMaxWidth().hardShadow(emptyShape, 3.dp)
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Boby(Mood.Happy, 68.dp)
+            Text(text, fontSize = 15.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium, color = Night, modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -1717,9 +1727,10 @@ fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, o
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = Color.White,
-        border = BorderStroke(1.5.dp, Line),
+        border = BorderStroke(1.5.dp, Night),
         modifier = Modifier
             .fillMaxWidth()
+            .hardShadow(RoundedCornerShape(20.dp), 3.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
     ) {
