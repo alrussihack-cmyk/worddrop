@@ -329,7 +329,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     } else {
         Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Boby(Mood.Happy, 46.dp)
+                StoryBoby(46.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("قصتك", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
@@ -340,8 +340,13 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                 StepBtn("☷", "قصصك السابقة") { historyExpanded = !historyExpanded }
             }
         }
+        val animatedStoryProgress by animateFloatAsState(
+            targetValue = (step + 1) / 5f,
+            animationSpec = tween(450, easing = FastOutSlowInEasing),
+            label = "storyProgress"
+        )
         LinearProgressIndicator(
-            progress = { (step + 1) / 5f },
+            progress = { animatedStoryProgress },
             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
             color = Teal,
             trackColor = Line
@@ -353,15 +358,25 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         ) {
             labels.forEachIndexed { index, label ->
                 val selected = step == index
+                val chipColor by animateColorAsState(
+                    targetValue = if (selected) Teal else Color.Transparent,
+                    animationSpec = tween(220),
+                    label = "storyStepColor$index"
+                )
+                val labelColor by animateColorAsState(
+                    targetValue = if (selected) Night else Muted,
+                    animationSpec = tween(220),
+                    label = "storyStepText$index"
+                )
                 Box(
                     Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(14.dp))
-                        .background(if (selected) Teal else Color.Transparent)
+                        .background(chipColor)
                         .then(if (selected) Modifier.border(2.dp, Night, RoundedCornerShape(14.dp)) else Modifier)
                         .clickable { step = index; quiz = false; selectedStoryWord = null }
                         .padding(horizontal = 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(label, fontSize = 12.sp, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (selected) Night else Muted)
+                    Text(label, fontSize = 12.sp, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold, color = labelColor)
                 }
             }
         }
@@ -494,7 +509,15 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
     }
 
     story?.let { activeStory ->
-        when (step) {
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                (slideInHorizontally(initialOffsetX = { it / 7 }) + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(targetOffsetX = { -it / 7 }) + fadeOut(tween(160)))
+            },
+            label = "storyStepPanel"
+        ) { visibleStep ->
+        when (visibleStep) {
             0 -> {
                 Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -510,15 +533,21 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                                 }
                             }
                         }
-                        selectedStoryWord?.let { selected ->
-                            val meaning = words.firstOrNull { it.en.equals(selected, ignoreCase = true) }?.ar.orEmpty()
-                            Surface(shape = RoundedCornerShape(18.dp), color = Night, modifier = Modifier.fillMaxWidth()) {
-                                Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        En(selected, 16.sp, Color.White, FontWeight.ExtraBold)
-                                        Text(meaning, fontSize = 14.sp, color = Color(0xFF8FF0DA))
+                        AnimatedVisibility(
+                            visible = selectedStoryWord != null,
+                            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f, animationSpec = tween(220)),
+                            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f, animationSpec = tween(120))
+                        ) {
+                            selectedStoryWord?.let { selected ->
+                                val meaning = words.firstOrNull { it.en.equals(selected, ignoreCase = true) }?.ar.orEmpty()
+                                Surface(shape = RoundedCornerShape(18.dp), color = Night, modifier = Modifier.fillMaxWidth()) {
+                                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            En(selected, 16.sp, Color.White, FontWeight.ExtraBold)
+                                            Text(meaning, fontSize = 14.sp, color = Color(0xFF8FF0DA))
+                                        }
+                                        SpeakButton(44.dp) { speak(selected) }
                                     }
-                                    SpeakButton(44.dp) { speak(selected) }
                                 }
                             }
                         }
@@ -612,6 +641,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                 }
             }
         }
+        }
 
         if (step != 3 || !quiz) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -628,4 +658,6 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
         }
     }
     Spacer(Modifier.height(8.dp))
+    }
+    }
 }
