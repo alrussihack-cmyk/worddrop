@@ -232,7 +232,11 @@ private fun FeedbackPanel(
     content: @Composable ColumnScope.() -> Unit
 ) {
     AnswerFeedbackMotion(correct = ok, trigger = trigger, enabled = animationsEnabled) {
-        AnimatedVisibility(visible = true, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(tween(if (animationsEnabled) 200 else 0)) +
+                expandVertically(tween(if (animationsEnabled) 250 else 0))
+        ) {
             Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (ok && animationsEnabled) CelebrationBurst()
@@ -314,6 +318,7 @@ private fun WriteResult(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (pct >= 80 && store.feedbackAnimations) CelebrationBurst()
             Boby(if (pct >= 80) Mood.Cheer else if (pct >= 50) Mood.Happy else Mood.Think, 96.dp)
             Box(
                 Modifier
@@ -750,7 +755,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                     isCorrect -> Teal
                     isPicked -> MissTint
                     else -> Color.White
-                }, tween(220), label = "bg"
+                }, tween(if (store.feedbackAnimations) 220 else 0), label = "bg"
             )
             val borderC by animateColorAsState(
                 when {
@@ -758,7 +763,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                     isCorrect -> Night
                     isPicked -> Danger
                     else -> Night
-                }, tween(220), label = "borderC"
+                }, tween(if (store.feedbackAnimations) 220 else 0), label = "borderC"
             )
             val shape = RoundedCornerShape(14.dp)
             AnswerFeedbackMotion(
