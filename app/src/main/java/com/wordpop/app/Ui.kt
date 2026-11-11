@@ -2225,19 +2225,22 @@ fun ReviewScreen(store: SettingsStore) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SunTint) {
+            val reviewdueShape = RoundedCornerShape(20.dp)
+            Surface(Modifier.weight(1f).hardShadow(reviewdueShape, 3.dp), shape = reviewdueShape, color = SunTint, border = BorderStroke(1.5.dp, Night)) {
                 Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$dueNow", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
                     Text("مستحقة", fontSize = 12.sp, color = Muted)
                 }
             }
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = Tint) {
+            val reviewnewShape = RoundedCornerShape(20.dp)
+            Surface(Modifier.weight(1f).hardShadow(reviewnewShape, 3.dp), shape = reviewnewShape, color = Tint, border = BorderStroke(1.5.dp, Night)) {
                 Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$newToday", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
                     Text("جديدة اليوم", fontSize = 12.sp, color = Muted)
                 }
             }
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(15.dp), color = SkyTint) {
+            val reviewmasteredShape = RoundedCornerShape(20.dp)
+            Surface(Modifier.weight(1f).hardShadow(reviewmasteredShape, 3.dp), shape = reviewmasteredShape, color = SkyTint, border = BorderStroke(1.5.dp, Night)) {
                 Column(Modifier.padding(vertical = 9.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$masteredCount", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = Night)
                     Text("ثبتت", fontSize = 12.sp, color = Muted)
@@ -2261,7 +2264,8 @@ fun ReviewScreen(store: SettingsStore) {
 
         when {
             queue.isEmpty() -> {
-                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                val reviewStateShape = RoundedCornerShape(24.dp)
+                Surface(shape = reviewStateShape, color = Color.White, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(reviewStateShape, 4.dp)) {
                     Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Boby(Mood.Cheer, 76.dp)
                         Text("كده زي الفل! 🎉", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
@@ -2271,7 +2275,8 @@ fun ReviewScreen(store: SettingsStore) {
                 }
             }
             index >= queue.size -> {
-                Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
+                val reviewStateShape = RoundedCornerShape(24.dp)
+                Surface(shape = reviewStateShape, color = Color.White, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(reviewStateShape, 4.dp)) {
                     Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (completed > 0 && remembered == completed && store.feedbackAnimations) CelebrationBurst()
                         Boby(Mood.Cheer, 76.dp)
@@ -2305,10 +2310,11 @@ fun ReviewScreen(store: SettingsStore) {
                     trigger = ratingFeedbackId,
                     enabled = store.feedbackAnimations
                 ) {
+                val flashcardShape = RoundedCornerShape(26.dp)
                 Surface(
-                    shape = RoundedCornerShape(24.dp), color = Color.White,
-                    border = BorderStroke(1.5.dp, Line),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = flashcardShape, color = Color.White,
+                    border = BorderStroke(2.dp, Night),
+                    modifier = Modifier.fillMaxWidth().hardShadow(flashcardShape, 5.dp)
                 ) {
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
@@ -2322,7 +2328,7 @@ fun ReviewScreen(store: SettingsStore) {
 
                         if (revealed) {
                             if (ratingFeedbackId > 0 && ratingFeedbackCorrect && store.feedbackAnimations) CelebrationBurst()
-                            Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
+                            Surface(shape = RoundedCornerShape(18.dp), color = Tint, border = BorderStroke(1.5.dp, Night), modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                     Text(word.ar, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TealDark, textAlign = TextAlign.Center)
                                     if (word.example.isNotEmpty()) {
