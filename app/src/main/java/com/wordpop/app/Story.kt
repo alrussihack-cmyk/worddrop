@@ -104,6 +104,7 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
             conn.readTimeout = 90000
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("X-Firebase-AppCheck", AppCheckTokens.currentToken())
             conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
