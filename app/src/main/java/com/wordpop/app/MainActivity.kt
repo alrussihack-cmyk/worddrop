@@ -105,10 +105,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(i: Intent?) {
-        val id = i?.getIntExtra(OverlayService.EXTRA_WORD_ID, -1) ?: -1
-        if (id >= 0) {
-            wordFromIntent = id
-            i?.removeExtra(OverlayService.EXTRA_WORD_ID)
+        if (i?.hasExtra(OverlayService.EXTRA_WORD_ID) == true) {
+            // Cloud words use negative IDs to stay separate from local words.
+            wordFromIntent = i.getIntExtra(OverlayService.EXTRA_WORD_ID, 0)
+            i.removeExtra(OverlayService.EXTRA_WORD_ID)
         }
     }
 }
