@@ -6,7 +6,7 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Firebase-AppCheck",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -37,18 +37,116 @@ export default {
 
     if (url.pathname === "/ai/chat" && request.method === "POST") {
       if (!(await allowRequest(request, env, "ai"))) return rateLimited();
+      if (!(await verifyAppCheckRequest(request, env))) return appCheckRequired();
       return generateAiResponse(request, env);
     }
 
     // Existing EasyVoice endpoint remains compatible with older WordPop builds.
     if (url.pathname === "/" && request.method === "POST") {
       if (!(await allowRequest(request, env, "tts"))) return rateLimited();
+      if (!(await verifyAppCheckRequest(request, env))) return appCheckRequired();
       return generateSpeech(request, env);
     }
 
     return json({ error: "Not found" }, 404);
   },
 };
+
+
+let appCheckJwksCache = { keys: [], expiresAt: 0 };
+
+async function verifyAppCheckRequest(request, env) {
+  const token = request.headers.get("X-Firebase-AppCheck")?.trim() || "";
+  const projectNumber = String(env.FIREBASE_PROJECT_NUMBER || "").trim();
+  const expectedAppId = String(env.FIREBASE_APP_ID || "").trim();
+  if (!token || !/^\\d+$/.test(projectNumber) || !expectedAppId) return false;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3 || parts.some((part) => !part)) return false;
+
+    const header = decodeBase64UrlJson(parts[0]);
+    const claims = decodeBase64UrlJson(parts[1]);
+    if (header.alg !== "RS256" || header.typ !== "JWT" || typeof header.kid !== "string") {
+      return false;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    if (
+      claims.iss !== `https://firebaseappcheck.googleapis.com/${projectNumber}` ||
+      !audiences.includes(`projects/${projectNumber}`) ||
+      claims.sub !== expectedAppId ||
+      !Number.isFinite(claims.exp) || claims.exp <= now ||
+      !Number.isFinite(claims.iat) || claims.iat > now + 60 ||
+      (Number.isFinite(claims.nbf) && claims.nbf > now + 60)
+    ) {
+      return false;
+    }
+
+    let jwks = await getAppCheckJwks();
+    let jwk = jwks.keys.find((key) => key.kid === header.kid);
+    if (!jwk) {
+      jwks = await getAppCheckJwks(true);
+      jwk = jwks.keys.find((key) => key.kid === header.kid);
+    }
+    if (!jwk || jwk.kty !== "RSA" || jwk.use !== "sig") return false;
+
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    return await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      publicKey,
+      decodeBase64Url(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
+    );
+  } catch {
+    // Fail closed: unavailable keys, malformed tokens, and crypto errors are rejected.
+    return false;
+  }
+}
+
+async function getAppCheckJwks(forceRefresh = false) {
+  if (!forceRefresh && appCheckJwksCache.expiresAt > Date.now()) {
+    return appCheckJwksCache;
+  }
+
+  const response = await fetch("https://firebaseappcheck.googleapis.com/v1/jwks", {
+    headers: { "Cache-Control": "no-cache" },
+  });
+  if (!response.ok) throw new Error("Unable to retrieve Firebase App Check signing keys.");
+  const body = await response.json();
+  if (!Array.isArray(body.keys) || body.keys.length === 0) {
+    throw new Error("Firebase App Check signing keys are unavailable.");
+  }
+
+  appCheckJwksCache = {
+    keys: body.keys,
+    // Firebase recommends caching its rotating public keys for up to six hours.
+    expiresAt: Date.now() + 6 * 60 * 60 * 1000,
+  };
+  return appCheckJwksCache;
+}
+
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function decodeBase64UrlJson(value) {
+  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value)));
+}
+
+function appCheckRequired() {
+  return json({ error: "تعذر التحقق من أمان التطبيق. حدّث WordPop وحاول مرة أخرى." }, 401);
+}
 
 async function saveAdminConfig(request, env) {
   const token = bearerToken(request);
