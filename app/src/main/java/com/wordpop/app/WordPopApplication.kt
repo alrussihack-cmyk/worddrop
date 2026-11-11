@@ -15,14 +15,16 @@ class WordPopApplication : Application() {
         if (FirebaseApp.getApps(this).isEmpty()) {
             FirebaseApp.initializeApp(this)
         }
+        // Local learning must remain available even if Firebase is temporarily unavailable.
+        WordRepo.init(this)
+        SettingsStore(this)
+
         if (FirebaseApp.getApps(this).isEmpty()) {
             Log.w(TAG, "Firebase is not configured; cloud and protected API features stay unavailable.")
             return
         }
 
         AppCheckProviderInstaller.install()
-        WordRepo.init(this)
-        SettingsStore(this)
         AiConfigSync.start(this)
         WordCloudSync.start(this)
         SettingsCardsSync.start(this)
