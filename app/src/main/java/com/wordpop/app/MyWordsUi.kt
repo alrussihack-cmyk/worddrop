@@ -145,7 +145,6 @@ fun MyWordsScreen(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Boby(Mood.Think, 54.dp)
                         Column(Modifier.weight(1f)) {
                             Text("مولّد الكلمات بالذكاء الاصطناعي", fontSize = 21.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk)
                             Text("جهّز قائمة على مقاس احتياجك", fontSize = 13.sp, color = WordsMuted)
@@ -306,25 +305,34 @@ private fun VocabularySwipeReview(
         index = (index - 1).coerceAtLeast(0)
     }
 
+    val animatedProgress by animateFloatAsState(
+        if (words.isEmpty()) 0f else index.toFloat() / words.size,
+        animationSpec = tween(300),
+        label = "reviewProgress"
+    )
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(30.dp), color = WordsInk) {
-                Text(
-                    "${(index + 1).coerceAtMost(words.size)} / ${words.size}",
-                    Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
-                    color = WordsMint, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
-                )
-            }
-            Text("راجع الكلمات", fontSize = 22.sp, fontFamily = Display, fontWeight = FontWeight.Bold, color = WordsInk)
             Box(
                 Modifier.size(46.dp).hardShadow(CircleShape, 3.dp).clip(CircleShape)
                     .background(Color.White).border(3.dp, WordsInk, CircleShape)
                     .clickable(role = Role.Button, onClick = onBack),
                 contentAlignment = Alignment.Center
             ) { Text("›", fontSize = 31.sp, color = WordsInk, fontWeight = FontWeight.Bold) }
+            Text(
+                "راجع الكلمات", Modifier.weight(1f),
+                fontSize = 22.sp, fontFamily = Display, fontWeight = FontWeight.Bold,
+                color = WordsInk, textAlign = TextAlign.Center
+            )
+            Surface(shape = RoundedCornerShape(30.dp), color = WordsInk) {
+                Text(
+                    "${(index + 1).coerceAtMost(words.size)} / ${words.size}",
+                    Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                    color = WordsMint, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+                )
+            }
         }
         Box(Modifier.fillMaxWidth().height(16.dp).clip(CircleShape).background(Color.White).border(3.dp, WordsInk, CircleShape)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(if (words.isEmpty()) 0f else index.toFloat() / words.size).clip(CircleShape).background(WordsMint))
+            Box(Modifier.fillMaxHeight().fillMaxWidth(animatedProgress).clip(CircleShape).background(WordsMint))
         }
         Ltr {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -356,7 +364,7 @@ private fun VocabularySwipeReview(
             }
         }
         Text("اسحب الكارت يمين للإضافة أو شمال لتخطيها", Modifier.fillMaxWidth(), color = WordsMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
-        WordsPrimaryButton("اعتمد المضاف (${added.size}) وخلص", Modifier.fillMaxWidth()) { finish() }
+        WordsSecondaryButton("اعتمد المضاف (${added.size}) وخلص", Modifier.fillMaxWidth()) { finish() }
         TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text("تعديل أو حذف كلمات من القائمة", color = WordsDarkMint, fontWeight = FontWeight.Bold)
         }
@@ -490,7 +498,7 @@ private fun VocabularyEditList(words: List<Word>, onBack: () -> Unit, onChange: 
             }
         }
         WordsPrimaryButton("ابدأ مراجعة الكلمات (${words.size})", Modifier.fillMaxWidth()) { onBack() }
-        WordsSecondaryButton("رجوع للمولّد", Modifier.fillMaxWidth()) { onBack() }
+        WordsSecondaryButton("رجوع للمراجعة", Modifier.fillMaxWidth()) { onBack() }
     }
     val current = draft
     if (current != null && editIndex in words.indices) {
