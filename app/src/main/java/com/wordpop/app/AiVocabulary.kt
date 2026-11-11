@@ -123,12 +123,24 @@ fun AiVocabularyTab(
     var editingIndex by remember { mutableIntStateOf(-1) }
     var draft by remember { mutableStateOf<Word?>(null) }
 
-    Section("مولّد الكلمات بالذكاء الاصطناعي") {
-        Text(
-            "اختار موضوع، واشرح المعاني والمواقف اللي محتاجها. WordPop هيجهّز الكلمات والترجمة والنطق والأمثلة، وبعدها تراجع كل حاجة قبل الإضافة.",
-            fontSize = 14.sp,
-            color = Muted
-        )
+    val generatorShape = RoundedCornerShape(26.dp)
+    Surface(
+        shape = generatorShape,
+        color = Color.White,
+        border = BorderStroke(2.dp, Night),
+        modifier = Modifier.fillMaxWidth().hardShadow(generatorShape, 5.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Boby(Mood.Happy, 44.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("موّلد الكلمات بالذكاء الاصطناعي", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Night)
+                    Text(
+                        "اختار موضوع وWordPop يجهّز الكلمات والنطق والأمثلة، وانت تراجعها قبل الإضافة.",
+                        fontSize = 13.sp, lineHeight = 20.sp, color = Muted
+                    )
+                }
+            }
 
         OutlinedTextField(
             value = topic,
@@ -207,6 +219,7 @@ fun AiVocabularyTab(
                     loading = false
                 }
             }
+        }
         }
     }
 
