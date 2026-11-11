@@ -70,3 +70,34 @@ test("preflight requests do not consume the rate-limit allowance", async () => {
   assert.equal(response.status, 200);
   assert.equal(calls, 0);
 });
+
+test("AI requests without Firebase App Check are rejected before upstream work", async () => {
+  const response = await worker.fetch(post("/ai/chat"), {
+    FIREBASE_PROJECT_NUMBER: "922302031640",
+    FIREBASE_APP_ID: "1:922302031640:android:373289c5e99f1e19dc206d",
+  });
+
+  assert.equal(response.status, 401);
+  assert.match((await response.json()).error, /أمان التطبيق/);
+});
+
+test("TTS requests without Firebase App Check are rejected before contacting EasyVoice", async () => {
+  const response = await worker.fetch(post("/"), {
+    FIREBASE_PROJECT_NUMBER: "922302031640",
+    FIREBASE_APP_ID: "1:922302031640:android:373289c5e99f1e19dc206d",
+  });
+
+  assert.equal(response.status, 401);
+});
+
+test("malformed Firebase App Check tokens are rejected", async () => {
+  const request = post("/ai/chat");
+  request.headers.set("X-Firebase-AppCheck", "not.a.valid-token");
+
+  const response = await worker.fetch(request, {
+    FIREBASE_PROJECT_NUMBER: "922302031640",
+    FIREBASE_APP_ID: "1:922302031640:android:373289c5e99f1e19dc206d",
+  });
+
+  assert.equal(response.status, 401);
+});
