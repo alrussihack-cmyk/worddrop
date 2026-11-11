@@ -153,7 +153,7 @@ fun WordPopStartup(onFinished: () -> Unit) {
                     Ltr {
                         Text(
                             text = "WordPop",
-                            fontFamily = Display,
+                            fontFamily = Wordmark,
                             fontSize = 43.sp,
                             fontWeight = FontWeight.Normal,
                             color = Night,
