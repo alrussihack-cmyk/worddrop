@@ -29,7 +29,7 @@ val Readex = FontFamily(
 )
 
 /** Headings use the same clear rounded family; keep Lalezar for the expressive wordmark only. */
-val Display = Readex
+val Display = FontFamily(Font(R.font.lalezar, FontWeight.Normal))
 val Wordmark = FontFamily(Font(R.font.lalezar, FontWeight.Normal))
 
 fun brandTypography(): Typography {
