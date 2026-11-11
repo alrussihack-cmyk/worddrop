@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -199,6 +200,7 @@ private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String
     var idx by remember(story) { mutableIntStateOf(0) }
     var picked by remember(story) { mutableStateOf<String?>(null) }
     var score by remember(story) { mutableIntStateOf(0) }
+    val answers = remember(story) { mutableStateListOf<Boolean>() }
     val missed = remember(story) { mutableListOf<String>() }
 
     if (qs.isEmpty()) {
@@ -220,37 +222,56 @@ private fun ClozeQuiz(story: Story, store: SettingsStore, onFinish: (List<String
     }
     val q = qs[idx]
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("سؤال ${idx + 1} من ${qs.size}: اختار الكلمة الناقصة", fontSize = 14.sp, color = Muted)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                repeat(qs.size) { i ->
+                    val segment = when {
+                        i < answers.size && answers[i] -> Teal
+                        i < answers.size -> Coral
+                        else -> Line
+                    }
+                    Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(segment))
+                }
+            }
+            Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.dp, Night)) {
+                Text("★ " + score, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Night, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+        }
+        Text("السؤال " + (idx + 1) + " من " + qs.size + ": اختار الكلمة الناقصة", fontSize = 14.sp, color = Muted, fontWeight = FontWeight.Bold)
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Text(q.sentence, fontSize = 19.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium, color = Night, modifier = Modifier.fillMaxWidth())
+            Surface(shape = RoundedCornerShape(24.dp), color = Tint, border = BorderStroke(2.dp, Night), modifier = Modifier.fillMaxWidth()) {
+                Text(q.sentence, fontSize = 19.sp, lineHeight = 29.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(16.dp).fillMaxWidth())
+            }
             q.options.forEach { o ->
                 val done = picked != null
                 val right = o == q.answer
                 val bg = when {
                     done && right -> Teal
-                    done && o == picked -> MissTint
-                    else -> Cloud
+                    done && o == picked -> Color(0xFFFFB9AE)
+                    else -> Color.White
                 }
                 val line = when {
                     done && right -> Night
                     done && o == picked -> Danger
                     else -> Night
                 }
+                val shape = RoundedCornerShape(18.dp)
                 AnswerFeedbackMotion(
                     correct = right,
                     trigger = if (done && o == picked) 1 else 0,
                     enabled = store.feedbackAnimations
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp), color = bg,
-                        border = BorderStroke(1.5.dp, line),
-                        modifier = Modifier.fillMaxWidth().clickable(enabled = !done) {
+                        shape = shape, color = bg,
+                        border = BorderStroke(2.dp, line),
+                        modifier = Modifier.fillMaxWidth().hardShadow(shape, 3.dp).clickable(enabled = !done) {
                             picked = o
+                            answers.add(right)
                             answerFeedback(right)
                             if (right) score++ else missed += q.answer
                         }
                     ) {
-                        Text(o, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+                        Text(o, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp))
                     }
                 }
             }
