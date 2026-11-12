@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -211,7 +212,9 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
         return
     }
     if (idx >= qs.size) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val passed = score * 100 / qs.size >= 60
+        LaunchedEffect(story) { if (passed) Sfx.passed() else Sfx.failed() }
+        Column(Modifier.reactTo(passed, story).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Boby(if (missed.isEmpty()) Mood.Cheer else Mood.Happy, 72.dp, Modifier.bob())
             Text("نتيجتك: $score من ${qs.size}", fontSize = 22.sp, fontFamily = Display, color = Night)
             Text(
@@ -251,10 +254,10 @@ private fun ClozeQuiz(story: Story, onFinish: (List<String>) -> Unit) {
                 Surface(
                     shape = optionShape, color = bg,
                     border = BorderStroke(2.dp, line),
-                    modifier = Modifier.fillMaxWidth().hardShadow(optionShape, 3.dp).clickable(enabled = !answered) {
+                    modifier = Modifier.reactTo(if (answered && o == picked) right else null, picked).fillMaxWidth().hardShadow(optionShape, 3.dp).clickable(enabled = !answered) {
                         picked = o
                         results.add(right)
-                        if (right) score++ else missed += q.answer
+                        if (right) { score++; Sfx.correct() } else { missed += q.answer; Sfx.wrong() }
                     }
                 ) {
                     Text(o, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Night, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))

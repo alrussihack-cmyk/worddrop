@@ -1673,6 +1673,7 @@ private fun QuizSession(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 54.dp)
+                .reactTo(if (isPicked) isCorrect else null, picked)
                 .hardShadow(shape, 4.dp)
                 .clip(shape)
                 .background(bg)
@@ -1690,6 +1691,7 @@ private fun QuizSession(
                             store.recordReview(q.word.id, ReviewRating.Good)
                         }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        Sfx.correct()
                     } else {
                         streak = 0
                         wrong.add(q.word)
@@ -1699,6 +1701,7 @@ private fun QuizSession(
                             store.recordReview(q.word.id, ReviewRating.Again)
                         }
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        Sfx.wrong()
                     }
                     onLearnedChanged()
                 }
@@ -1813,7 +1816,8 @@ private fun QuizResult(
     onNewWord: () -> Unit
 ) {
     val pct = if (total == 0) 0 else score * 100 / total
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
+    LaunchedEffect(Unit) { if (pct >= 60) Sfx.passed() else Sfx.failed() }
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.reactTo(pct >= 60, Unit).fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()

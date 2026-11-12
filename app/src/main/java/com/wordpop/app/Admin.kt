@@ -322,6 +322,8 @@ private fun AdminPanel(
         Text("مدة الظهور: $displaySec ثانية", fontSize = 15.sp, color = Muted)
         ChipRow { listOf(5, 10, 15, 20, 30).forEach { v -> Chip("$v ث", displaySec == v) { displaySec = v; store.displaySec = v } } }
         SwitchRow("صوت تنبيه", sound) { sound = it; store.sound = it }
+        var sfx by remember { mutableStateOf(store.sfxEnabled) }
+        SwitchRow("أصوات الاختبارات والترحيب", sfx) { sfx = it; store.sfxEnabled = it }
         SwitchRow("نطق الكلمة تلقائيًا", autoSpeak) { autoSpeak = it; store.autoSpeak = it }
         SwitchRow("لا تظهر أثناء المكالمات", skipCalls) { skipCalls = it; store.skipCalls = it }
         SwitchRow("لا تظهر أثناء الألعاب والفيديو", skipGames) { skipGames = it; store.skipGames = it }

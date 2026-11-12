@@ -42,6 +42,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("enabled", false)
         set(v) = prefs.edit().putBoolean("enabled", v).apply()
 
+    /** Quiz sound effects and the welcome voice. */
+    var sfxEnabled: Boolean
+        get() = prefs.getBoolean("sfxEnabled", true)
+        set(v) = prefs.edit().putBoolean("sfxEnabled", v).apply()
+
     var reminderEnabled: Boolean
         get() = prefs.getBoolean("reminderEnabled", true)
         set(v) = prefs.edit().putBoolean("reminderEnabled", v).apply()

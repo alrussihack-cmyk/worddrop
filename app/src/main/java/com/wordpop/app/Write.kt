@@ -226,7 +226,7 @@ private fun PromptCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun FeedbackPanel(ok: Boolean, title: String, content: @Composable ColumnScope.() -> Unit) {
     AnimatedVisibility(visible = true, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
-        Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.reactTo(ok, title).fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (ok) TealDark else Danger)
                 content()
@@ -295,9 +295,12 @@ private fun WriteResult(
     onAgain: () -> Unit
 ) {
     val pct = scorePct(perfect, helped, total)
-    LaunchedEffect(Unit) { saveRound(store, prefix, pct) }
+    LaunchedEffect(Unit) {
+        saveRound(store, prefix, pct)
+        if (pct >= 60) Sfx.passed() else Sfx.failed()
+    }
 
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
+    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.reactTo(pct >= 60, Unit).fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -428,6 +431,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
                 store.addTo("spellMiss", w.id)
             }
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            Sfx.correct()
         } else if (attempts >= 2) {
             status = 3
             missed++
@@ -436,9 +440,11 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             store.addTo("spellMiss", w.id)
             store.removeFrom("spellOk", w.id)
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            Sfx.wrong()
         } else {
             status = 1
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            Sfx.wrong()
         }
     }
 
@@ -667,6 +673,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
             store.removeFrom("buildOk", w.id)
         }
         haptic.performHapticFeedback(if (ok) HapticFeedbackType.TextHandleMove else HapticFeedbackType.LongPress)
+        if (ok) Sfx.correct() else Sfx.wrong()
     }
 
     fun isRight(i: Int): Boolean =
@@ -684,6 +691,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
         } else {
             status = 1
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            Sfx.wrong()
         }
     }
 
