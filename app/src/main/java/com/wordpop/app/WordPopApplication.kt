@@ -28,6 +28,7 @@ class WordPopApplication : Application() {
         AiConfigSync.start(this)
         WordCloudSync.start(this)
         SettingsCardsSync.start(this)
+        DeviceReporter.report(this)
     }
 
     private companion object {
