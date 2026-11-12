@@ -102,6 +102,7 @@ class TickReceiver : BroadcastReceiver() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        DailyReminder.schedule(context)
         val s = SettingsStore(context)
         if (s.enabled && Settings.canDrawOverlays(context) && Scheduler.hasExactAlarmAccess(context)) {
             sendToService(context, OverlayService.ACTION_START)

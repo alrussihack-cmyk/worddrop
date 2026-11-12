@@ -1962,6 +1962,8 @@ fun ReviewScreen(store: SettingsStore) {
             }
         }
 
+        ReminderRow(store)
+
         when {
             queue.isEmpty() -> {
                 Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
@@ -2056,5 +2058,60 @@ fun ReviewScreen(store: SettingsStore) {
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+
+/** Daily review reminder: on/off and the hour it is sent. */
+@Composable
+private fun ReminderRow(store: SettingsStore) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var enabled by remember { mutableStateOf(store.reminderEnabled) }
+    var hour by remember { mutableStateOf(store.reminderHour) }
+    val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    fun apply() {
+        store.reminderEnabled = enabled
+        store.reminderHour = hour
+        DailyReminder.schedule(context)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp), color = Color.White,
+        border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("تذكير يومي بالمراجعة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Text("إشعار واحد في اليوم، وبس لو فيه كلمات مستحقة.", fontSize = 12.sp, color = Muted)
+                }
+                androidx.compose.material3.Switch(checked = enabled, onCheckedChange = {
+                    enabled = it
+                    apply()
+                    if (it && android.os.Build.VERSION.SDK_INT >= 33) {
+                        askPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                })
+            }
+            if (enabled) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(9 to "9 ص", 14 to "2 م", 20 to "8 م", 22 to "10 م").forEach { (h, label) ->
+                        val on = hour == h
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (on) Teal else Tint,
+                            modifier = Modifier.clickable { hour = h; apply() }
+                        ) {
+                            Text(
+                                label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                color = if (on) Color.White else Night
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

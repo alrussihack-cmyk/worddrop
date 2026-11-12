@@ -18,6 +18,7 @@ class WordPopApplication : Application() {
         // Local learning must remain available even if Firebase is temporarily unavailable.
         WordRepo.init(this)
         SettingsStore(this)
+        DailyReminder.schedule(this)
 
         if (FirebaseApp.getApps(this).isEmpty()) {
             Log.w(TAG, "Firebase is not configured; cloud and protected API features stay unavailable.")

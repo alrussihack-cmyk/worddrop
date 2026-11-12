@@ -42,6 +42,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("enabled", false)
         set(v) = prefs.edit().putBoolean("enabled", v).apply()
 
+    var reminderEnabled: Boolean
+        get() = prefs.getBoolean("reminderEnabled", true)
+        set(v) = prefs.edit().putBoolean("reminderEnabled", v).apply()
+
+    var reminderHour: Int
+        get() = prefs.getInt("reminderHour", 20)
+        set(v) = prefs.edit().putInt("reminderHour", v.coerceIn(0, 23)).apply()
+
     /** Minutes between two words. */
     var intervalMin: Int
         get() = prefs.getInt("interval", 60)
