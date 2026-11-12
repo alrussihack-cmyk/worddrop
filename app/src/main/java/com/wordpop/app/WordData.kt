@@ -298,6 +298,16 @@ object WordRepo {
         var pool = base.filter { it.id !in learned }
         if (pool.isEmpty()) pool = base
         if (pool.size > 1) pool = pool.filter { it.id != s.lastWordId }
+        // Spaced repetition: words whose review is due come back on the floating card, even if
+        // they were marked learned, so the schedule is felt outside the review screen too.
+        val now = System.currentTimeMillis()
+        val states = s.reviewStates()
+        val duePool = base.filter { w -> w.id != s.lastWordId && states[w.id]?.dueAt?.let { it <= now } == true }
+        if (duePool.isNotEmpty() && kotlin.random.Random.nextFloat() < 0.6f) {
+            val dueWord = duePool.minByOrNull { states[it.id]?.dueAt ?: Long.MAX_VALUE }!!
+            s.lastWordId = dueWord.id
+            return dueWord
+        }
         val hardPool = pool.filter { it.id in s.hard }
         val chosen = if (hardPool.isNotEmpty() && kotlin.random.Random.nextFloat() < 0.35f) hardPool.random() else pool.random()
         s.lastWordId = chosen.id
