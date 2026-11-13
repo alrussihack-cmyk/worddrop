@@ -30,6 +30,7 @@ class WordPopApplication : Application() {
         AiConfigSync.start(this)
         WordCloudSync.start(this)
         SettingsCardsSync.start(this)
+        AnnouncementSync.start(this)
         DeviceReporter.report(this)
     }
 

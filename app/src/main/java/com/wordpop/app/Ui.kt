@@ -373,6 +373,7 @@ fun WordPopApp(
     val ctx = LocalContext.current
     val store = remember { SettingsStore(ctx) }
     var learnId by remember { mutableStateOf<Int?>(null) }
+    AnnouncementHost()
 
     LaunchedEffect(openWordId) {
         if (openWordId != null) {
