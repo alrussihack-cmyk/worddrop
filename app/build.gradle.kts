@@ -18,7 +18,7 @@ android {
         minSdk = 26
         targetSdk = 36
         // Keep the 1.9 product identity while allowing upgrades from the 2.0 build.
-        versionCode = 18
+        versionCode = 19
         versionName = "1.9"
     }
 

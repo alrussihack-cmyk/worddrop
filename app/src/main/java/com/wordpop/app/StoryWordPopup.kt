@@ -130,7 +130,7 @@ fun StoryWordDialog(tapped: TappedWord, word: Word?, store: SettingsStore, speak
                     if (added) {
                         Surface(shape = RoundedCornerShape(14.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                "✓ في كلماتي وفي المراجعة الذكية",
+                                "اتضافت لكلماتي وللمراجعة الذكية",
                                 fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark,
                                 modifier = Modifier.padding(12.dp)
                             )

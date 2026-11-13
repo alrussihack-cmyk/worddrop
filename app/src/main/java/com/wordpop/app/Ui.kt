@@ -178,6 +178,21 @@ fun En(
 
 // ---------- shared pieces ----------
 
+/** Material's default 24dp side padding squeezes labels in half-width buttons; 12dp keeps them on one line. */
+private val ButtonPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+
+@Composable
+private fun ButtonLabel(text: String) {
+    Text(
+        text,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        maxLines = 2
+    )
+}
+
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
@@ -193,9 +208,10 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.5.dp, Night),
+        contentPadding = ButtonPadding,
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        ButtonLabel(text)
     }
 }
 
@@ -214,9 +230,10 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> 
             .hardShadow(shape, depth),
         shape = shape,
         border = BorderStroke(2.5.dp, Night),
+        contentPadding = ButtonPadding,
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Night)
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        ButtonLabel(text)
     }
 }
 
@@ -225,20 +242,23 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(22.dp)
     Box(
         modifier = Modifier
-            .heightIn(min = 38.dp)
+            .heightIn(min = 44.dp)
             .hardShadow(shape, 2.dp)
             .clip(shape)
             .background(if (selected) Teal else Color.White)
             .border(2.dp, Night, shape)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 2.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
             color = Night,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 14.sp
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 2
         )
     }
 }
@@ -480,7 +500,8 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        p.title, fontSize = 12.sp, color = tint,
+                        p.title, fontSize = 12.sp, lineHeight = 16.sp, color = tint, maxLines = 1,
+                        textAlign = TextAlign.Center,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                     )
                 }
@@ -508,7 +529,7 @@ fun QuickAction(label: String, icon: Int, filled: Boolean, onClick: () -> Unit) 
         ) {
             Icon(painterResource(icon), contentDescription = null, tint = Night, modifier = Modifier.size(26.dp))
         }
-        Text(label, fontSize = 14.sp, color = Night, textAlign = TextAlign.Center)
+        Text(label, fontSize = 14.sp, lineHeight = 20.sp, color = Night, textAlign = TextAlign.Center, maxLines = 2)
     }
 }
 
@@ -696,7 +717,7 @@ fun HomeScreen(
             if (page == Page.Home) {
                 Image(painterResource(R.drawable.ic_logo), contentDescription = "WordPop", modifier = Modifier.size(48.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("صباح الخير 👋", fontSize = 23.sp, fontFamily = Display, color = Night)
+                    Text("صباح الخير", fontSize = 23.sp, fontFamily = Display, color = Night)
                     Text("جاهز تتعلم كلمات جديدة؟", fontSize = 13.sp, color = Muted)
                 }
                 Text("WordPop", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
@@ -1580,7 +1601,7 @@ private fun QuizSession(
                         .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Text("$streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
                 }
             }
         }
@@ -1755,7 +1776,7 @@ private fun QuizSession(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             if (ok) {
-                                if (streak >= 3) "ممتاز! $streak ورا بعض 🔥" else "تمام! إجابة صح 🎯"
+                                if (streak >= 3) "ممتاز! $streak ورا بعض" else "تمام! إجابة صح"
                             } else "مش مشكلة، هنراجعها تاني",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -1840,9 +1861,9 @@ private fun QuizResult(
             }
             Text(
                 when {
-                    pct >= 80 -> "ممتاز! 🏆"
-                    pct >= 50 -> "كويس، كمّل 👏"
-                    else -> "التكرار هو السر 💪"
+                    pct >= 80 -> "ممتاز!"
+                    pct >= 50 -> "كويس، كمّل"
+                    else -> "التكرار هو السر"
                 },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
@@ -1974,7 +1995,7 @@ fun ReviewScreen(store: SettingsStore) {
                 Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, Line), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Boby(Mood.Cheer, 76.dp)
-                        Text("كده زي الفل! 🎉", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
+                        Text("كده زي الفل!", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Night)
                         Text("مفيش كلمات مستحقة دلوقتي. ارجع بكرة وهتلاقي كلمات جديدة للمراجعة.", fontSize = 15.sp, color = Muted, textAlign = TextAlign.Center)
                         PrimaryButton("تحديث القائمة", Modifier.fillMaxWidth()) { reloadQueue() }
                     }

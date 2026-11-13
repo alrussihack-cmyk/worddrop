@@ -471,7 +471,7 @@ class OverlayService : Service() {
                 val favBtn = pill("", t) { }
                 fun refreshFav() {
                     val on = w.id in s.favWords
-                    favBtn.text = if (on) "★ في المفضلة" else "☆ مفضلة"
+                    favBtn.text = if (on) "في المفضلة" else "مفضلة"
                     favBtn.setTextColor(if (on) t.accent else t.text)
                 }
                 refreshFav()
@@ -483,16 +483,16 @@ class OverlayService : Service() {
                 buttons += favBtn
             }
             if ("know" in chosen) {
-                buttons += pill("✓ أعرفها", t) { b ->
+                buttons += pill("أعرفها", t) { b ->
                     s.markLearned(w.id)
                     s.hard = s.hard - w.id
-                    b.text = "✓ تمام!"
+                    b.text = "تمام!"
                     handler.removeCallbacks(dismissRunnable)
                     handler.postDelayed(dismissRunnable, 700L)
                 }
             }
             if ("dont" in chosen) {
-                buttons += pill("✗ لسه", t) { b ->
+                buttons += pill("لسه", t) { b ->
                     s.learned = s.learned - w.id
                     s.hard = s.hard + w.id
                     b.text = "هتظهرلك تاني"
@@ -501,7 +501,7 @@ class OverlayService : Service() {
                 }
             }
             if ("example" in chosen && w.example.isNotEmpty()) {
-                buttons += pill("💡 مثال", t) {
+                buttons += pill("مثال", t) {
                     resetTimer()
                     showExample(exampleBox.visibility != View.VISIBLE)
                 }

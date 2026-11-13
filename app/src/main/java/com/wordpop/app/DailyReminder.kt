@@ -58,7 +58,7 @@ object DailyReminder {
             )
             val n = android.app.Notification.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("وقت المراجعة 📚")
+                .setContentTitle("وقت المراجعة")
                 .setContentText("عندك $due كلمة مستحقة للمراجعة. خمس دقايق وتثبّتها.")
                 .setContentIntent(open)
                 .setAutoCancel(true)

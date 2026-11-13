@@ -453,11 +453,11 @@ private fun SwipeReview(
 
             Ltr {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                    RoundButton(64.dp, Coral, "تخطي الكلمة", { commit(false) }) { Text("✕", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Night) }
+                    RoundButton(64.dp, Coral, "تخطي الكلمة", { commit(false) }) { Icon(painterResource(R.drawable.ic_close), contentDescription = null, tint = Night, modifier = Modifier.size(28.dp)) }
                     RoundButton(48.dp, Color(0xFFFFC93C), "تراجع", {
                         if (!busy && decisions.isNotEmpty()) decisions.removeAt(decisions.lastIndex)
                     }, alpha = if (decisions.isEmpty()) 0.4f else 1f) { Text("↶", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Night) }
-                    RoundButton(64.dp, Teal, "إضافة الكلمة", { commit(true) }) { Text("✓", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Night) }
+                    RoundButton(64.dp, Teal, "إضافة الكلمة", { commit(true) }) { Icon(painterResource(R.drawable.ic_check), contentDescription = null, tint = Night, modifier = Modifier.size(30.dp)) }
                 }
             }
 
@@ -526,8 +526,8 @@ private fun WordCard(
                 }
             }
         }
-        Stamp("أضف ✓", Teal, Alignment.TopStart, -12f, addAlpha)
-        Stamp("تخطي ✕", Coral, Alignment.TopEnd, 12f, skipAlpha)
+        Stamp("أضف", Teal, Alignment.TopStart, -12f, addAlpha)
+        Stamp("تخطي", Coral, Alignment.TopEnd, 12f, skipAlpha)
     }
 }
 

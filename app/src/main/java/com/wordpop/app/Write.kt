@@ -130,8 +130,8 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
         fontSize = 16.sp,
         color = Muted
     )
-    ModeCard("✍️", "تهجئة الكلمات", "اسمع الكلمة أو شوف معناها واكتبها صح. بتتصحح حرف حرف.", stats("spell")) { onPick(0) }
-    ModeCard("🧩", "بناء الجمل", "رتّب الكلمات المتلخبطة، أو اختار الكلمة الناقصة في الجملة.", stats("build")) { onPick(1) }
+    ModeCard(R.drawable.ic_edit, "تهجئة الكلمات", "اسمع الكلمة أو شوف معناها واكتبها صح. بتتصحح حرف حرف.", stats("spell")) { onPick(0) }
+    ModeCard(R.drawable.ic_list, "بناء الجمل", "رتّب الكلمات المتلخبطة، أو اختار الكلمة الناقصة في الجملة.", stats("build")) { onPick(1) }
     Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("إزاي بنختار الأسئلة؟", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Night)
@@ -145,7 +145,7 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
 }
 
 @Composable
-private fun ModeCard(emoji: String, title: String, desc: String, stats: String, onClick: () -> Unit) {
+private fun ModeCard(icon: Int, title: String, desc: String, stats: String, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = Color.White,
@@ -168,7 +168,7 @@ private fun ModeCard(emoji: String, title: String, desc: String, stats: String, 
                     .background(Tint),
                 contentAlignment = Alignment.Center
             ) {
-                Text(emoji, fontSize = 28.sp)
+                Icon(painterResource(icon), contentDescription = null, tint = Night, modifier = Modifier.size(28.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Night)
@@ -193,7 +193,7 @@ private fun WriteProgress(index: Int, total: Int, answered: Boolean, streak: Int
                         .background(SunTint)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
-                    Text("🔥 $streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
+                    Text("$streak ورا بعض", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Night)
                 }
             }
         }
@@ -321,9 +321,9 @@ private fun WriteResult(
             }
             Text(
                 when {
-                    pct >= 85 -> "كتابتك ممتازة! 🏆"
-                    pct >= 60 -> "كويس جدًا، كمّل 👏"
-                    else -> "كل جولة بتقرّبك 💪"
+                    pct >= 85 -> "كتابتك ممتازة!"
+                    pct >= 60 -> "كويس جدًا، كمّل"
+                    else -> "كل جولة بتقرّبك"
                 },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
@@ -516,10 +516,10 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SecondaryButton("تلميح 💡", Modifier.weight(1f)) {
+            SecondaryButton("تلميح", Modifier.weight(1f)) {
                 if (hints < w.en.length - 1) hints++
             }
-            PrimaryButton("تحقق ✓", Modifier.weight(1.4f)) { check() }
+            PrimaryButton("تحقق", Modifier.weight(1.4f)) { check() }
         }
     }
 
@@ -528,7 +528,7 @@ private fun SpellSession(store: SettingsStore, speak: (String) -> Unit) {
             LetterBoxes(text.trim(), w.en, showTarget = false)
             Text("عدّل الحروف الحمرا وجرّب تاني. عندك محاولة كمان.", fontSize = 15.sp, color = Muted)
         }
-        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! كتبتها صح من أول مرة ✓" else "صح! بمساعدة بسيطة ✓") {
+        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! كتبتها صح من أول مرة" else "صح! بمساعدة بسيطة") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.en, 24.sp, Night, FontWeight.ExtraBold, TextAlign.Start, Modifier.weight(1f))
                 SpeakButton(44.dp) { speak(w.en) }
@@ -841,7 +841,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
         }
         if (status < 2) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecondaryButton("تلميح 💡", Modifier.weight(1f)) {
+                SecondaryButton("تلميح", Modifier.weight(1f)) {
                     // keep the correctly placed prefix, then place the next right word
                     var keep = 0
                     while (keep < placed.size && isRight(keep)) keep++
@@ -859,7 +859,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
                     placed.clear()
                     if (status == 1) status = 0
                 }
-                PrimaryButton("تحقق ✓", Modifier.weight(1.2f)) { checkArrange() }
+                PrimaryButton("تحقق", Modifier.weight(1.2f)) { checkArrange() }
             }
         }
     }
@@ -869,7 +869,7 @@ private fun BuildSession(store: SettingsStore, speak: (String) -> Unit) {
         1 -> FeedbackPanel(false, "الترتيب مش مظبوط") {
             Text("الكلمات الحمرا في مكان غلط. دوس عليها لتشيلها وجرّب تاني. عندك محاولة كمان.", fontSize = 15.sp, color = Muted)
         }
-        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! جملة صح ✓" else "صح! بمساعدة بسيطة ✓") {
+        2 -> FeedbackPanel(true, if (attempts == 1 && hints == 0) "تمام! جملة صح" else "صح! بمساعدة بسيطة") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 En(w.example, 18.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.weight(1f))
                 SpeakButton(44.dp) { speak(w.example) }
