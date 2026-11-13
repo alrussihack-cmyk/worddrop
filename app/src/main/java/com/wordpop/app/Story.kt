@@ -385,7 +385,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
 
         current?.let { story ->
             tappedWord?.let { t ->
-                StoryWordDialog(t, resolveStoryWord(story, words, t), speak) { tappedWord = null }
+                StoryWordDialog(t, resolveStoryWord(story, words, t), store, speak) { tappedWord = null }
             }
             val labels = listOf("اقرأ", "ترجمة", "كلمات", "اختبر", "اكتب")
             val progress by animateFloatAsState((step + 1) / labels.size.toFloat(), tween(420), label = "storyProgress")

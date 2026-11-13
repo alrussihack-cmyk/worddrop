@@ -196,6 +196,21 @@ class SettingsStore(context: Context) {
         return (ReviewScheduler.NEW_CARDS_PER_DAY - used).coerceAtLeast(0)
     }
 
+    /**
+     * "Add to my words" from a story: favorites the word and puts it in the review queue as due now.
+     * It does not use up one of the five daily new-card slots, because the learner chose it.
+     */
+    fun addToMyWords(id: Int, now: Long = System.currentTimeMillis()) {
+        favWords = favWords + id
+        val cards = reviewStates()
+        if (id !in cards) {
+            val fresh = ReviewState(intervalDays = 0, ease = 2.5, repetitions = 0, dueAt = now, lastReviewedAt = 0L, lapses = 0)
+            reviewCardsJson = ReviewScheduler.encode(cards + (id to fresh))
+        }
+    }
+
+    fun isInMyWords(id: Int): Boolean = id in favWords && id in reviewStates()
+
     /** Records one self-assessed review and consumes a daily-new slot only for a first review. */
     fun recordReview(id: Int, rating: ReviewRating, now: Long = System.currentTimeMillis()) {
         val cards = reviewStates()

@@ -10,6 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -79,7 +83,7 @@ fun resolveStoryWord(story: Story, words: List<Word>, tapped: TappedWord): Word?
 
 /** Pop-up with the meaning and pronunciation of a tapped story word. */
 @Composable
-fun StoryWordDialog(tapped: TappedWord, word: Word?, speak: (String) -> Unit, onDismiss: () -> Unit) {
+fun StoryWordDialog(tapped: TappedWord, word: Word?, store: SettingsStore, speak: (String) -> Unit, onDismiss: () -> Unit) {
     val shape = RoundedCornerShape(24.dp)
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -118,6 +122,24 @@ fun StoryWordDialog(tapped: TappedWord, word: Word?, speak: (String) -> Unit, on
                                 En(word.example, 15.sp, Night)
                                 if (word.exampleAr.isNotBlank()) Text(word.exampleAr, fontSize = 13.sp, color = Muted)
                             }
+                        }
+                    }
+                }
+                if (word != null) {
+                    var added by remember(word.id) { mutableStateOf(store.isInMyWords(word.id)) }
+                    if (added) {
+                        Surface(shape = RoundedCornerShape(14.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                "✓ في كلماتي وفي المراجعة الذكية",
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        PrimaryButton("أضف لكلماتي", Modifier.fillMaxWidth()) {
+                            store.addToMyWords(word.id)
+                            added = true
+                            Sfx.correct()
                         }
                     }
                 }
