@@ -211,8 +211,44 @@ class SettingsStore(context: Context) {
 
     fun isInMyWords(id: Int): Boolean = id in favWords && id in reviewStates()
 
+    /** Days (yyyy-MM-dd) on which the learner reviewed or practised anything. Feeds the streak and week dots. */
+    var activityDays: Set<String>
+        get() = prefs.getStringSet("activityDays", null) ?: emptySet()
+        set(v) = prefs.edit().putStringSet("activityDays", v).apply()
+
+    fun markActiveToday() {
+        val key = ReviewScheduler.dayKey()
+        val current = activityDays
+        if (key in current) return
+        activityDays = (current + key).sortedDescending().take(60).toSet()
+    }
+
+    /** Consecutive active days, counting back from today (or from yesterday if today has no activity yet). */
+    fun streakDays(now: Long = System.currentTimeMillis()): Int {
+        val days = activityDays
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = now }
+        if (ReviewScheduler.dayKey(cal.timeInMillis) !in days) cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        var n = 0
+        while (ReviewScheduler.dayKey(cal.timeInMillis) in days) {
+            n++
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        return n
+    }
+
+    /** Words reviewed since midnight. */
+    fun doneToday(now: Long = System.currentTimeMillis()): Int {
+        val start = java.util.Calendar.getInstance().apply {
+            timeInMillis = now
+            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        return reviewStates().values.count { it.lastReviewedAt >= start }
+    }
+
     /** Records one self-assessed review and consumes a daily-new slot only for a first review. */
     fun recordReview(id: Int, rating: ReviewRating, now: Long = System.currentTimeMillis()) {
+        markActiveToday()
         val cards = reviewStates()
         val previous = cards[id]
         val updated = cards + (id to ReviewScheduler.next(previous, rating, now))

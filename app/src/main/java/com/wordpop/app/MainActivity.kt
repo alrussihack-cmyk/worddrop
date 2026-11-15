@@ -37,7 +37,6 @@ class MainActivity : ComponentActivity() {
             )
         )
         handleIntent(intent)
-        if (savedInstanceState == null) WelcomeVoice.speak(this)
         setContent {
             WordPopTheme {
                 var showStartup by remember {

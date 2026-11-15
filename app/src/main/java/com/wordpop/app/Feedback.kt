@@ -6,8 +6,6 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Handler
 import android.os.Looper
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -22,7 +20,7 @@ import kotlin.math.sin
 
 /**
  * App-wide sound effects. Tones are synthesized in code, so there are no audio files to ship.
- * One switch (SettingsStore.sfxEnabled) mutes every effect and the welcome voice.
+ * One switch (SettingsStore.sfxEnabled) mutes every effect.
  */
 object Sfx {
     private const val RATE = 22050
@@ -99,30 +97,6 @@ object Sfx {
             }
         }
         return out.toShortArray()
-    }
-}
-
-/** Says "Hello, I am WordPop." once when the app is opened. */
-object WelcomeVoice {
-    fun speak(context: Context) {
-        val app = context.applicationContext
-        if (!SettingsStore(app).sfxEnabled) return
-        var tts: TextToSpeech? = null
-        tts = TextToSpeech(app) { status ->
-            val engine = tts
-            if (status != TextToSpeech.SUCCESS || engine == null) {
-                tts?.shutdown()
-                return@TextToSpeech
-            }
-            applyEnglishAccent(engine, SettingsStore(app).speechAccent)
-            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {}
-                override fun onDone(utteranceId: String?) { engine.shutdown() }
-                @Deprecated("Deprecated in Java")
-                override fun onError(utteranceId: String?) { engine.shutdown() }
-            })
-            engine.speak("Hello, I am WordPop.", TextToSpeech.QUEUE_FLUSH, null, "wordpop_welcome")
-        }
     }
 }
 
