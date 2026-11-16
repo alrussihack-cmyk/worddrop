@@ -94,6 +94,31 @@ fun SettingsSwipeScreen(
     val scope = rememberCoroutineScope()
     val speak = rememberSpeaker()
 
+    var backupNote by remember { mutableStateOf("") }
+    var confirmImport by remember { mutableStateOf(false) }
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> if (uri != null) backupNote = UserBackup.export(ctx, store, uri) }
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            backupNote = UserBackup.restore(ctx, store, uri)
+            if (backupNote.startsWith("اتسترجعت")) (ctx as? android.app.Activity)?.recreate()
+        }
+    }
+    if (confirmImport) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmImport = false },
+            title = { Text("استيراد بيانات") },
+            text = { Text("الاستيراد هيستبدل كلماتك وتقدّمك وإعداداتك الحالية بالموجود في الملف. متأكد؟") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmImport = false; importLauncher.launch(arrayOf("*/*")) }) { Text("أيوه") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmImport = false }) { Text("لأ") } }
+        )
+    }
+
     var pausedUntil by remember { mutableStateOf(store.pausedUntil) }
     var interval by remember { mutableIntStateOf(store.intervalMin) }
     var startHour by remember { mutableIntStateOf(store.startHour) }
@@ -105,7 +130,6 @@ fun SettingsSwipeScreen(
     var autoSpeak by remember { mutableStateOf(store.autoSpeak) }
     var accent by remember { mutableStateOf(store.speechAccent) }
     var voice by remember { mutableStateOf(store.speechVoice) }
-    var workerUrl by remember { mutableStateOf(store.ttsWorkerUrl) }
     var bannerPos by remember { mutableIntStateOf(store.bannerPos) }
     var bannerSize by remember { mutableIntStateOf(store.bannerSize) }
     var opacity by remember { mutableFloatStateOf(store.opacity.toFloat()) }
@@ -228,7 +252,7 @@ fun SettingsSwipeScreen(
                         "اسحب النافذة بصباعك لأي مكان على الشاشة.",
                         "الحجم والشفافية واللون والأزرار.",
                         "قرّر إمتى النافذة متظهرش.",
-                        "لو الكلمات بتتأخر أو عايز تتحكم في التطبيق."
+                        "لو الكلمات بتتأخر أو عايز تنقل بياناتك."
                     )[cardIndex],
                     accent = accentColors[cardIndex],
                     modifier = Modifier.fillMaxHeight()
@@ -418,25 +442,6 @@ fun SettingsSwipeScreen(
                                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
-                            Ltr {
-                                OutlinedTextField(
-                                    value = workerUrl,
-                                    onValueChange = {
-                                        workerUrl = it
-                                        store.ttsWorkerUrl = it
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("Cloudflare Worker URL") },
-                                    placeholder = { Text("https://wordpop-tts.workers.dev") },
-                                    singleLine = true
-                                )
-                            }
-                            Text(
-                                if (workerUrl.isBlank()) "الصوت الحالي: Android TTS. أضف رابط Worker بعد نشره لتفعيل EasyVoice."
-                                else "EasyVoice مفعّل. لو فشل الاتصال، التطبيق يرجع تلقائياً إلى Android TTS.",
-                                fontSize = 12.sp,
-                                color = SettingsMuted
-                            )
                             SettingsAction("جرّب صوت EasyVoice", true) {
                                 speak("Hello! Welcome to WordPop. Let's learn a new word together.")
                             }
@@ -581,15 +586,14 @@ fun SettingsSwipeScreen(
                                 }
                             }
                             SettingsDivider()
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("حالة بطاقات الإعدادات", fontSize = 16.sp, fontFamily = Display, color = SettingsInk)
-                                Text(SettingsCardsSync.status, fontSize = 12.sp, color = SettingsMuted)
-                            }
-                            SettingsDivider()
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("لوحة التحكم", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
-                                Text("إدارة كل التطبيق باسم مستخدم ورقم سري.", fontSize = 13.sp, color = SettingsMuted)
-                                SettingsAction("افتح لوحة التحكم", true, onOpenAdmin)
+                                Text("نسخة من بياناتك", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
+                                Text("صدّر الكلمات والمفضلة والقصص والتقدّم والإعدادات في ملف، واستورده بعدين أو على موبايل تاني.", fontSize = 13.sp, color = SettingsMuted)
+                                SettingsAction("صدّر بياناتي", true) { exportLauncher.launch("wordpop-backup.json") }
+                                SettingsAction("استورد من ملف", false) { confirmImport = true }
+                                if (backupNote.isNotEmpty()) {
+                                    Text(backupNote, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16866C))
+                                }
                             }
                         }
                     }

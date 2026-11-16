@@ -161,7 +161,7 @@ class SettingsStore(context: Context) {
 
     /** Cloudflare Worker URL used as a secure proxy for EasyVoice. */
     var ttsWorkerUrl: String
-        get() = prefs.getString("ttsWorkerUrl", "")?.trim() ?: ""
+        get() = prefs.getString("ttsWorkerUrl", "")?.trim().orEmpty().ifBlank { AiConfigSync.workerUrl.trim() }
         set(v) = prefs.edit().putString("ttsWorkerUrl", v.trim()).apply()
 
     /** EasyVoice voice ID; free-tier English voices only by default. */

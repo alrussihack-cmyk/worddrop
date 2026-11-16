@@ -1227,13 +1227,6 @@ fun HomeScreen(
             }
         }
 
-        if (page == Page.Settings) {
-            Section("لوحة التحكم") {
-                Text("إدارة كل التطبيق باسم مستخدم ورقم سري.", fontSize = 15.sp, color = Muted)
-                SecondaryButton("افتح لوحة التحكم", Modifier.fillMaxWidth()) { onOpenAdmin() }
-            }
-        }
-
         Spacer(Modifier.height(8.dp))
     }
 }
