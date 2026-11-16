@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -147,13 +148,13 @@ private fun WriteMenu(store: SettingsStore, onPick: (Int) -> Unit) {
 @Composable
 private fun ModeCard(icon: Int, title: String, desc: String, stats: String, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(26.dp),
         color = Color.White,
-        border = BorderStroke(2.5.dp, Night),
+        border = BorderStroke(3.dp, Night),
         modifier = Modifier
             .fillMaxWidth()
-            .hardShadow(RoundedCornerShape(20.dp), 4.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .hardShadow(RoundedCornerShape(26.dp), 5.dp)
+            .clip(RoundedCornerShape(26.dp))
             .clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(
@@ -197,25 +198,29 @@ private fun WriteProgress(index: Int, total: Int, answered: Boolean, streak: Int
                 }
             }
         }
-        LinearProgressIndicator(
-            progress = { (index + if (answered) 1 else 0).toFloat() / total },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = Teal,
-            trackColor = Line
+        val fill by androidx.compose.animation.core.animateFloatAsState(
+            (index + if (answered) 1 else 0).toFloat() / total, tween(600), label = "writeBar"
         )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(20.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color.White)
+                .border(3.dp, Night, RoundedCornerShape(50))
+        ) {
+            Box(Modifier.fillMaxWidth(fill).fillMaxHeight().clip(RoundedCornerShape(50)).background(Teal))
+        }
     }
 }
 
 @Composable
 private fun PromptCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(2.5.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(20.dp), 4.dp)) {
+    Surface(shape = RoundedCornerShape(26.dp), color = Color.White, border = BorderStroke(3.dp, Night), modifier = Modifier.fillMaxWidth().hardShadow(RoundedCornerShape(26.dp), 5.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
             content = content
@@ -226,7 +231,7 @@ private fun PromptCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun FeedbackPanel(ok: Boolean, title: String, content: @Composable ColumnScope.() -> Unit) {
     AnimatedVisibility(visible = true, enter = fadeIn(tween(200)) + expandVertically(tween(250))) {
-        Surface(shape = RoundedCornerShape(16.dp), color = if (ok) Tint else WrongBg, modifier = Modifier.reactTo(ok, title).fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(18.dp), color = if (ok) Tint else WrongBg, border = BorderStroke(3.dp, if (ok) Night else Danger), modifier = Modifier.reactTo(ok, title).fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = if (ok) TealDark else Danger)
                 content()
@@ -253,10 +258,10 @@ private fun LetterBoxes(typed: String, target: String, showTarget: Boolean) {
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(if (good) Color.White else MissTint)
-                        .border(2.dp, if (good) Night else Danger, RoundedCornerShape(8.dp)),
+                        .border(3.dp, if (good) Night else Danger, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(c?.toString() ?: "", fontSize = size, fontWeight = FontWeight.Bold, color = Night)

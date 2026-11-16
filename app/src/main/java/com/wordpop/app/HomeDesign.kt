@@ -358,3 +358,56 @@ fun HomeContent(
         }
     }
 }
+
+/** The "الكلمات" board: filter chips and a list of word rows (speak, word, tag, favourite). */
+@Composable
+fun WordListTab(store: SettingsStore, speak: (String) -> Unit) {
+    var filter by remember { mutableIntStateOf(0) }
+    var shown by remember { mutableIntStateOf(40) }
+    var version by remember { mutableIntStateOf(0) }
+    val all = WordRepo.all
+    val favs = version.let { store.favWords }
+    val learned = store.learned
+    val hard = store.hard
+    val list = when (filter) {
+        1 -> all.filter { it.id in favs }
+        2 -> all.filter { it.id in learned }
+        3 -> all.filter { it.id in hard }
+        else -> all
+    }
+    ChipRow {
+        Chip("الكل", filter == 0) { filter = 0; shown = 40 }
+        Chip("المفضلة", filter == 1) { filter = 1; shown = 40 }
+        Chip("اتعلمتها", filter == 2) { filter = 2; shown = 40 }
+        Chip("صعبة", filter == 3) { filter = 3; shown = 40 }
+    }
+    if (list.isEmpty()) {
+        EmptyFav("مفيش كلمات هنا لسه.")
+    }
+    list.take(shown).forEach { w ->
+        val fav = w.id in favs
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color.White)
+                .border(1.5.dp, Line, RoundedCornerShape(22.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SpeakButton(46.dp) { speak(w.en) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                En(w.en, 20.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
+                Text(w.ar, fontSize = 15.sp, color = Muted, maxLines = 2)
+            }
+            Box(Modifier.clip(RoundedCornerShape(50)).background(Tint).padding(horizontal = 10.dp, vertical = 4.dp)) {
+                Text(w.level, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TealDark)
+            }
+            StarButton(fav) { store.toggleFavWord(w.id); version++ }
+        }
+    }
+    if (list.size > shown) {
+        SecondaryButton("عرض المزيد (${list.size - shown})", Modifier.fillMaxWidth()) { shown += 40 }
+    }
+}

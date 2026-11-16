@@ -93,6 +93,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
@@ -201,7 +202,7 @@ private fun ButtonLabel(text: String) {
 }
 
 @Composable
-fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, onClick: () -> Unit) {
+fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color = Teal, content: Color = Night, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -216,7 +217,7 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, container: Color 
         shape = shape,
         border = BorderStroke(3.dp, Night),
         contentPadding = ButtonPadding,
-        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = Night)
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content)
     ) {
         ButtonLabel(text)
     }
@@ -1141,7 +1142,8 @@ fun HomeScreen(
         if (page == Page.MyWords) {
             // One switch instead of two long stacked cards: generate with AI, or import a file.
             var wordsMode by remember { mutableIntStateOf(0) }
-            StepTabs(listOf("ولّد بالذكاء الاصطناعي", "استيراد من ملف"), wordsMode) { wordsMode = it }
+            val listSpeak = rememberSpeaker()
+            StepTabs(listOf("كل الكلمات", "ولّد بالذكاء", "استيراد"), wordsMode) { wordsMode = it }
             AnimatedContent(
                 targetState = wordsMode,
                 transitionSpec = {
@@ -1153,6 +1155,8 @@ fun HomeScreen(
             ) { mode ->
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (mode == 0) {
+                        WordListTab(store = store, speak = listSpeak)
+                    } else if (mode == 1) {
                         AiVocabularyTab(store = store) { result ->
                             wordsVersion++
                             importMsg = buildString {
@@ -1434,12 +1438,12 @@ fun EmptyFav(text: String) {
 @Composable
 fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, Line),
+        border = BorderStroke(1.5.dp, Line),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -1451,7 +1455,7 @@ fun FavCard(en: String, ar: String, onSpeak: () -> Unit, onRemove: () -> Unit, o
                 En(en, 19.sp, Night, FontWeight.Bold, TextAlign.Start, Modifier.fillMaxWidth())
                 Text(ar, fontSize = 16.sp, color = Muted)
             }
-            SpeakButton(40.dp, onSpeak)
+            SpeakButton(46.dp, onSpeak)
             StarButton(true, onRemove)
         }
     }
@@ -1538,25 +1542,26 @@ private fun QuizSession(
                 }
             }
         }
-        // one segment per question: mint when right, coral when wrong, ink for the current one
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            for (i in 0 until total) {
-                val segment by animateColorAsState(
-                    when {
-                        i < results.size -> if (results[i]) Teal else Coral
-                        i == index -> Night
-                        else -> Line
-                    },
-                    tween(300), label = "quizSegment"
-                )
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(segment)
-                )
-            }
+        // single chunky bar like the 2.0 board: ink border, mint fill that grows with every answer
+        val fill by animateFloatAsState(
+            if (total == 0) 0f else (results.size.toFloat() / total).coerceIn(0f, 1f),
+            tween(600), label = "quizBar"
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(20.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color.White)
+                .border(3.dp, Night, RoundedCornerShape(50))
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fill)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(Teal)
+            )
         }
     }
 
@@ -1616,23 +1621,22 @@ private fun QuizSession(
         )
         val borderColor by animateColorAsState(
             when {
-                !answered -> Line
-                isCorrect -> Night
-                isPicked -> Danger
+                isPicked && !isCorrect -> Danger
                 else -> Night
             },
             tween(220), label = "optBorder"
         )
-        val shape = RoundedCornerShape(14.dp)
+        val shape = RoundedCornerShape(18.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 54.dp)
+                .heightIn(min = 58.dp)
+                .graphicsLayer { alpha = if (answered && !isCorrect && !isPicked) 0.45f else 1f }
                 .reactTo(if (isPicked) isCorrect else null, picked)
                 .hardShadow(shape, 4.dp)
                 .clip(shape)
                 .background(bg)
-                .border(2.5.dp, borderColor, shape)
+                .border(3.dp, borderColor, shape)
                 .clickable(enabled = !answered, role = Role.Button) {
                     picked = opt
                     results.add(isCorrect)
@@ -1700,7 +1704,7 @@ private fun QuizSession(
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = if (ok) Tint else MissTint,
-            border = BorderStroke(2.dp, Night),
+            border = BorderStroke(3.dp, Night),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1727,7 +1731,7 @@ private fun QuizSession(
                         }
                     }
                 }
-                PrimaryButton(if (index == total - 1) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth()) { index++ }
+                PrimaryButton(if (index == total - 1) "شوف النتيجة" else "التالي", Modifier.fillMaxWidth(), container = Night, content = Color.White) { index++ }
             }
         }
     }
