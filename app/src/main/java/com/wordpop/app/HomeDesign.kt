@@ -359,6 +359,7 @@ fun HomeContent(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 /** The "الكلمات" board: filter chips and a list of word rows (speak, word, tag, favourite). */
 @Composable
 fun WordListTab(store: SettingsStore, speak: (String) -> Unit) {
