@@ -14,7 +14,9 @@ data class Word(
     val example: String,
     val exampleAr: String,
     /** "A" = basic, "B1", "B2". */
-    val level: String = "A"
+    val level: String = "A",
+    /** Learner or AI chosen topic group, e.g. "فنادق". Empty for built-in words. */
+    val category: String = ""
 ) {
     val isPhrase: Boolean get() = kind == "عبارة"
 }
@@ -184,6 +186,10 @@ object WordRepo {
     }
 
     /** Adds AI-generated words to the device-local custom library after duplicate validation. */
+    /** Category names used by the learner's own words, in first-seen order. */
+    fun categories(): List<String> =
+        customWords.map { it.category.trim() }.filter { it.isNotEmpty() }.distinct()
+
     fun addCustomWords(ctx: Context, words: List<Word>): ImportResult {
         val seen = all.map { it.en.trim().lowercase() }.toMutableSet()
         var nextId = maxOf(CustomWords.FIRST_ID, (custom.maxOfOrNull { it.id } ?: 0) + 1)
@@ -206,7 +212,8 @@ object WordRepo {
                     ar = arabic,
                     kind = word.kind.ifBlank { "كلمة" },
                     example = word.example.trim(),
-                    exampleAr = word.exampleAr.trim()
+                    exampleAr = word.exampleAr.trim(),
+                    category = word.category.trim()
                 )
             }
         }

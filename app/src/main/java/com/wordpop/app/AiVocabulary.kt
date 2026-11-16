@@ -65,15 +65,24 @@ object AiVocabularyApi {
         request: String,
         count: Int,
         level: String,
-        avoid: List<String> = emptyList()
+        avoid: List<String> = emptyList(),
+        category: String = "",
+        knownCategories: List<String> = emptyList()
     ): List<Word> {
         val avoidLine = if (avoid.isEmpty()) "" else
             "Do NOT include any of these words again: " + avoid.takeLast(150).joinToString(", ") + "\n"
+        val categoryLine = if (category.isNotBlank()) {
+            "Category: every item belongs to the learner's category \"$category\". Return exactly this category name for each item."
+        } else {
+            "Category: choose a short Arabic category name (one or two words, like فنادق، سفر، طعام، شغل) for each item that describes its topic group." +
+                (if (knownCategories.isEmpty()) "" else " Reuse one of these existing categories when it fits: " + knownCategories.joinToString("، ") + ".")
+        }
         val prompt = """
 You are an expert English vocabulary teacher creating a useful vocabulary pack for an Egyptian Arabic speaker.
 Topic: $topic
 Learner's exact request and intended meanings: $request
 English level: $level
+$categoryLine
 ${avoidLine}Generate exactly $count useful English words or short expressions that fit the topic and the requested meanings.
 Avoid duplicates, overly basic filler, obscure words, and words unrelated to the learner's request.
 For every item provide:
@@ -83,13 +92,14 @@ For every item provide:
 - kind: Arabic part of speech: اسم، فعل، صفة، ظرف، حرف جر، حرف ربط، or عبارة for expressions.
 - example: one natural, short English example sentence showing the intended meaning.
 - exampleAr: a natural Egyptian-Arabic translation of that example.
+- category: the category name described above.
 Rules:
 - Keep the chosen English level.
 - Prefer practical vocabulary that a learner can use in real conversations.
 - The Arabic meaning must match the topic context, not just a generic dictionary meaning.
 - Use different words; do not repeat the same English item.
 - Return valid JSON only, with this exact shape:
-{"words":[{"en":"...","ipa":"/.../","ar":"...","kind":"اسم","example":"...","exampleAr":"..."}]}
+{"words":[{"en":"...","ipa":"/.../","ar":"...","kind":"اسم","example":"...","exampleAr":"...","category":"..."}]}
 """.trimIndent()
 
         val root = StoryApi.chatJson(workerUrl, prompt, (900 + count * 220).coerceAtMost(7500))
@@ -123,7 +133,8 @@ Rules:
                 kind = kind,
                 example = item.optString("example").trim(),
                 exampleAr = item.optString("exampleAr").trim(),
-                level = level
+                level = level,
+                category = category.ifBlank { item.optString("category").trim().take(24) }
             )
         }
 
@@ -138,6 +149,8 @@ Rules:
         request: String,
         count: Int,
         level: String,
+        category: String = "",
+        knownCategories: List<String> = emptyList(),
         onProgress: (List<Word>) -> Unit
     ): List<Word> {
         val all = mutableListOf<Word>()
@@ -146,7 +159,7 @@ Rules:
         while (all.size < count && failedRounds < 2) {
             val need = minOf(25, count - all.size)
             val batch = try {
-                generate(workerUrl, topic, request, need, level, all.map { it.en })
+                generate(workerUrl, topic, request, need, level, all.map { it.en }, category, (knownCategories + all.map { it.category }).filter { it.isNotBlank() }.distinct())
             } catch (e: Exception) {
                 if (all.isEmpty()) throw e
                 failedRounds++
@@ -182,6 +195,10 @@ fun AiVocabularyTab(
     var request by remember { mutableStateOf("") }
     var count by remember { mutableIntStateOf(20) }
     var level by remember { mutableStateOf("B1") }
+    var category by remember { mutableStateOf("") } // empty = let the AI choose
+    var newCategory by remember { mutableStateOf(false) }
+    var typedCategory by remember { mutableStateOf("") }
+    val knownCategories = remember(stage) { WordRepo.categories() }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var notice by remember { mutableStateOf("") }
@@ -229,6 +246,30 @@ fun AiVocabularyTab(
                 }
             }
 
+            Text("التصنيف", fontSize = 13.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+            ChipRow {
+                Chip("تلقائي", category.isEmpty() && !newCategory) { category = ""; newCategory = false }
+                knownCategories.forEach { c ->
+                    Chip(c, category == c && !newCategory) { category = c; newCategory = false }
+                }
+                Chip("+ تصنيف جديد", newCategory) { newCategory = true; category = typedCategory.trim() }
+            }
+            if (newCategory) {
+                OutlinedTextField(
+                    value = typedCategory,
+                    onValueChange = { typedCategory = it.take(24); category = it.trim().take(24) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("اسم التصنيف") },
+                    placeholder = { Text("مثال: شغل الفندق") }
+                )
+            }
+            Text(
+                if (category.isBlank()) "من غير تصنيف، الذكاء الاصطناعي هيختار تصنيف لكل كلمة بنفسه."
+                else "كل الكلمات هتتضاف تحت تصنيف «$category».",
+                fontSize = 12.sp, color = Muted
+            )
+
             Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("→", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TealDark)
@@ -264,7 +305,9 @@ fun AiVocabularyTab(
                                 topic = topic.trim(),
                                 request = request.trim(),
                                 count = count,
-                                level = level
+                                level = level,
+                                category = category.trim(),
+                                knownCategories = knownCategories
                             ) { partial -> progress = "جاهز ${partial.size} من $count..." }
                         }
                         val fresh = result.filterNot { isKnown(it) }
@@ -503,8 +546,15 @@ private fun WordCard(
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Box(Modifier.clip(CircleShape).background(Tint).padding(horizontal = 14.dp, vertical = 5.dp)) {
-                        Text(word.kind, fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.clip(CircleShape).background(Tint).padding(horizontal = 14.dp, vertical = 5.dp)) {
+                            Text(word.kind, fontSize = 13.sp, color = TealDark, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (word.category.isNotBlank()) {
+                            Box(Modifier.clip(CircleShape).background(Color(0xFFFFF1C2)).padding(horizontal = 14.dp, vertical = 5.dp)) {
+                                Text(word.category, fontSize = 13.sp, color = Night, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            }
+                        }
                     }
                     SpeakButton(44.dp) { speak(word.en) }
                 }

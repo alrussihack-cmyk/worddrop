@@ -29,7 +29,8 @@ object CustomWords {
                     kind = o.optString("kind", "كلمة"),
                     example = o.optString("ex"),
                     exampleAr = o.optString("exAr"),
-                    level = o.optString("level", "A")
+                    level = o.optString("level", "A"),
+                    category = o.optString("cat")
                 )
             }
         } catch (e: Exception) {
@@ -58,6 +59,7 @@ object CustomWords {
                     .put("ex", it.example)
                     .put("exAr", it.exampleAr)
                     .put("level", it.level)
+                    .put("cat", it.category)
             )
         }
         ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

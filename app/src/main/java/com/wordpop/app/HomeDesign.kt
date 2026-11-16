@@ -365,22 +365,31 @@ fun HomeContent(
 fun WordListTab(store: SettingsStore, speak: (String) -> Unit) {
     var filter by remember { mutableIntStateOf(0) }
     var shown by remember { mutableIntStateOf(40) }
+    var cat by remember { mutableStateOf("") }
     var version by remember { mutableIntStateOf(0) }
     val all = WordRepo.all
     val favs = version.let { store.favWords }
     val learned = store.learned
     val hard = store.hard
-    val list = when (filter) {
+    val categories = WordRepo.categories()
+    val byFilter = when (filter) {
         1 -> all.filter { it.id in favs }
         2 -> all.filter { it.id in learned }
         3 -> all.filter { it.id in hard }
         else -> all
     }
+    val list = if (cat.isBlank()) byFilter else byFilter.filter { it.category == cat }
     ChipRow {
         Chip("الكل", filter == 0) { filter = 0; shown = 40 }
         Chip("المفضلة", filter == 1) { filter = 1; shown = 40 }
         Chip("اتعلمتها", filter == 2) { filter = 2; shown = 40 }
         Chip("صعبة", filter == 3) { filter = 3; shown = 40 }
+    }
+    if (categories.isNotEmpty()) {
+        ChipRow {
+            Chip("كل التصنيفات", cat.isBlank()) { cat = ""; shown = 40 }
+            categories.forEach { c -> Chip(c, cat == c) { cat = c; shown = 40 } }
+        }
     }
     if (list.isEmpty()) {
         EmptyFav("مفيش كلمات هنا لسه.")
@@ -403,7 +412,7 @@ fun WordListTab(store: SettingsStore, speak: (String) -> Unit) {
                 Text(w.ar, fontSize = 15.sp, color = Muted, maxLines = 2)
             }
             Box(Modifier.clip(RoundedCornerShape(50)).background(Tint).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                Text(w.level, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TealDark)
+                Text(w.category.ifBlank { w.level }, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TealDark)
             }
             StarButton(fav) { store.toggleFavWord(w.id); version++ }
         }
