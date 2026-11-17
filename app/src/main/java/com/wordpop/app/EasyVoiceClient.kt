@@ -25,7 +25,8 @@ object EasyVoiceClient {
         voice: String,
         onFailure: () -> Unit
     ) {
-        if (workerUrl.isBlank() || text.isBlank()) {
+        // Fail closed: unknown, child and teen profiles must never send speech text to a remote TTS provider.
+        if (!WordPopAgeProfile.allowsExternalServices() || workerUrl.isBlank() || text.isBlank()) {
             onFailure()
             return
         }
