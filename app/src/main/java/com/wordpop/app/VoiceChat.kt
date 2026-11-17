@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -49,12 +50,17 @@ fun VoiceChatScreen(store: SettingsStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val messages = remember { mutableStateListOf<VoiceChatMessage>() }
+    val chatListState = rememberLazyListState()
     var listening by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("اضغط على الميكروفون وابدأ الكلام بالإنجليزية") }
     var transcript by remember { mutableStateOf("") }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) chatListState.animateScrollToItem(messages.lastIndex)
+    }
 
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result ->
@@ -228,6 +234,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
             } else {
                 LazyColumn(
                     Modifier.weight(1f).fillMaxWidth(),
+                    state = chatListState,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
                 ) {
@@ -271,31 +278,27 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
             }
 
             if (listening) VoiceWaveform()
-            Spacer(Modifier.height(10.dp))
-            Box(
-                Modifier.size(140.dp).clip(CircleShape)
-                    .background(if (listening) Color(0xFFB8F0E5) else Color(0xFFE0F8F2)),
-                contentAlignment = Alignment.Center
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Box(
-                    Modifier.size(104.dp).clip(CircleShape)
+                    Modifier.size(58.dp).clip(CircleShape)
                         .background(if (listening) VoiceInk else VoiceMint)
-                        .border(4.dp, VoiceInk, CircleShape)
+                        .border(3.dp, VoiceInk, CircleShape)
                         .clickable(enabled = !sending && !listening) { startListening() },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (listening) {
-                        Box(Modifier.size(25.dp).clip(RoundedCornerShape(7.dp)).background(VoiceMint))
-                    } else {
-                        Text("♩", color = VoiceInk, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Text(if (listening) "■" else "🎙", color = if (listening) VoiceMint else VoiceInk, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    when { sending -> "الذكاء الاصطناعي بيجهز الرد..." ; listening -> "بسمعك..." ; else -> "اضغط للتحدث" },
+                    color = VoiceInk, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                )
             }
-            Spacer(Modifier.height(7.dp))
-            Text(
-                when { sending -> "استنى الرد..." ; listening -> "اضغط للإيقاف" ; else -> "اضغط للتحدث" },
-                color = VoiceInk, fontSize = 17.sp, fontWeight = FontWeight.Bold
-            )
             Spacer(Modifier.height(4.dp))
         }
     }
