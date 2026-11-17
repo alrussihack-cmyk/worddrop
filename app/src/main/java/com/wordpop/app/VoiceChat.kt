@@ -134,7 +134,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
         } else permission.launch(Manifest.permission.RECORD_AUDIO)
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFFF5F8FA))) {
+    Box(Modifier.fillMaxSize().background(Color(0xFFF5F8FA))) {
         Canvas(Modifier.fillMaxSize()) {
             val step = 36.dp.toPx()
             var y = 0f
