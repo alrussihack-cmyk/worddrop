@@ -128,7 +128,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initializeMobileAds() {
-        if (mobileAdsInitializationStarted) return
+        if (mobileAdsInitializationStarted) {
+            adsAllowed = true
+            return
+        }
         mobileAdsInitializationStarted = true
         MobileAds.initialize(this) {
             runOnUiThread { adsAllowed = true }
