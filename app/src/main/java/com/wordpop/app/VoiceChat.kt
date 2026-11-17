@@ -59,7 +59,7 @@ fun VoiceChatScreen(store: SettingsStore) {
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result ->
             ttsReady = result == TextToSpeech.SUCCESS
-            if (ttsReady) engineLanguage@ run { tts?.language = Locale.US }
+            if (ttsReady) tts?.language = Locale.US
         }
         tts = engine
         onDispose { engine.stop(); engine.shutdown(); tts = null }
@@ -218,7 +218,6 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                     shape = RoundedCornerShape(50), color = Color.White,
                                     border = androidx.compose.foundation.BorderStroke(2.dp, VoiceInk),
                                     modifier = Modifier.clickable {
-                                        messages.add(VoiceChatMessage("Let's talk about $topic.", true))
                                         sendToAi("Let's talk about $topic.")
                                     }
                                 ) { Text(topic, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), color = VoiceInk, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
