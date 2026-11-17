@@ -457,6 +457,11 @@ fun WordPopApp(
 
     var page by remember { mutableStateOf(Page.Home) }
     var adminOpen by remember { mutableStateOf(false) }
+    val voiceChatVisible = SettingsCardsSync.visibility["voiceChat"] != false
+    val visiblePages = Page.values().filter { it != Page.VoiceChat || voiceChatVisible }
+    LaunchedEffect(voiceChatVisible, page) {
+        if (!voiceChatVisible && page == Page.VoiceChat) page = Page.Home
+    }
 
     val id = learnId
     if (adminOpen) {
@@ -514,7 +519,7 @@ fun WordPopApp(
                 }
             }
             if (adsAllowed && !imeVisible && (page == Page.Favorites || page == Page.MyWords)) AdBanner()
-            if (!imeVisible) BottomBar(page) { page = it }
+            if (!imeVisible) BottomBar(page, visiblePages) { page = it }
         }
     }
 }
@@ -531,7 +536,7 @@ enum class Page(val title: String, val icon: Int) {
 }
 
 @Composable
-fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
+fun BottomBar(page: Page, visiblePages: List<Page> = Page.values().toList(), onSelect: (Page) -> Unit) {
     val pill = RoundedCornerShape(26.dp)
     Box(
         Modifier.fillMaxWidth().navigationBarsPadding()
@@ -544,7 +549,7 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Page.values().forEach { p ->
+            visiblePages.forEach { p ->
                 val selected = p == page
                 val item = RoundedCornerShape(16.dp)
                 val scale = remember { Animatable(1f) }
@@ -557,7 +562,7 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                 Box(
                     Modifier
                         .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-                        .size(width = if (Page.values().size > 6) 40.dp else 50.dp, height = 44.dp)
+                        .size(width = if (visiblePages.size > 6) 40.dp else 50.dp, height = 44.dp)
                         .then(if (selected) Modifier.hardShadow(item, 3.dp) else Modifier)
                         .clip(item)
                         .background(if (selected) Teal else Color.Transparent)
