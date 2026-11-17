@@ -434,6 +434,9 @@ fun rememberSpeaker(): (String) -> Unit {
 fun WordPopApp(
     overlayGranted: Boolean,
     exactAlarmGranted: Boolean,
+    adsAllowed: Boolean,
+    privacyOptionsRequired: Boolean,
+    onShowPrivacyOptions: () -> Unit,
     openWordId: Int?,
     onConsumeOpenWord: () -> Unit,
     onRequestOverlay: () -> Unit,
@@ -487,7 +490,12 @@ fun WordPopApp(
                 } else if (page == Page.Write) {
                     WriteScreen(store = store)
                 } else if (page == Page.Settings) {
-                    SettingsSwipeScreen(store = store, onOpenAdmin = { adminOpen = true })
+                    SettingsSwipeScreen(
+                        store = store,
+                        onOpenAdmin = { adminOpen = true },
+                        privacyOptionsRequired = privacyOptionsRequired,
+                        onShowPrivacyOptions = onShowPrivacyOptions
+                    )
                 } else {
                     HomeScreen(
                         store = store,
@@ -503,7 +511,7 @@ fun WordPopApp(
                     )
                 }
             }
-            if (!imeVisible && (page == Page.Favorites || page == Page.MyWords)) AdBanner()
+            if (adsAllowed && !imeVisible && (page == Page.Favorites || page == Page.MyWords)) AdBanner()
             if (!imeVisible) BottomBar(page) { page = it }
         }
     }
