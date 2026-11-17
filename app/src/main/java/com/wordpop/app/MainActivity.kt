@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var adsAllowed by mutableStateOf(false)
     private var privacyOptionsRequired by mutableStateOf(false)
     private var mobileAdsInitializationStarted = false
+    private var ageGroup by mutableStateOf<WordPopAgeGroup?>(null)
     private lateinit var adsConsentManager: AdsConsentManager
 
     private val notifPermission =
@@ -42,19 +43,28 @@ class MainActivity : ComponentActivity() {
             )
         )
         handleIntent(intent)
+        ageGroup = WordPopAgeProfile.get(this)
         adsConsentManager = AdsConsentManager(this)
-        adsConsentManager.gatherConsent(this) { canRequestAds, optionsRequired ->
-            runOnUiThread {
-                privacyOptionsRequired = optionsRequired
-                if (canRequestAds) initializeMobileAds()
-            }
-        }
         setContent {
             WordPopTheme {
                 var showStartup by remember {
                     mutableStateOf(savedInstanceState == null && wordFromIntent == null)
                 }
-                if (showStartup) {
+                val selectedAge = ageGroup
+                if (selectedAge == null) {
+                    WordPopAgeGate { selected ->
+                        WordPopAgeProfile.save(this, selected)
+                        ageGroup = selected
+                        (application as WordPopApplication).startAgeAppropriateServices(selected)
+                        configureAdsForAge(selected)
+                        adsConsentManager.gatherConsent(this) { canRequestAds, optionsRequired ->
+                            runOnUiThread {
+                                privacyOptionsRequired = optionsRequired
+                                if (canRequestAds) initializeMobileAds()
+                            }
+                        }
+                    }
+                } else if (showStartup) {
                     WordPopStartup(onFinished = { showStartup = false })
                 } else {
                     WordPopApp(
@@ -125,6 +135,24 @@ class MainActivity : ComponentActivity() {
             sendToService(this, OverlayService.ACTION_START)
         }
         lastReady = ready
+    }
+
+    private fun configureAdsForAge(group: WordPopAgeGroup) {
+        val builder = com.google.android.gms.ads.RequestConfiguration.Builder()
+            .setMaxAdContentRating(com.google.android.gms.ads.RequestConfiguration.MAX_AD_CONTENT_RATING_G)
+        // SDK 23.6.0 predates the newer CHILD/TEEN age-treatment API.
+        // Treat child and teen requests conservatively as child-directed; never send an
+        // unverified adult signal for a minor. Adults remain non-child-directed.
+        if (group != WordPopAgeGroup.ADULT) {
+            builder
+                .setTagForChildDirectedTreatment(
+                    com.google.android.gms.ads.RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE
+                )
+                .setTagForUnderAgeOfConsent(
+                    com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE
+                )
+        }
+        MobileAds.setRequestConfiguration(builder.build())
     }
 
     private fun initializeMobileAds() {
