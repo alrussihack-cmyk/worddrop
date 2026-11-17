@@ -22,7 +22,7 @@ object SettingsCardsSync {
 
     val cardIds = listOf(
         "pause", "interval", "hours", "content", "level", "display",
-        "pronunciation", "easyvoice", "position", "appearance", "dnd", "maintenance"
+        "pronunciation", "easyvoice", "position", "appearance", "dnd", "maintenance", "voiceChat"
     )
 
     private val defaults = cardIds.associateWith { true }
