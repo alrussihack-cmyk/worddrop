@@ -23,15 +23,23 @@ import androidx.compose.ui.unit.dp
 enum class WordPopAgeGroup { CHILD, TEEN, ADULT }
 
 object WordPopAgeProfile {
+    @Volatile private var currentGroup: WordPopAgeGroup? = null
+
+    /** External AI/TTS endpoints are available only to adult profiles. */
+    fun allowsExternalServices(): Boolean = currentGroup == WordPopAgeGroup.ADULT
+
     private const val PREFS = "wordpop_age_profile"
     private const val KEY = "age_group"
 
     fun get(context: Context): WordPopAgeGroup? {
         val value = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
-        return runCatching { value?.let(WordPopAgeGroup::valueOf) }.getOrNull()
+        val group = runCatching { value?.let(WordPopAgeGroup::valueOf) }.getOrNull()
+        currentGroup = group
+        return group
     }
 
     fun save(context: Context, group: WordPopAgeGroup) {
+        currentGroup = group
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(KEY, group.name).apply()
     }
