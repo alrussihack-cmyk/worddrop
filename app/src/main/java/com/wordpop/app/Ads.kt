@@ -33,6 +33,6 @@ fun AdBanner(modifier: Modifier = Modifier) {
     DisposableEffect(adView) { onDispose { adView.destroy() } }
     AndroidView(
         factory = { adView },
-        modifier = modifier.fillMaxWidth().heightIn(min = 0.dp).padding(horizontal = 0.dp)
+        modifier = modifier.fillMaxWidth().heightIn(min = 0.dp).padding(vertical = 8.dp)
     )
 }
