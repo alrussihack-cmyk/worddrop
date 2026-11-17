@@ -19,8 +19,6 @@ class WordPopApplication : Application() {
         WordRepo.init(this)
         SettingsStore(this)
         Sfx.init(this)
-        // AdMob start-up does disk and network work, so keep it off the main thread.
-        Thread { com.google.android.gms.ads.MobileAds.initialize(this) }.start()
         DailyReminder.schedule(this)
 
         if (FirebaseApp.getApps(this).isEmpty()) {
