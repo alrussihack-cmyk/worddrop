@@ -557,7 +557,7 @@ fun BottomBar(page: Page, onSelect: (Page) -> Unit) {
                 Box(
                     Modifier
                         .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-                        .size(width = 50.dp, height = 44.dp)
+                        .size(width = if (Page.values().size > 6) 40.dp else 50.dp, height = 44.dp)
                         .then(if (selected) Modifier.hardShadow(item, 3.dp) else Modifier)
                         .clip(item)
                         .background(if (selected) Teal else Color.Transparent)
