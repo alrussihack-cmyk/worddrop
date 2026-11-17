@@ -26,6 +26,11 @@ class WordPopApplication : Application() {
             return
         }
 
+    }
+
+    fun startAgeAppropriateServices(ageGroup: WordPopAgeGroup) {
+        if (ageGroup == WordPopAgeGroup.CHILD) return
+        if (FirebaseApp.getApps(this).isEmpty()) return
         AppCheckProviderInstaller.install(this)
         AiConfigSync.start(this)
         WordCloudSync.start(this)
