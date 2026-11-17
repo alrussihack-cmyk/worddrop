@@ -304,7 +304,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
 @Composable
 private fun WordPopFace(faceSize: androidx.compose.ui.unit.Dp) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(faceSize * 0.27f))
+        Modifier.size(faceSize).clip(RoundedCornerShape(faceSize * 0.27f))
             .background(VoiceMint).border(3.dp, VoiceInk, RoundedCornerShape(faceSize * 0.27f)),
         contentAlignment = Alignment.Center
     ) {
