@@ -118,6 +118,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        ageGroup?.let { selected ->
+            (application as WordPopApplication).startAgeAppropriateServices(selected)
+            configureAdsForAge(selected)
+            adsConsentManager.gatherConsent(this) { canRequestAds, optionsRequired ->
+                runOnUiThread {
+                    privacyOptionsRequired = optionsRequired
+                    if (canRequestAds) initializeMobileAds()
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
