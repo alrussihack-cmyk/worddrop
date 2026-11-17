@@ -29,7 +29,8 @@ class WordPopApplication : Application() {
     }
 
     fun startAgeAppropriateServices(ageGroup: WordPopAgeGroup) {
-        if (ageGroup == WordPopAgeGroup.CHILD) return
+        // Only adult profiles may initialize cloud sync, device reporting or protected remote services.
+        if (ageGroup != WordPopAgeGroup.ADULT) return
         if (FirebaseApp.getApps(this).isEmpty()) return
         AppCheckProviderInstaller.install(this)
         AiConfigSync.start(this)
