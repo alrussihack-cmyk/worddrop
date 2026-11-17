@@ -608,6 +608,8 @@ fun SettingsSwipeScreen(
                                 }
                             }
                             SettingsDivider()
+                            WordGroupsSection(store, SettingsInk, SettingsMuted) { refreshOverlay() }
+                            SettingsDivider()
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("نسخة من بياناتك", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
                                 Text("صدّر الكلمات والمفضلة والقصص والتقدّم والإعدادات في ملف، واستورده بعدين أو على موبايل تاني.", fontSize = 13.sp, color = SettingsMuted)

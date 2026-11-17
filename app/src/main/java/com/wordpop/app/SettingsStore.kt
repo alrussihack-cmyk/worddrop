@@ -68,6 +68,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt("endHour", 22)
         set(v) = prefs.edit().putInt("endHour", v).apply()
 
+    /** Word groups the learner switched off: "cloud", "mine" or "cat:<name>". */
+    var disabledGroups: Set<String>
+        get() = prefs.getStringSet("disabledGroups", null) ?: emptySet()
+        set(v) = prefs.edit().putStringSet("disabledGroups", v.toSet()).apply()
+
     /** Categories the floating card is limited to. Empty = no category filter. */
     var overlayCategories: Set<String>
         get() = prefs.getStringSet("overlayCats", null) ?: emptySet()

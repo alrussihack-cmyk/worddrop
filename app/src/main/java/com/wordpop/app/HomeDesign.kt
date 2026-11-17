@@ -396,9 +396,11 @@ fun WordListTab(store: SettingsStore, speak: (String) -> Unit) {
     }
     list.take(shown).forEach { w ->
         val fav = w.id in favs
+        val off = WordRepo.isDisabled(w, store)
         Row(
             Modifier
                 .fillMaxWidth()
+                .graphicsLayer { alpha = if (off) 0.45f else 1f }
                 .clip(RoundedCornerShape(22.dp))
                 .background(Color.White)
                 .border(1.5.dp, Line, RoundedCornerShape(22.dp))

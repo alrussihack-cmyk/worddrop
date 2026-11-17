@@ -226,16 +226,43 @@ object WordRepo {
         return ImportResult(additions.size, duplicates, skipped)
     }
 
+    /** The group a word belongs to for switching on/off: WordControl words, own words, or an own category. */
+    fun groupOf(w: Word): String? = when {
+        w.id < 0 -> "cloud"
+        w.id >= CustomWords.FIRST_ID -> if (w.category.isBlank()) "mine" else "cat:${w.category.trim()}"
+        else -> null
+    }
+
+    fun isDisabled(w: Word, s: SettingsStore): Boolean = groupOf(w)?.let { it in s.disabledGroups } == true
+
+    /** Deletes the learner's own words that belong to [group] ("mine" or "cat:<name>"). Returns how many went. */
+    fun deleteGroup(ctx: Context, group: String): Int {
+        val keep = custom.filterNot { groupOf(it) == group }
+        val removed = custom.size - keep.size
+        if (removed > 0) {
+            CustomWords.save(ctx, keep)
+            setCustom(keep)
+        }
+        return removed
+    }
+
     fun clearCustom(ctx: Context) {
         CustomWords.save(ctx, emptyList())
         setCustom(emptyList())
     }
 
-    private fun levelPool(s: SettingsStore): List<Word> = when (s.level) {
-        1 -> all.filter { it.level == "A" }
-        2 -> all.filter { it.level == "B1" }
-        3 -> all.filter { it.level == "B2" }
-        else -> all
+    private fun enabledWords(s: SettingsStore): List<Word> {
+        val off = s.disabledGroups
+        return if (off.isEmpty()) all else all.filter { groupOf(it)?.let { g -> g in off } != true }.ifEmpty { all }
+    }
+
+    private fun levelPool(s: SettingsStore): List<Word> = enabledWords(s).let { pool ->
+        when (s.level) {
+            1 -> pool.filter { it.level == "A" }
+            2 -> pool.filter { it.level == "B1" }
+            3 -> pool.filter { it.level == "B2" }
+            else -> pool
+        }
     }
 
     /** Words that match the user's level and content filters. */
@@ -243,7 +270,7 @@ object WordRepo {
         1 -> levelPool(s).filter { !it.isPhrase }
         2 -> levelPool(s).filter { it.isPhrase }
         else -> levelPool(s)
-    }.ifEmpty { all }
+    }.ifEmpty { enabledWords(s) }
 
     /** The same level and content filters used by the normal word picker. */
     fun reviewPool(s: SettingsStore): List<Word> = basePool(s)
@@ -305,7 +332,7 @@ object WordRepo {
         if (cats.isNotEmpty()) {
             // Respect the level filter first; if it leaves nothing, the chosen categories win over level.
             base = base.filter { it.category in cats }
-                .ifEmpty { all.filter { it.category in cats } }
+                .ifEmpty { enabledWords(s).filter { it.category in cats } }
                 .ifEmpty { base }
         }
         val learned = s.learned
