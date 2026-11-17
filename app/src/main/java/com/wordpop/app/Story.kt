@@ -85,6 +85,10 @@ Reply with JSON only, no other text: {"title":"...","story":"...","translation":
 
     /** Calls the shared Worker; the OpenRouter credential never enters the learner app. */
     internal fun chatJson(workerUrl: String, prompt: String, maxTokens: Int): JSONObject {
+        // Fail closed for unknown, child and teen profiles. This also protects AI vocabulary and word lookup calls.
+        if (!WordPopAgeProfile.allowsExternalServices()) {
+            throw Exception("خدمات الذكاء الاصطناعي عبر الإنترنت متاحة لحسابات البالغين فقط. تقدر تستخدم القاموس والنطق المحلي.")
+        }
         val endpoint = workerUrl.trim().trimEnd('/') + "/ai/chat"
         val body = JSONObject()
             .put("prompt", prompt)
