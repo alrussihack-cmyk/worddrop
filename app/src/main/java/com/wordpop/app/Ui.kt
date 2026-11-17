@@ -503,6 +503,7 @@ fun WordPopApp(
                     )
                 }
             }
+            if (!imeVisible && (page == Page.Favorites || page == Page.MyWords)) AdBanner()
             if (!imeVisible) BottomBar(page) { page = it }
         }
     }

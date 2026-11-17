@@ -18,9 +18,13 @@ android {
         minSdk = 26
         targetSdk = 36
         // Keep the 1.9 product identity while allowing upgrades from the 2.0 build.
-        versionCode = 29
+        versionCode = 30
         versionName = "1.9"
     }
+
+    // Test banner unit for debug builds: tapping your own real ads can get an AdMob account suspended.
+    buildTypes.getByName("debug").buildConfigField("String", "AD_BANNER_UNIT_ID", "\"ca-app-pub-3940256099942544/9214589741\"")
+    buildTypes.getByName("release").buildConfigField("String", "AD_BANNER_UNIT_ID", "\"ca-app-pub-1404572949989950/1715513015\"")
 
     // CI creates a brand-new debug keystore on every run, so each APK had a different
     // signature: Android refused to update, the app had to be uninstalled, and the new
@@ -56,6 +60,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -69,6 +74,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 

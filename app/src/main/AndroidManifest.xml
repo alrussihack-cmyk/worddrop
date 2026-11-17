@@ -35,6 +35,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WordPop">
 
+        <!-- AdMob app ID for WordPop -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-1404572949989950~2499991972" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
