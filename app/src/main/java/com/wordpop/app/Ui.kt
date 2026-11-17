@@ -483,7 +483,9 @@ fun WordPopApp(
         val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(Modifier.fillMaxSize().background(Cloud).imePadding()) {
             Box(Modifier.weight(1f)) {
-                if (page == Page.Review) {
+                if (page == Page.VoiceChat) {
+                    VoiceChatScreen(store = store)
+                } else if (page == Page.Review) {
                     ReviewScreen(store = store)
                 } else if (page == Page.Favorites) {
                     FavoritesScreen(store = store, onOpenWord = { learnId = it })
@@ -520,6 +522,7 @@ fun WordPopApp(
 /** Tabs of the bottom bar. */
 enum class Page(val title: String, val icon: Int) {
     Home("الرئيسية", R.drawable.ic_home),
+    VoiceChat("محادثة", R.drawable.ic_mic),
     Review("المراجعة", R.drawable.ic_check),
     Write("الكتابة", R.drawable.ic_edit),
     Favorites("المفضلة", R.drawable.ic_star_outline),
