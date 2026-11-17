@@ -20,7 +20,10 @@ class AdsConsentManager(activity: Activity) {
         activity: Activity,
         onComplete: (canRequestAds: Boolean, privacyOptionsRequired: Boolean) -> Unit
     ) {
-        val parameters = ConsentRequestParameters.Builder().build()
+        val parameters = ConsentRequestParameters.Builder()
+            // UMP must know when the selected profile is a minor before requesting consent.
+            .setTagForUnderAgeOfConsent(!WordPopAgeProfile.allowsExternalServices())
+            .build()
         consentInformation.requestConsentInfoUpdate(
             activity,
             parameters,
