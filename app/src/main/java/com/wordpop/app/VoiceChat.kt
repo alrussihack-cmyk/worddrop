@@ -302,18 +302,18 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
 }
 
 @Composable
-private fun WordPopFace(size: androidx.compose.ui.unit.Dp) {
+private fun WordPopFace(faceSize: androidx.compose.ui.unit.Dp) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(size * 0.27f))
-            .background(VoiceMint).border(3.dp, VoiceInk, RoundedCornerShape(size * 0.27f)),
+        Modifier.size(size).clip(RoundedCornerShape(faceSize * 0.27f))
+            .background(VoiceMint).border(3.dp, VoiceInk, RoundedCornerShape(faceSize * 0.27f)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(size * 0.08f)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(size * 0.16f)) {
-                Box(Modifier.size(size * 0.09f).clip(CircleShape).background(VoiceInk))
-                Box(Modifier.size(size * 0.09f).clip(CircleShape).background(VoiceInk))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(faceSize * 0.08f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(faceSize * 0.16f)) {
+                Box(Modifier.size(faceSize * 0.09f).clip(CircleShape).background(VoiceInk))
+                Box(Modifier.size(faceSize * 0.09f).clip(CircleShape).background(VoiceInk))
             }
-            Box(Modifier.width(size * 0.34f).height(size * 0.14f)) {
+            Box(Modifier.width(faceSize * 0.34f).height(faceSize * 0.14f)) {
                 Canvas(Modifier.fillMaxSize()) {
                     drawArc(VoiceInk, 15f, 150f, false, topLeft = Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, size.height), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
                 }
