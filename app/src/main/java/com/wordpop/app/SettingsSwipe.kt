@@ -81,7 +81,9 @@ private val SettingsSky = Color(0xFF62BDFF)
 @Composable
 fun SettingsSwipeScreen(
     store: SettingsStore,
-    onOpenAdmin: () -> Unit
+    onOpenAdmin: () -> Unit,
+    privacyOptionsRequired: Boolean,
+    onShowPrivacyOptions: () -> Unit
 ) {
     val ctx = LocalContext.current
     val visibleCardIds = SettingsCardsSync.visibleCardIds
@@ -617,6 +619,14 @@ fun SettingsSwipeScreen(
                                 SettingsAction("استورد من ملف", false) { confirmImport = true }
                                 if (backupNote.isNotEmpty()) {
                                     Text(backupNote, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16866C))
+                                }
+                            }
+                            if (privacyOptionsRequired) {
+                                SettingsDivider()
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("الخصوصية والإعلانات", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
+                                    Text("راجع أو غيّر اختيارات الخصوصية والإعلانات في أي وقت.", fontSize = 13.sp, color = SettingsMuted)
+                                    SettingsAction("إدارة خيارات الخصوصية", false, onShowPrivacyOptions)
                                 }
                             }
                         }
