@@ -10,6 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +55,36 @@ fun clickableHighlight(text: String, fromArabic: Boolean, onTap: (TappedWord) ->
         }
     }
 
+private val englishToken = Regex("[A-Za-z]+(?:['’][A-Za-z]+)*")
+
+/** English story text where every word can be tapped; highlighted vocabulary keeps its mint look. */
+fun clickableStoryEnglish(text: String, onTap: (TappedWord) -> Unit): AnnotatedString =
+    buildAnnotatedString {
+        var hit = 0
+        text.split("**").forEachIndexed { i, part ->
+            val marked = i % 2 == 1
+            if (marked) {
+                val tapped = TappedWord(part.trim(), hit++, false)
+                withLink(LinkAnnotation.Clickable(
+                    tag = "w${tapped.index}",
+                    styles = TextLinkStyles(SpanStyle(color = TealDark, background = Tint, fontWeight = FontWeight.Bold))
+                ) { onTap(tapped) }) { append(part) }
+            } else {
+                var last = 0
+                englishToken.findAll(part).forEach { m ->
+                    append(part.substring(last, m.range.first))
+                    val tapped = TappedWord(m.value, -1, false)
+                    withLink(LinkAnnotation.Clickable(
+                        tag = "p${m.range.first}_${m.value}",
+                        styles = TextLinkStyles(SpanStyle())
+                    ) { onTap(tapped) }) { append(m.value) }
+                    last = m.range.last + 1
+                }
+                append(part.substring(last))
+            }
+        }
+    }
+
 private fun stem(en: String) = en.lowercase().let { it.take(maxOf(3, it.length - 3)) }
 private fun norm(s: String) = s.lowercase().filter { it.isLetter() || it == ' ' || it == '\'' || it == '’' }.trim()
 private fun arNorm(s: String) = s.filter { it.isLetter() }.removePrefix("ال")
@@ -69,7 +103,10 @@ fun resolveStoryWord(story: Story, words: List<Word>, tapped: TappedWord): Word?
             ?: pool.filter { n.contains(stem(it.en)) }.maxByOrNull { stem(it.en).length }
     }
 
-    if (!tapped.fromArabic) return byEnglish(tapped.shown)
+    if (!tapped.fromArabic) {
+        return if (tapped.index >= 0) byEnglish(tapped.shown) ?: WordLookup.inLibrary(tapped.shown)
+        else pool.firstOrNull { it.en.equals(tapped.shown, ignoreCase = true) } ?: WordLookup.inLibrary(tapped.shown)
+    }
 
     val en = highlights(story.en)
     val ar = highlights(story.ar)
@@ -83,8 +120,23 @@ fun resolveStoryWord(story: Story, words: List<Word>, tapped: TappedWord): Word?
 
 /** Pop-up with the meaning and pronunciation of a tapped story word. */
 @Composable
-fun StoryWordDialog(tapped: TappedWord, word: Word?, store: SettingsStore, speak: (String) -> Unit, onDismiss: () -> Unit) {
+fun StoryWordDialog(tapped: TappedWord, libraryWord: Word?, store: SettingsStore, speak: (String) -> Unit, sentence: String = "", onDismiss: () -> Unit) {
     val shape = RoundedCornerShape(24.dp)
+    val ctx = LocalContext.current
+    var looked by remember(tapped) { mutableStateOf<Word?>(null) }
+    var loading by remember(tapped) { mutableStateOf(libraryWord == null && !tapped.fromArabic) }
+    var failure by remember(tapped) { mutableStateOf("") }
+    LaunchedEffect(tapped) {
+        if (libraryWord == null && !tapped.fromArabic) {
+            try {
+                looked = withContext(Dispatchers.IO) { WordLookup.translate(AiConfigSync.workerUrl, tapped.shown, sentence) }
+            } catch (e: Exception) {
+                failure = e.message ?: "تعذّرت الترجمة."
+            }
+            loading = false
+        }
+    }
+    val word = libraryWord ?: looked
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = shape, color = Color.White, border = BorderStroke(2.dp, Night),
@@ -93,7 +145,14 @@ fun StoryWordDialog(tapped: TappedWord, word: Word?, store: SettingsStore, speak
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (word == null) {
                     Text(tapped.shown, fontSize = 20.sp, fontFamily = Display, color = Night)
-                    Text("مالقيتش تفاصيل الكلمة دي في مكتبتك.", fontSize = 14.sp, color = Muted)
+                    Text(
+                        when {
+                            loading -> "بترجم الكلمة..."
+                            failure.isNotEmpty() -> failure
+                            else -> "مالقيتش تفاصيل الكلمة دي."
+                        },
+                        fontSize = 14.sp, color = Muted
+                    )
                     if (!tapped.fromArabic) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             SpeakButton(44.dp) { speak(tapped.shown) }
@@ -126,18 +185,24 @@ fun StoryWordDialog(tapped: TappedWord, word: Word?, store: SettingsStore, speak
                     }
                 }
                 if (word != null) {
-                    var added by remember(word.id) { mutableStateOf(store.isInMyWords(word.id)) }
+                    var added by remember(word.en) { mutableStateOf(word.id != 0 && store.isInMyWords(word.id)) }
                     if (added) {
                         Surface(shape = RoundedCornerShape(14.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                "اتضافت لكلماتي وللمراجعة الذكية",
+                                "اتضافت للمفضلة وللمراجعة الذكية",
                                 fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TealDark,
                                 modifier = Modifier.padding(12.dp)
                             )
                         }
                     } else {
-                        PrimaryButton("أضف لكلماتي", Modifier.fillMaxWidth()) {
-                            store.addToMyWords(word.id)
+                        PrimaryButton("أضف للمفضلة", Modifier.fillMaxWidth()) {
+                            var id = word.id
+                            if (id == 0) {
+                                // A word translated on the fly becomes one of the learner's own words first.
+                                WordRepo.addCustomWords(ctx, listOf(word.copy(category = "من القصص")))
+                                id = WordRepo.all.firstOrNull { it.en.equals(word.en, ignoreCase = true) }?.id ?: 0
+                            }
+                            if (id != 0) store.addToMyWords(id)
                             added = true
                             Sfx.correct()
                         }

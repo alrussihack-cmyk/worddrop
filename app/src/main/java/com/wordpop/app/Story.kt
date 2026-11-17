@@ -385,7 +385,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
 
         current?.let { story ->
             tappedWord?.let { t ->
-                StoryWordDialog(t, resolveStoryWord(story, words, t), store, speak) { tappedWord = null }
+                StoryWordDialog(t, resolveStoryWord(story, words, t), store, speak, story.en.replace("**", "")) { tappedWord = null }
             }
             val labels = listOf("اقرأ", "ترجمة", "كلمات", "اختبر", "اكتب")
             val progress by animateFloatAsState((step + 1) / labels.size.toFloat(), tween(420), label = "storyProgress")
@@ -422,7 +422,7 @@ fun StoryTab(store: SettingsStore, words: List<Word>, speak: (String) -> Unit) {
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             when (s) {
                                 0 -> CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                                    Text(clickableHighlight(story.en, false) { tappedWord = it }, fontSize = 17.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
+                                    Text(clickableStoryEnglish(story.en) { tappedWord = it }, fontSize = 17.sp, lineHeight = 28.sp, color = Night, modifier = Modifier.fillMaxWidth())
                                 }
                                 1 -> if (story.ar.isNotEmpty()) {
                                     Surface(shape = RoundedCornerShape(16.dp), color = Tint, modifier = Modifier.fillMaxWidth()) {
