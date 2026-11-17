@@ -299,8 +299,15 @@ object WordRepo {
     }
 
     /** Picks a random word that respects the user's content filter, avoiding learned words and the last shown one. */
-    fun pick(s: SettingsStore): Word {
-        val base = basePool(s)
+    fun pick(s: SettingsStore, overlay: Boolean = false): Word {
+        var base = basePool(s)
+        val cats = if (overlay) s.overlayCategories else emptySet()
+        if (cats.isNotEmpty()) {
+            // Respect the level filter first; if it leaves nothing, the chosen categories win over level.
+            base = base.filter { it.category in cats }
+                .ifEmpty { all.filter { it.category in cats } }
+                .ifEmpty { base }
+        }
         val learned = s.learned
         var pool = base.filter { it.id !in learned }
         if (pool.isEmpty()) pool = base

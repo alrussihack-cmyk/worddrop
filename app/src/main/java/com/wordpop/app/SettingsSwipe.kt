@@ -124,6 +124,7 @@ fun SettingsSwipeScreen(
     var startHour by remember { mutableIntStateOf(store.startHour) }
     var endHour by remember { mutableIntStateOf(store.endHour) }
     var contentType by remember { mutableIntStateOf(store.content) }
+    var overlayCats by remember { mutableStateOf(store.overlayCategories) }
     var level by remember { mutableIntStateOf(store.level) }
     var displaySec by remember { mutableIntStateOf(store.displaySec) }
     var sound by remember { mutableStateOf(store.sound) }
@@ -350,6 +351,27 @@ fun SettingsSwipeScreen(
                                 SettingsTile(label, sub, contentType == value, SettingsCoral, Modifier.fillMaxWidth()) {
                                     contentType = value
                                     store.content = value
+                                    refreshOverlay()
+                                }
+                            }
+                            val allCats = WordRepo.categories()
+                            if (allCats.isNotEmpty()) {
+                                Text("تصنيفات الإشعارات", fontSize = 20.sp, fontFamily = Display, color = SettingsInk)
+                                Text("اختار تصنيف أو أكتر، والإشعارات هتفضل تظهر منهم بس.", fontSize = 13.sp, color = SettingsMuted)
+                                SettingsTile("كل التصنيفات", "من غير تحديد", overlayCats.isEmpty(), SettingsCoral, Modifier.fillMaxWidth()) {
+                                    overlayCats = emptySet()
+                                    store.overlayCategories = emptySet()
+                                    refreshOverlay()
+                                }
+                                allCats.forEach { c ->
+                                    val on = c in overlayCats
+                                    val count = WordRepo.customWords.count { it.category == c }
+                                    SettingsTile(c, "$count كلمة", on, SettingsCoral, Modifier.fillMaxWidth()) {
+                                        val next = if (on) overlayCats - c else overlayCats + c
+                                        overlayCats = next
+                                        store.overlayCategories = next
+                                        refreshOverlay()
+                                    }
                                 }
                             }
                         }

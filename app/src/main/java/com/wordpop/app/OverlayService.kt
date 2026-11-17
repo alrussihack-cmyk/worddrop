@@ -173,7 +173,7 @@ class OverlayService : Service() {
     private fun showWord(silent: Boolean = false) {
         if (!Settings.canDrawOverlays(this)) return
         val s = SettingsStore(this)
-        val w = WordRepo.pick(s)
+        val w = WordRepo.pick(s, overlay = true)
         removeBanner()
 
         scale = when (s.bannerSize) {
