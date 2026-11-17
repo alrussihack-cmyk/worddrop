@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import com.google.android.gms.ads.MobileAds
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -22,6 +23,10 @@ class MainActivity : ComponentActivity() {
     private var exactAlarmGranted by mutableStateOf(false)
     private var lastReady: Boolean? = null
     private var wordFromIntent by mutableStateOf<Int?>(null)
+    private var adsAllowed by mutableStateOf(false)
+    private var privacyOptionsRequired by mutableStateOf(false)
+    private var mobileAdsInitializationStarted = false
+    private lateinit var adsConsentManager: AdsConsentManager
 
     private val notifPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -37,6 +42,13 @@ class MainActivity : ComponentActivity() {
             )
         )
         handleIntent(intent)
+        adsConsentManager = AdsConsentManager(this)
+        adsConsentManager.gatherConsent(this) { canRequestAds, optionsRequired ->
+            runOnUiThread {
+                privacyOptionsRequired = optionsRequired
+                if (canRequestAds) initializeMobileAds()
+            }
+        }
         setContent {
             WordPopTheme {
                 var showStartup by remember {
@@ -48,6 +60,17 @@ class MainActivity : ComponentActivity() {
                     WordPopApp(
                         overlayGranted = overlayGranted,
                         exactAlarmGranted = exactAlarmGranted,
+                        adsAllowed = adsAllowed,
+                        privacyOptionsRequired = privacyOptionsRequired,
+                        onShowPrivacyOptions = {
+                            adsAllowed = false
+                            adsConsentManager.showPrivacyOptions(this) { canRequestAds, optionsRequired ->
+                                runOnUiThread {
+                                    privacyOptionsRequired = optionsRequired
+                                    if (canRequestAds) initializeMobileAds()
+                                }
+                            }
+                        },
                         openWordId = wordFromIntent,
                         onConsumeOpenWord = { wordFromIntent = null },
                         onRequestOverlay = {
@@ -102,6 +125,14 @@ class MainActivity : ComponentActivity() {
             sendToService(this, OverlayService.ACTION_START)
         }
         lastReady = ready
+    }
+
+    private fun initializeMobileAds() {
+        if (mobileAdsInitializationStarted) return
+        mobileAdsInitializationStarted = true
+        MobileAds.initialize(this) {
+            runOnUiThread { adsAllowed = true }
+        }
     }
 
     private fun handleIntent(i: Intent?) {
