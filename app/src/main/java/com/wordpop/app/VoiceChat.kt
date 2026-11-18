@@ -31,6 +31,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,7 +45,18 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 
 /** [spoken] is what Aria says aloud when it differs from what is shown (Arabic prompts stay on screen only). */
-private data class VoiceChatMessage(val text: String, val fromUser: Boolean, val spoken: String? = null)
+private data class ReviewCard(
+    val type: Int,            // 0 question, 1 correct, 2 wrong
+    val counter: String = "",
+    val ar: String = "",
+    val pos: String = "",
+    val en: String = "",
+    val example: String = ""
+)
+
+private data class VoiceChatMessage(
+    val text: String, val fromUser: Boolean, val spoken: String? = null, val card: ReviewCard? = null
+)
 
 private fun normalizeAnswer(text: String): String =
     text.lowercase().replace(Regex("[^a-z ]"), " ").replace(Regex("\\s+"), " ").trim()
@@ -143,7 +157,8 @@ fun VoiceChatScreen(store: SettingsStore) {
             messages.add(
                 VoiceChatMessage(
                     "${reviewIndex + 1}/${reviewQueue.size}  •  قول الكلمة بالإنجليزي:\n«${w.ar}»$kind",
-                    false, "Word ${reviewIndex + 1}. Say the English word for this meaning."
+                    false, "Word ${reviewIndex + 1}. Say the English word for this meaning.",
+                    ReviewCard(0, "${reviewIndex + 1}/${reviewQueue.size}", w.ar, w.kind)
                 )
             )
             speak("Word ${reviewIndex + 1}. Say the English word for this meaning.", queue = true)
@@ -178,14 +193,16 @@ fun VoiceChatScreen(store: SettingsStore) {
             store.recordReview(w.id, ReviewRating.Good)
             val ex = if (w.example.isNotBlank()) " ${w.example}" else ""
             messages.add(VoiceChatMessage("صح! ${w.en}${if (w.ar.isNotBlank()) " = ${w.ar}" else ""}" +
-                (if (w.example.isNotBlank()) "\n${w.example}" else ""), false, "Correct! ${w.en}.$ex"))
+                (if (w.example.isNotBlank()) "\n${w.example}" else ""), false, "Correct! ${w.en}.$ex",
+                ReviewCard(1, "", w.ar, "", w.en, w.example)))
             speechBuffer = ""
             speak("Correct! ${w.en}.$ex", queue = true)
         } else {
             store.learned = store.learned - w.id
             store.hard = store.hard + w.id
             store.recordReview(w.id, ReviewRating.Again)
-            messages.add(VoiceChatMessage("مش بالظبط. الكلمة هي: ${w.en}", false, "Not quite. The word is ${w.en}."))
+            messages.add(VoiceChatMessage("مش بالظبط. الكلمة هي: ${w.en}", false, "Not quite. The word is ${w.en}.",
+                ReviewCard(2, "", w.ar, "", w.en, w.example)))
             speechBuffer = ""
             speak("Not quite. The word is ${w.en}.", queue = true)
         }
@@ -405,7 +422,8 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                         horizontalAlignment = Alignment.Start,
                                         verticalArrangement = Arrangement.spacedBy(9.dp)
                                     ) {
-                                        Surface(color = VoiceBubble, shape = RoundedCornerShape(20.dp)) {
+                                        if (message.card != null) ReviewCardView(message.card)
+                                        else Surface(color = VoiceBubble, shape = RoundedCornerShape(20.dp)) {
                                             Text(
                                                 message.text,
                                                 modifier = Modifier.padding(15.dp),
@@ -517,5 +535,58 @@ private fun ReviewPill(label: String, onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
             color = VoiceInk, fontSize = 15.sp, fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/** Review prompt / result as a WordPop sticker: mint paper, ink outline, hard shadow, Lalezar for the word. */
+@Composable
+private fun ReviewCardView(card: ReviewCard) {
+    val shape = RoundedCornerShape(24.dp)
+    val bg = when (card.type) { 0 -> Tint; 1 -> Mint; else -> MissTint }
+    CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+        Column(
+            Modifier.fillMaxWidth().padding(end = 6.dp, bottom = 5.dp)
+                .hardShadow(shape, 5.dp).clip(shape).background(bg)
+                .border(2.5.dp, Night, shape).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (card.type == 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(Night).padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text(card.counter, color = Color.White, fontFamily = Readex, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    if (card.pos.isNotBlank()) Box(
+                        Modifier.clip(RoundedCornerShape(50)).background(SunTint).border(1.5.dp, Night, RoundedCornerShape(50))
+                            .padding(horizontal = 12.dp, vertical = 3.dp)
+                    ) { Text(card.pos, color = Night, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 13.sp) }
+                }
+                Text("قول الكلمة بالإنجليزي", color = MintInk, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(background = Spark.copy(alpha = 0.55f))) { append(" ${card.ar} ") }
+                    },
+                    color = Night, fontFamily = Display, fontSize = 34.sp, lineHeight = 46.sp
+                )
+            } else {
+                Text(
+                    if (card.type == 1) "صح! 🎉" else "الكلمة الصح",
+                    color = if (card.type == 1) Night else Danger,
+                    fontFamily = Readex, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                )
+                CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                    Text(
+                        card.en, color = Night, fontFamily = Display, fontSize = 38.sp,
+                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start
+                    )
+                }
+                if (card.ar.isNotBlank()) Text(card.ar, color = Night, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 17.sp)
+                if (card.example.isNotBlank()) CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                    Text(
+                        card.example, color = MintInk, fontFamily = Readex, fontSize = 15.sp, lineHeight = 22.sp,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
