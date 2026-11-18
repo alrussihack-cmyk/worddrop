@@ -1,8 +1,12 @@
 name: Deploy Worker
 
-# Manual only: Actions tab -> "Deploy Worker" -> Run workflow.
+# Deploys when the Worker (or this file) changes on this branch; also runnable manually
+# once the workflow exists on the default branch.
 on:
   workflow_dispatch:
+  push:
+    branches: [design/wordpop-1.9-ui]
+    paths: ['worker/**', '.github/workflows/deploy-worker.yml']
 
 jobs:
   deploy:
