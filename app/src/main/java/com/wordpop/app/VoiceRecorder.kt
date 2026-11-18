@@ -94,9 +94,10 @@ object VoiceRecorder {
                 ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
             if (code !in 200..299) {
                 val msg = runCatching { JSONObject(text).optString("error") }.getOrDefault("")
-                throw Exception(msg.ifBlank {
-                    if (code == 404) "الـ Worker محتاج تحديث (مسار تحويل الصوت مش موجود)." else "تعذر تحويل الصوت لنص ($code)."
-                })
+                throw Exception(
+                    if (code == 404) "الـ Worker لسه محتاج deploy للنسخة الجديدة (مسار /ai/transcribe مش موجود)."
+                    else msg.ifBlank { "تعذر تحويل الصوت لنص ($code)." }
+                )
             }
             return JSONObject(text).optString("text").trim()
         } catch (e: java.io.IOException) {

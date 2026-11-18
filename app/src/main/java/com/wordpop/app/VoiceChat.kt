@@ -105,10 +105,6 @@ fun VoiceChatScreen(store: SettingsStore) {
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) chatListState.animateScrollToItem(messages.lastIndex)
-    }
-
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result ->
             ttsReady = result == TextToSpeech.SUCCESS
@@ -532,8 +528,8 @@ private fun ReviewPill(label: String, onClick: () -> Unit) {
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-            color = VoiceInk, fontSize = 15.sp, fontWeight = FontWeight.Medium
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            color = VoiceInk, fontSize = 13.sp, fontWeight = FontWeight.Medium
         )
     }
 }
@@ -541,14 +537,14 @@ private fun ReviewPill(label: String, onClick: () -> Unit) {
 /** Review prompt / result as a WordPop sticker: mint paper, ink outline, hard shadow, Lalezar for the word. */
 @Composable
 private fun ReviewCardView(card: ReviewCard) {
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(18.dp)
     val bg = when (card.type) { 0 -> Tint; 1 -> Mint; else -> MissTint }
     CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
         Column(
             Modifier.fillMaxWidth().padding(end = 6.dp, bottom = 5.dp)
-                .hardShadow(shape, 5.dp).clip(shape).background(bg)
-                .border(2.5.dp, Night, shape).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .hardShadow(shape, 4.dp).clip(shape).background(bg)
+                .border(2.dp, Night, shape).padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (card.type == 0) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -560,12 +556,12 @@ private fun ReviewCardView(card: ReviewCard) {
                             .padding(horizontal = 12.dp, vertical = 3.dp)
                     ) { Text(card.pos, color = Night, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 13.sp) }
                 }
-                Text("قول الكلمة بالإنجليزي", color = MintInk, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text("قول الكلمة بالإنجليزي", color = MintInk, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 12.sp)
                 Text(
                     buildAnnotatedString {
                         withStyle(SpanStyle(background = Spark.copy(alpha = 0.55f))) { append(" ${card.ar} ") }
                     },
-                    color = Night, fontFamily = Display, fontSize = 34.sp, lineHeight = 46.sp
+                    color = Night, fontFamily = Display, fontSize = 22.sp, lineHeight = 30.sp
                 )
             } else {
                 Text(
@@ -575,14 +571,14 @@ private fun ReviewCardView(card: ReviewCard) {
                 )
                 CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
                     Text(
-                        card.en, color = Night, fontFamily = Display, fontSize = 38.sp,
+                        card.en, color = Night, fontFamily = Display, fontSize = 28.sp,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start
                     )
                 }
-                if (card.ar.isNotBlank()) Text(card.ar, color = Night, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 17.sp)
+                if (card.ar.isNotBlank()) Text(card.ar, color = Night, fontFamily = Readex, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                 if (card.example.isNotBlank()) CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
                     Text(
-                        card.example, color = MintInk, fontFamily = Readex, fontSize = 15.sp, lineHeight = 22.sp,
+                        card.example, color = MintInk, fontFamily = Readex, fontSize = 13.sp, lineHeight = 19.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, modifier = Modifier.fillMaxWidth()
                     )
                 }
