@@ -105,6 +105,10 @@ fun VoiceChatScreen(store: SettingsStore) {
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsReady by remember { mutableStateOf(false) }
 
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) chatListState.animateScrollToItem(messages.lastIndex)
+    }
+
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { result ->
             ttsReady = result == TextToSpeech.SUCCESS
@@ -254,18 +258,26 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
     fun launchRecognition() {
         listening = true
         status = "Listening…  (tap to stop)"
+        // Show the learner's bubble right away; it is replaced by the transcript.
+        messages.add(VoiceChatMessage("🎤  …", true))
+        val placeholder = messages.lastIndex
+        fun dropPlaceholder() {
+            if (placeholder < messages.size && messages[placeholder].text == "🎤  …") messages.removeAt(placeholder)
+        }
         scope.launch {
             try {
                 val wav = withContext(Dispatchers.IO) { VoiceRecorder.record() }
                 listening = false
-                if (wav == null) { status = "I didn't catch that. Tap to try again."; return@launch }
+                if (wav == null) { dropPlaceholder(); status = "I didn't catch that. Tap to try again."; return@launch }
                 sending = true
                 status = "Understanding…"
                 val spoken = withContext(Dispatchers.IO) { VoiceRecorder.transcribe(store.ttsWorkerUrl, wav) }
                 sending = false
+                dropPlaceholder()
                 if (spoken.isBlank()) status = "I didn't catch that. Tap to try again."
                 else if (reviewing) handleReviewAnswer(spoken) else sendToAi(spoken)
             } catch (e: Exception) {
+                dropPlaceholder()
                 status = e.message ?: "Something went wrong. Please try again."
             } finally {
                 listening = false
@@ -304,7 +316,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
     )
 
     Box(
-        Modifier.fillMaxSize().background(Color(0xFFFAFAFB)).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxSize().background(Color(0xFFFAFAFB)).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -314,7 +326,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F2))
         ) {
             Box(Modifier.fillMaxSize()) {
-                Canvas(Modifier.fillMaxWidth().height(110.dp).align(Alignment.BottomCenter)) {
+                Canvas(Modifier.fillMaxWidth().height(80.dp).align(Alignment.BottomCenter)) {
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(VoiceGlowPink.copy(alpha = glow * 0.65f), Color.Transparent),
@@ -436,9 +448,9 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                     }
 
                     Column(
-                        Modifier.fillMaxWidth().padding(bottom = 28.dp, top = 8.dp),
+                        Modifier.fillMaxWidth().padding(bottom = 10.dp, top = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (reviewing) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -464,10 +476,10 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                 sending -> "One moment"
                                 else -> status
                             },
-                            color = VoiceMuted, fontSize = 17.sp, fontWeight = FontWeight.Medium
+                            color = VoiceMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium
                         )
                         Box(
-                            Modifier.size(82.dp)
+                            Modifier.size(64.dp)
                                 .shadow(3.dp, CircleShape)
                                 .clip(CircleShape)
                                 .background(Color.White)

@@ -52,14 +52,14 @@ object VoiceRecorder {
                     val bytes = ByteArray(n * 2)
                     for (i in 0 until n) { bytes[i * 2] = (buf[i].toInt() and 0xFF).toByte(); bytes[i * 2 + 1] = (buf[i].toInt() shr 8).toByte() }
                     pcm.write(bytes)
-                    if (silentMs >= 1400) break
-                } else if (totalMs >= 8000) break
+                    if (silentMs >= 800) break
+                } else if (totalMs >= 6000) break
             }
         } finally {
             runCatching { rec.stop() }
             rec.release()
         }
-        if (!heardSpeech || pcm.size() < RATE) return null
+        if (!heardSpeech || pcm.size() < RATE / 2) return null
         return wav(pcm.toByteArray())
     }
 
