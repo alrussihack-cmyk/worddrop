@@ -21,6 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.shadow
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,14 +89,18 @@ private fun answerMatches(heard: String, target: String): Boolean {
     return h.split(" ").any { it.length >= 5 && t.length >= 5 && editDistance(it, t) <= 1 }
 }
 
-private val VoiceInk = Color(0xFF17171D)
-private val VoiceMuted = Color(0xFF85858D)
-private val VoiceLine = Color(0xFFEDEDF0)
-private val VoiceBubble = Color(0xFFF0F0F2)
-private val VoiceAvatar = Color(0xFFE9E3ED)
-private val VoiceAvatarInk = Color(0xFF37364F)
-private val VoiceGlowPink = Color(0xFFF6D7E9)
-private val VoiceGlowBlue = Color(0xFFDCEBFA)
+private val VoiceInk = Color(0xFF17231F)
+private val VoiceMuted = Color(0xFF53645D)
+private val VoiceLine = Color(0xFF17231F)
+private val VoiceBubble = Color(0xFFFFFFFF)
+private val VoiceAvatar = Color(0xFF2FE0B5)
+private val VoiceAvatarInk = Color(0xFF17231F)
+private val VoiceGlowPink = Color(0xFFFFD5E3)
+private val VoiceGlowBlue = Color(0xFFB9F5E7)
+private val VoicePaper = Color(0xFFFFF8E8)
+private val VoiceMint = Color(0xFF2FE0B5)
+private val VoiceYellow = Color(0xFFFFD83D)
+private val VoicePink = Color(0xFFFF8EAF)
 
 @Composable
 fun VoiceChatScreen(store: SettingsStore) {
@@ -102,6 +111,7 @@ fun VoiceChatScreen(store: SettingsStore) {
     var listening by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Tap to speak") }
+    var draft by remember { mutableStateOf("") }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsReady by remember { mutableStateOf(false) }
 
@@ -316,14 +326,14 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
     )
 
     Box(
-        Modifier.fillMaxSize().background(Color(0xFFFAFAFB)).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
+        Modifier.fillMaxSize().background(VoicePaper).padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxSize().shadow(14.dp, RoundedCornerShape(34.dp)),
-            shape = RoundedCornerShape(34.dp),
-            color = Color.White,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F2))
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(30.dp),
+            color = VoicePaper,
+            border = androidx.compose.foundation.BorderStroke(0.dp, VoicePaper)
         ) {
             Box(Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxWidth().height(80.dp).align(Alignment.BottomCenter)) {
@@ -356,16 +366,16 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                             Modifier.size(54.dp).clip(CircleShape).background(VoiceAvatar),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("AR", color = VoiceAvatarInk, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                            Text("AI", color = VoiceAvatarInk, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                         }
                         Spacer(Modifier.width(14.dp))
                         Column {
-                            Text("Aria", color = VoiceInk, fontSize = 25.sp, fontWeight = FontWeight.Medium)
-                            Text("Voice assistant", color = VoiceMuted, fontSize = 16.sp)
+                            Text("وورد بوب AI", color = VoiceInk, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("مساعدك لتعلّم الإنجليزية", color = VoiceMuted, fontSize = 13.sp)
                         }
                         Spacer(Modifier.weight(1f))
                         Box(
-                            Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF7F7F8))
+                            Modifier.size(48.dp).clip(CircleShape).background(Color.White).border(2.5.dp, VoiceInk, CircleShape).shadow(3.dp, CircleShape)
                                 .clickable {
                                     messages.clear()
                                     reviewing = false
@@ -379,7 +389,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                         ) { Text("↻", color = VoiceMuted, fontSize = 24.sp) }
                     }
 
-                    HorizontalDivider(color = Color(0xFFF4F4F5))
+                    HorizontalDivider(color = VoiceLine.copy(alpha = 0.16f), thickness = 1.dp)
 
                     if (messages.isEmpty()) {
                         Column(
@@ -387,19 +397,21 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                             verticalArrangement = Arrangement.spacedBy(28.dp)
                         ) {
                             Surface(
-                                color = VoiceBubble,
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 8.dp)
+                                color = Color.White,
+                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 22.dp, bottomStart = 6.dp),
+                                border = androidx.compose.foundation.BorderStroke(2.5.dp, VoiceInk),
+                                modifier = Modifier.shadow(4.dp, RoundedCornerShape(22.dp), clip = false)
                             ) {
                                 Text(
-                                    "How can I help you today?",
+                                    "أهلاً! أنا وورد بوب AI. تحب نتكلم عن إيه النهارده؟",
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 15.dp),
-                                    color = VoiceInk, fontSize = 19.sp, lineHeight = 27.sp
+                                    color = VoiceInk, fontSize = 18.sp, lineHeight = 27.sp
                                 )
                             }
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp),
+                            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 14.dp),
                             state = chatListState,
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             contentPadding = PaddingValues(vertical = 24.dp)
@@ -421,8 +433,9 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                     Text(
                                         message.text,
                                         modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
-                                        color = VoiceInk, fontSize = 19.sp, lineHeight = 29.sp,
-                                        textAlign = TextAlign.End
+                                        color = VoiceInk, fontSize = 18.sp, lineHeight = 28.sp,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp).background(Color.White, RoundedCornerShape(18.dp)).border(2.dp, VoiceInk, RoundedCornerShape(18.dp)).padding(14.dp)
                                     )
                                 } else {
                                     Column(
@@ -431,15 +444,15 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                         verticalArrangement = Arrangement.spacedBy(9.dp)
                                     ) {
                                         if (message.card != null) ReviewCardView(message.card)
-                                        else Surface(color = VoiceBubble, shape = RoundedCornerShape(20.dp)) {
+                                        else Surface(color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(2.5.dp, VoiceInk), modifier = Modifier.shadow(4.dp, RoundedCornerShape(20.dp))) {
                                             Text(
                                                 message.text,
                                                 modifier = Modifier.padding(15.dp),
                                                 color = VoiceInk, fontSize = 17.sp, lineHeight = 25.sp
                                             )
                                         }
-                                        TextButton(onClick = { speak(message.spoken ?: message.text) }) {
-                                            Text("▶  Play response", color = VoiceMuted)
+                                        Surface(color = VoiceMint, shape = RoundedCornerShape(50), border = androidx.compose.foundation.BorderStroke(2.dp, VoiceInk), modifier = Modifier.clickable { speak(message.spoken ?: message.text) }) {
+                                            Text("▶ اسمع الرد", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = VoiceInk, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -478,19 +491,34 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                             },
                             color = VoiceMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium
                         )
-                        Box(
-                            Modifier.size(64.dp)
-                                .shadow(3.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .border(1.dp, Color(0xFFE8E8EB), CircleShape)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(color = VoiceYellow, shape = CircleShape,
+                                border = androidx.compose.foundation.BorderStroke(2.5.dp, VoiceInk),
+                                modifier = Modifier.size(52.dp).shadow(3.dp, CircleShape)
+                                    .clickable(enabled = draft.isNotBlank() && !sending) {
+                                        val value = draft.trim(); draft = ""; sendToAi(value)
+                                    }) {
+                                Box(contentAlignment = Alignment.Center) { Text("➤", color = VoiceInk, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                            }
+                            Surface(modifier = Modifier.weight(1f).heightIn(min = 58.dp),
+                                shape = RoundedCornerShape(50), color = Color.White,
+                                border = androidx.compose.foundation.BorderStroke(2.5.dp, VoiceInk)) {
+                                Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.CenterStart) {
+                                    if (draft.isBlank()) Text("اكتب رسالتك...", color = VoiceMuted, fontSize = 15.sp)
+                                    BasicTextField(value = draft, onValueChange = { draft = it },
+                                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                        textStyle = androidx.compose.ui.text.TextStyle(color = VoiceInk, fontSize = 16.sp))
+                                }
+                            }
+                            Box(Modifier.size(58.dp).shadow(4.dp, CircleShape).clip(CircleShape)
+                                .background(VoiceMint).border(3.dp, VoiceInk, CircleShape)
                                 .clickable(enabled = !sending) { startListening() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            VoiceMicGlyph(
-                                active = listening || sending,
-                                color = VoiceInk
-                            )
+                                contentAlignment = Alignment.Center) {
+                                VoiceMicGlyph(active = listening || sending, color = VoiceInk)
+                            }
                         }
                     }
                 }
@@ -533,10 +561,14 @@ private fun VoiceMicGlyph(active: Boolean, color: Color) {
 
 @Composable
 private fun ReviewPill(label: String, onClick: () -> Unit) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val lift by animateDpAsState(if (pressed) 1.dp else 4.dp, label = "pillDepth")
     Surface(
         shape = RoundedCornerShape(50),
-        color = VoiceBubble,
-        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick)
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(2.dp, VoiceInk),
+        modifier = Modifier.shadow(lift, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).clickable(interactionSource = interaction, indication = null, onClick = onClick)
     ) {
         Text(
             label,
@@ -550,12 +582,12 @@ private fun ReviewPill(label: String, onClick: () -> Unit) {
 @Composable
 private fun ReviewCardView(card: ReviewCard) {
     val shape = RoundedCornerShape(18.dp)
-    val bg = when (card.type) { 0 -> Tint; 1 -> Mint; else -> MissTint }
+    val bg = when (card.type) { 0 -> VoiceMint; 1 -> VoiceYellow; else -> VoicePink }
     CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
         Column(
             Modifier.fillMaxWidth().padding(end = 6.dp, bottom = 5.dp)
-                .hardShadow(shape, 4.dp).clip(shape).background(bg)
-                .border(2.dp, Night, shape).padding(horizontal = 14.dp, vertical = 12.dp),
+                .shadow(5.dp, shape).clip(shape).background(bg)
+                .border(2.5.dp, VoiceInk, shape).padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (card.type == 0) {
