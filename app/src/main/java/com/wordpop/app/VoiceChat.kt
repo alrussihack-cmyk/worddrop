@@ -15,6 +15,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -465,6 +466,20 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        if (!reviewing) {
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    "اقترح فكرة" to "Suggest an interesting topic for a short English conversation.",
+                                    "اشرحها تاني" to "Please explain your last answer in simpler English.",
+                                    "اختبرني" to "Give me a short English vocabulary quiz."
+                                ).forEach { (label, prompt) ->
+                                    ReviewPill(label) { sendToAi(prompt) }
+                                }
+                            }
+                        }
                         if (reviewing) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 val w = reviewQueue.getOrNull(reviewIndex)
