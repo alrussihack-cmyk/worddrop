@@ -18,6 +18,13 @@ object EasyVoiceClient {
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var activePlayer: MediaPlayer? = null
 
+    fun stopPlayback() {
+        main.post {
+            activePlayer?.let { runCatching { it.stop() }; it.release() }
+            activePlayer = null
+        }
+    }
+
     fun speak(
         context: Context,
         workerUrl: String,

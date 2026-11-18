@@ -41,6 +41,12 @@ export default {
       return generateAiResponse(request, env);
     }
 
+    if (url.pathname === "/ai/transcribe" && request.method === "POST") {
+      if (!(await allowRequest(request, env, "ai"))) return rateLimited();
+      if (!(await verifyAppCheckRequest(request, env))) return appCheckRequired();
+      return transcribeSpeech(request, env);
+    }
+
     // Existing EasyVoice endpoint remains compatible with older WordPop builds.
     if (url.pathname === "/" && request.method === "POST") {
       if (!(await allowRequest(request, env, "tts"))) return rateLimited();
@@ -313,6 +319,26 @@ async function generateAiResponse(request, env) {
     });
   } catch (error) {
     return json({ error: error?.message || "Unable to reach the AI service." }, 502);
+  }
+}
+
+// AI speech-to-text (Whisper on Workers AI). Needs the [ai] binding in wrangler.toml.
+async function transcribeSpeech(request, env) {
+  if (!env.AI) return json({ error: "Workers AI binding is missing. Redeploy the Worker with the [ai] binding." }, 503);
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "Invalid JSON body." }, 400); }
+  const audio = typeof body.audio === "string" ? body.audio : "";
+  if (!audio) return json({ error: "audio is required." }, 400);
+  if (audio.length > 4_000_000) return json({ error: "Audio is too long." }, 413);
+  try {
+    const result = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
+      audio,
+      language: typeof body.language === "string" ? body.language.slice(0, 5) : "en",
+    });
+    return json({ text: String(result?.text || "").trim() }, 200);
+  } catch (error) {
+    return json({ error: "Speech recognition failed.", detail: String(error?.message || error).slice(0, 300) }, 502);
   }
 }
 

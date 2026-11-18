@@ -12,6 +12,10 @@ namespace_id = "2026111010"
   limit = 12
   period = 60
 
+# Workers AI (Whisper) for voice chat speech-to-text.
+[ai]
+binding = "AI"
+
 [vars]
 FIREBASE_PROJECT_NUMBER = "922302031640"
 FIREBASE_APP_ID = "1:922302031640:android:373289c5e99f1e19dc206d"

@@ -1,10 +1,7 @@
 package com.wordpop.app
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -107,10 +104,21 @@ fun VoiceChatScreen(store: SettingsStore) {
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
 
+    // Aria's voice comes from the AI voice service (Worker/EasyVoice); the device voice is only a fallback.
+    var speechBuffer by remember { mutableStateOf("") }
+    fun playNow(text: String) {
+        val fallback = {
+            if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop_voice_reply")
+            Unit
+        }
+        EasyVoiceClient.speak(context, store.ttsWorkerUrl, text, store.speechVoice, fallback)
+    }
     fun speak(text: String, queue: Boolean = false) {
-        if (ttsReady) tts?.speak(
-            text, if (queue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "wordpop_voice_reply"
-        )
+        if (queue) speechBuffer = (speechBuffer + " " + text).trim()
+        else { speechBuffer = ""; playNow(text) }
+    }
+    fun flushSpeech() {
+        if (speechBuffer.isNotBlank()) { val t = speechBuffer; speechBuffer = ""; playNow(t) }
     }
 
     // Favourites review: Aria shows the Arabic meaning, the learner says the English word.
@@ -127,6 +135,7 @@ fun VoiceChatScreen(store: SettingsStore) {
             val line = "Review finished. You got $reviewScore out of $total."
             messages.add(VoiceChatMessage("$line\nانتهت المراجعة: $reviewScore من $total", false, line))
             speak(line, queue = true)
+            flushSpeech()
             reviewing = false
             status = "Tap to speak"
         } else {
@@ -138,6 +147,7 @@ fun VoiceChatScreen(store: SettingsStore) {
                 )
             )
             speak("Word ${reviewIndex + 1}. Say the English word for this meaning.", queue = true)
+            flushSpeech()
             status = "Tap to speak"
         }
     }
@@ -154,7 +164,8 @@ fun VoiceChatScreen(store: SettingsStore) {
         reviewing = true
         messages.add(VoiceChatMessage("مراجعة المفضلة: ${words.size} كلمات. هقولك المعنى وانت قول الكلمة بالإنجليزي.", false,
             "Let's review your favorite words. I'll show the meaning, and you say the English word."))
-        speak("Let's review your favorite words. I'll show the meaning, and you say the English word.")
+        speechBuffer = ""
+        speak("Let's review your favorite words. I'll show the meaning, and you say the English word.", queue = true)
         askNext()
     }
 
@@ -168,13 +179,15 @@ fun VoiceChatScreen(store: SettingsStore) {
             val ex = if (w.example.isNotBlank()) " ${w.example}" else ""
             messages.add(VoiceChatMessage("صح! ${w.en}${if (w.ar.isNotBlank()) " = ${w.ar}" else ""}" +
                 (if (w.example.isNotBlank()) "\n${w.example}" else ""), false, "Correct! ${w.en}.$ex"))
-            speak("Correct! ${w.en}.$ex")
+            speechBuffer = ""
+            speak("Correct! ${w.en}.$ex", queue = true)
         } else {
             store.learned = store.learned - w.id
             store.hard = store.hard + w.id
             store.recordReview(w.id, ReviewRating.Again)
             messages.add(VoiceChatMessage("مش بالظبط. الكلمة هي: ${w.en}", false, "Not quite. The word is ${w.en}."))
-            speak("Not quite. The word is ${w.en}.")
+            speechBuffer = ""
+            speak("Not quite. The word is ${w.en}.", queue = true)
         }
         reviewIndex++
         askNext()
@@ -225,35 +238,26 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
         }
     }
 
-    val speechResult = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        listening = false
-        if (result.resultCode == Activity.RESULT_OK) {
-            val spoken = result.data
-                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                ?.firstOrNull().orEmpty()
-            if (spoken.isNotBlank()) { if (reviewing) handleReviewAnswer(spoken) else sendToAi(spoken) }
-            else status = "I didn't catch that. Tap to try again."
-        } else {
-            status = "Tap to speak"
-        }
-    }
-
     fun launchRecognition() {
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak in English")
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        listening = true
+        status = "Listening…  (tap to stop)"
+        scope.launch {
+            try {
+                val wav = withContext(Dispatchers.IO) { VoiceRecorder.record() }
+                listening = false
+                if (wav == null) { status = "I didn't catch that. Tap to try again."; return@launch }
+                sending = true
+                status = "Understanding…"
+                val spoken = withContext(Dispatchers.IO) { VoiceRecorder.transcribe(store.ttsWorkerUrl, wav) }
+                sending = false
+                if (spoken.isBlank()) status = "I didn't catch that. Tap to try again."
+                else if (reviewing) handleReviewAnswer(spoken) else sendToAi(spoken)
+            } catch (e: Exception) {
+                status = e.message ?: "Something went wrong. Please try again."
+            } finally {
+                listening = false
+                sending = false
             }
-            listening = true
-            status = "Listening…"
-            speechResult.launch(intent)
-        } catch (_: Exception) {
-            listening = false
-            status = "Speech recognition isn't available on this device."
         }
     }
 
@@ -265,7 +269,10 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
     }
 
     fun startListening() {
-        if (sending || listening) return
+        if (listening) { VoiceRecorder.stop(); return }
+        if (sending) return
+        EasyVoiceClient.stopPlayback()
+        tts?.stop()
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         ) launchRecognition()
@@ -432,8 +439,10 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                 ReviewPill("Skip") { reviewQueue.getOrNull(reviewIndex)?.let { finishAnswer(false, it, null) } }
                                 ReviewPill("End") { endReview() }
                             }
-                        } else if (favoriteCount > 0) {
-                            ReviewPill("Review my favorites ($favoriteCount)") { startReview() }
+                        } else {
+                            ReviewPill(
+                                if (favoriteCount > 0) "Review my favorites ($favoriteCount)" else "Review favorites (add words ⭐ first)"
+                            ) { if (favoriteCount > 0) startReview() else status = "ضيف كلمات للمفضلة (⭐) الأول." }
                         }
                         Text(
                             when {
@@ -449,7 +458,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                 .clip(CircleShape)
                                 .background(Color.White)
                                 .border(1.dp, Color(0xFFE8E8EB), CircleShape)
-                                .clickable(enabled = !sending && !listening) { startListening() },
+                                .clickable(enabled = !sending) { startListening() },
                             contentAlignment = Alignment.Center
                         ) {
                             VoiceMicGlyph(
