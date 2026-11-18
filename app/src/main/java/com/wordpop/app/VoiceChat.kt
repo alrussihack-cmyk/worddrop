@@ -433,7 +433,6 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                 if (message.fromUser) {
                                     Text(
                                         message.text,
-                                        modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
                                         color = VoiceInk, fontSize = 18.sp, lineHeight = 28.sp,
                                         textAlign = TextAlign.End,
                                         modifier = Modifier.fillMaxWidth().padding(10.dp).background(Color.White, RoundedCornerShape(18.dp)).border(2.dp, VoiceInk, RoundedCornerShape(18.dp)).padding(14.dp)
