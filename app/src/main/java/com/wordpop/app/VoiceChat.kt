@@ -44,7 +44,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-private data class VoiceChatMessage(val text: String, val fromUser: Boolean)
+/** [spoken] is what Aria says aloud when it differs from what is shown (Arabic prompts stay on screen only). */
+private data class VoiceChatMessage(val text: String, val fromUser: Boolean, val spoken: String? = null)
+
+private fun normalizeAnswer(text: String): String =
+    text.lowercase().replace(Regex("[^a-z ]"), " ").replace(Regex("\\s+"), " ").trim()
+
+private fun editDistance(a: String, b: String): Int {
+    val dp = IntArray(b.length + 1) { it }
+    for (i in 1..a.length) {
+        var prev = dp[0]
+        dp[0] = i
+        for (j in 1..b.length) {
+            val tmp = dp[j]
+            dp[j] = minOf(dp[j] + 1, dp[j - 1] + 1, prev + if (a[i - 1] == b[j - 1]) 0 else 1)
+            prev = tmp
+        }
+    }
+    return dp[b.length]
+}
+
+/** Speech recognisers often add words or slip a letter, so accept the word inside the phrase or one letter off. */
+private fun answerMatches(heard: String, target: String): Boolean {
+    val h = normalizeAnswer(heard)
+    val t = normalizeAnswer(target)
+    if (h.isEmpty() || t.isEmpty()) return false
+    if (h == t || " $h ".contains(" $t ")) return true
+    return h.split(" ").any { it.length >= 5 && t.length >= 5 && editDistance(it, t) <= 1 }
+}
 
 private val VoiceInk = Color(0xFF17171D)
 private val VoiceMuted = Color(0xFF85858D)
@@ -80,8 +107,90 @@ fun VoiceChatScreen(store: SettingsStore) {
         onDispose { engine.stop(); engine.shutdown(); tts = null }
     }
 
-    fun speak(text: String) {
-        if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "wordpop_voice_reply")
+    fun speak(text: String, queue: Boolean = false) {
+        if (ttsReady) tts?.speak(
+            text, if (queue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "wordpop_voice_reply"
+        )
+    }
+
+    // Favourites review: Aria shows the Arabic meaning, the learner says the English word.
+    var reviewQueue by remember { mutableStateOf<List<Word>>(emptyList()) }
+    var reviewIndex by remember { mutableIntStateOf(0) }
+    var reviewScore by remember { mutableIntStateOf(0) }
+    var reviewing by remember { mutableStateOf(false) }
+    val favoriteCount = store.favWords.count { WordRepo.get(it) != null }
+
+    fun askNext() {
+        val w = reviewQueue.getOrNull(reviewIndex)
+        if (w == null) {
+            val total = reviewQueue.size
+            val line = "Review finished. You got $reviewScore out of $total."
+            messages.add(VoiceChatMessage("$line\nانتهت المراجعة: $reviewScore من $total", false, line))
+            speak(line, queue = true)
+            reviewing = false
+            status = "Tap to speak"
+        } else {
+            val kind = if (w.kind.isNotBlank()) " (${w.kind})" else ""
+            messages.add(
+                VoiceChatMessage(
+                    "${reviewIndex + 1}/${reviewQueue.size}  •  قول الكلمة بالإنجليزي:\n«${w.ar}»$kind",
+                    false, "Word ${reviewIndex + 1}. Say the English word for this meaning."
+                )
+            )
+            speak("Word ${reviewIndex + 1}. Say the English word for this meaning.", queue = true)
+            status = "Tap to speak"
+        }
+    }
+
+    fun startReview() {
+        if (sending || listening) return
+        val words = store.favWords.mapNotNull { WordRepo.get(it) }.shuffled().take(10)
+        if (words.isEmpty()) return
+        tts?.stop()
+        messages.clear()
+        reviewQueue = words
+        reviewIndex = 0
+        reviewScore = 0
+        reviewing = true
+        messages.add(VoiceChatMessage("مراجعة المفضلة: ${words.size} كلمات. هقولك المعنى وانت قول الكلمة بالإنجليزي.", false,
+            "Let's review your favorite words. I'll show the meaning, and you say the English word."))
+        speak("Let's review your favorite words. I'll show the meaning, and you say the English word.")
+        askNext()
+    }
+
+    fun finishAnswer(correct: Boolean, w: Word, heard: String?) {
+        if (heard != null) messages.add(VoiceChatMessage(heard, true))
+        if (correct) {
+            reviewScore++
+            store.markLearned(w.id)
+            store.hard = store.hard - w.id
+            store.recordReview(w.id, ReviewRating.Good)
+            val ex = if (w.example.isNotBlank()) " ${w.example}" else ""
+            messages.add(VoiceChatMessage("صح! ${w.en}${if (w.ar.isNotBlank()) " = ${w.ar}" else ""}" +
+                (if (w.example.isNotBlank()) "\n${w.example}" else ""), false, "Correct! ${w.en}.$ex"))
+            speak("Correct! ${w.en}.$ex")
+        } else {
+            store.learned = store.learned - w.id
+            store.hard = store.hard + w.id
+            store.recordReview(w.id, ReviewRating.Again)
+            messages.add(VoiceChatMessage("مش بالظبط. الكلمة هي: ${w.en}", false, "Not quite. The word is ${w.en}."))
+            speak("Not quite. The word is ${w.en}.")
+        }
+        reviewIndex++
+        askNext()
+    }
+
+    fun handleReviewAnswer(heard: String) {
+        val w = reviewQueue.getOrNull(reviewIndex) ?: return
+        finishAnswer(answerMatches(heard, w.en), w, heard)
+    }
+
+    fun endReview() {
+        tts?.stop()
+        reviewing = false
+        reviewQueue = emptyList()
+        messages.add(VoiceChatMessage("وقفنا المراجعة. تقدر تبدأها تاني في أي وقت.", false, "Okay, we stopped the review."))
+        status = "Tap to speak"
     }
 
     fun sendToAi(text: String) {
@@ -124,7 +233,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
             val spoken = result.data
                 ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                 ?.firstOrNull().orEmpty()
-            if (spoken.isNotBlank()) sendToAi(spoken)
+            if (spoken.isNotBlank()) { if (reviewing) handleReviewAnswer(spoken) else sendToAi(spoken) }
             else status = "I didn't catch that. Tap to try again."
         } else {
             status = "Tap to speak"
@@ -227,6 +336,8 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                             Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF7F7F8))
                                 .clickable {
                                     messages.clear()
+                                    reviewing = false
+                                    reviewQueue = emptyList()
                                     tts?.stop()
                                     status = "Tap to speak"
                                     listening = false
@@ -294,7 +405,7 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                                                 color = VoiceInk, fontSize = 17.sp, lineHeight = 25.sp
                                             )
                                         }
-                                        TextButton(onClick = { speak(message.text) }) {
+                                        TextButton(onClick = { speak(message.spoken ?: message.text) }) {
                                             Text("▶  Play response", color = VoiceMuted)
                                         }
                                     }
@@ -308,6 +419,22 @@ Reply with JSON only: {"reply":"your spoken reply here"}"""
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
+                        if (reviewing) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                val w = reviewQueue.getOrNull(reviewIndex)
+                                ReviewPill("Hint") {
+                                    if (w != null) {
+                                        val h = "يبدأ بحرف «${w.en.first()}» وعدد حروفه ${w.en.length}"
+                                        messages.add(VoiceChatMessage(h, false, "It starts with ${w.en.first()}, and has ${w.en.length} letters."))
+                                        speak("It starts with ${w.en.first()}, and has ${w.en.length} letters.")
+                                    }
+                                }
+                                ReviewPill("Skip") { reviewQueue.getOrNull(reviewIndex)?.let { finishAnswer(false, it, null) } }
+                                ReviewPill("End") { endReview() }
+                            }
+                        } else if (favoriteCount > 0) {
+                            ReviewPill("Review my favorites ($favoriteCount)") { startReview() }
+                        }
                         Text(
                             when {
                                 listening -> "Listening…"
@@ -366,5 +493,20 @@ private fun VoiceMicGlyph(active: Boolean, color: Color) {
                 cap = androidx.compose.ui.graphics.StrokeCap.Round
             )
         }
+    }
+}
+
+@Composable
+private fun ReviewPill(label: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = VoiceBubble,
+        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick)
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+            color = VoiceInk, fontSize = 15.sp, fontWeight = FontWeight.Medium
+        )
     }
 }
