@@ -235,7 +235,7 @@ fun SettingsSwipeScreen(
                 contentPadding = PaddingValues(horizontal = sidePadding),
                 pageSpacing = 14.dp
             ) { page ->
-                val cardIndex = SettingsCardsSync.cardIds.indexOf(visibleCardIds[page]).coerceAtLeast(0)
+                val cardIndex = SettingsCardsSync.cardIds.indexOf(visibleCardIds.getOrNull(page)).coerceIn(0, 11)
                 SettingsCardFrame(
                     number = cardIndex + 1,
                     title = listOf(

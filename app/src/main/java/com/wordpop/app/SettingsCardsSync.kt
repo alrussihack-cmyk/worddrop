@@ -36,10 +36,13 @@ object SettingsCardsSync {
     var status: String by mutableStateOf("في انتظار مزامنة إعدادات البطاقات")
         private set
 
+    /** "voiceChat" only toggles the chat tab; it is not one of the 12 swipeable settings cards. */
+    private val pagerCardIds = cardIds.filter { it != "voiceChat" }
+
     val visibleCardIds: List<String>
         get() {
             val current = visibility
-            return cardIds.filter { current[it] != false }.ifEmpty { cardIds }
+            return pagerCardIds.filter { current[it] != false }.ifEmpty { pagerCardIds }
         }
 
     @Synchronized
