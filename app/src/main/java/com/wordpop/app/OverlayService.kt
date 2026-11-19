@@ -334,13 +334,15 @@ class OverlayService : Service() {
         }
         val icon = ImageView(this).apply {
             setImageResource(R.drawable.ic_logo)
-            layoutParams = LinearLayout.LayoutParams(dp(36), dp(36))
+            // Keep the mascot compact so the English word gets enough horizontal room.
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
         }
         val texts = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            // This is the flexible column: it takes all remaining header width.
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(12)
-                marginEnd = dp(12)
+                marginStart = dp(6)
+                marginEnd = dp(6)
             }
         }
         val en = TextView(this).apply {
@@ -351,7 +353,11 @@ class OverlayService : Service() {
             textDirection = View.TEXT_DIRECTION_LTR
             gravity = Gravity.START
             maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
+            // Shrink the title on narrow phones instead of cutting off the final letters.
+            setAutoSizeTextTypeUniformWithConfiguration(
+                dp(16), dp(26), dp(1), android.util.TypedValue.COMPLEX_UNIT_PX
+            )
+            includeFontPadding = false
         }
         val ar = TextView(this).apply {
             text = w.ar
@@ -375,7 +381,7 @@ class OverlayService : Service() {
             }
             setPadding(dp(11), dp(11), dp(11), dp(11))
             contentDescription = "نطق الكلمة"
-            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
             setOnClickListener {
                 resetTimer()
                 speak(w.en)
@@ -386,7 +392,7 @@ class OverlayService : Service() {
             setColorFilter(t.sub)
             setPadding(dp(6), dp(6), dp(6), dp(6))
             contentDescription = "إغلاق"
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(6) }
+            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginStart = dp(4) }
             setOnClickListener { finishBanner() }
         }
         header.addView(icon)
