@@ -355,7 +355,7 @@ class OverlayService : Service() {
             maxLines = 1
             // Shrink the title on narrow phones instead of cutting off the final letters.
             setAutoSizeTextTypeUniformWithConfiguration(
-                dp(16), dp(26), dp(1), android.util.TypedValue.COMPLEX_UNIT_PX
+                16, 26, 1, android.util.TypedValue.COMPLEX_UNIT_SP
             )
             includeFontPadding = false
         }
